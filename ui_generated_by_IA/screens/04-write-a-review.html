@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mercatto — Write a review (reference)</title>
+<link rel="stylesheet" href="../design-system/styles.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f2f2f3}
+a{color:var(--color-accent-700);text-decoration:none}
+a:hover{color:var(--color-accent-800);text-decoration:underline}
+.ph{position:relative;display:flex;align-items:center;justify-content:center;border:1px solid var(--color-divider);background:repeating-linear-gradient(45deg,#e7e7ea 0 7px,#f5f5f8 7px 14px)}
+.ph span{font-family:var(--font-heading);font-weight:600;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7a7a7d}
+.prod{transition:box-shadow .15s}
+.prod:hover{box-shadow:var(--shadow-md)}
+.kick{font-family:var(--font-heading);font-weight:600;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent)}
+.h{font-family:var(--font-heading);font-weight:600;letter-spacing:.01em}
+.navlink{border:0;background:transparent;color:#e7e7ea;font:inherit;font-size:12.5px;letter-spacing:.04em;padding:9px 12px;cursor:pointer}
+.navlink:hover{background:var(--color-accent-700)}
+.stars{color:var(--color-accent-700);letter-spacing:1px}
+</style>
+</head>
+<body>
+<!--
+  Excerpt of ../Mercatto.dc.html — screen: Write a review.
+  Template syntax ({{ }}, <sc-for>, <sc-if>) and event handlers are left as-is
+  from the source prototype; this is unrendered reference markup (structure,
+  copy, exact values), not a runnable page. See ../README.md before implementing.
+-->
+<div style="min-height:100vh;font-family:var(--font-body);color:var(--color-text);background:var(--color-bg);font-size:14px">
+
+  <header style="background:var(--color-accent-900);color:#f2f2f3">
+    <div style="max-width:1280px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:20px">
+      <div onClick="{{ goHome }}" style="cursor:pointer;display:flex;align-items:baseline;gap:8px">
+        <span class="h" style="font-size:26px;letter-spacing:.06em;text-transform:uppercase">{{ store }}</span>
+        <span style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--color-accent-400)">marketplace</span>
+      </div>
+      <div style="display:flex;flex:1;max-width:720px;border:1px solid var(--color-accent-700);background:#f2f2f3">
+        <select value="{{ category }}" onChange="{{ onCategory }}" style="border:0;border-right:1px solid var(--color-divider);background:#e7e7ea;font:inherit;font-size:12px;padding:0 8px;color:#1d1f20;outline:none">
+          <sc-for list="{{ categories }}" as="c" hint-placeholder-count="4">
+            <option value="{{ c }}">{{ c }}</option>
+          </sc-for>
+        </select>
+        <input value="{{ query }}" onChange="{{ onQuery }}" onKeyDown="{{ onEnter }}" placeholder="Search products, brands and categories" style="flex:1;border:0;background:transparent;font:inherit;font-size:14px;padding:9px 12px;color:#1d1f20;outline:none">
+        <button onClick="{{ search }}" style="border:0;background:var(--color-accent);color:#f2f2f3;padding:0 18px;cursor:pointer;font-family:var(--font-heading);font-weight:600;font-size:14px;letter-spacing:.08em;text-transform:uppercase">Search</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:22px;font-size:12px">
+        <div onClick="{{ goSignIn }}" style="line-height:1.25;cursor:pointer">
+          <div style="color:var(--color-accent-400);font-size:11px">{{ greeting }}</div>
+          <div class="h" style="font-size:14px">{{ accountLabel }}</div>
+        </div>
+        <div onClick="{{ goOrders }}" style="line-height:1.25;cursor:pointer">
+          <div style="color:var(--color-accent-400);font-size:11px">Returns</div>
+          <div class="h" style="font-size:14px">&amp; Orders</div>
+        </div>
+        <div onClick="{{ goCart }}" style="display:flex;align-items:flex-end;gap:6px;cursor:pointer">
+          <div style="padding:2px 5px;border:1px solid var(--color-accent-700)"><span class="h" style="font-size:13px">CART</span></div>
+          <span class="h" style="font-size:20px;color:var(--color-accent-400);line-height:.9">{{ itemCount }}</span>
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--color-accent-800);border-top:1px solid var(--color-accent-700)">
+      <div style="max-width:1280px;margin:0 auto;padding:0 24px;display:flex;gap:2px;align-items:center;flex-wrap:wrap">
+        <sc-for list="{{ menu }}" as="m" hint-placeholder-count="7">
+          <button class="navlink" onClick="{{ m.onClick }}">{{ m.name }}</button>
+        </sc-for>
+        <button class="navlink" onClick="{{ goLists }}" style="margin-left:auto;color:var(--color-accent-400)">Your Lists</button>
+      </div>
+    </div>
+  </header>
+
+  <main data-screen-label="Write a review" style="max-width:760px;margin:0 auto;padding:36px 24px 80px">
+    <h1 class="h" style="font-size:32px;margin:0 0 18px">Create a review</h1>
+    <div class="blueprint" style="padding:20px;display:flex;gap:16px;align-items:center;margin-bottom:20px">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div class="ph duotone" style="width:82px;height:82px;flex:none"><span>Item</span></div>
+      <div>
+        <div class="h" style="font-size:19px">{{ pName }}</div>
+        <div style="font-size:12.5px;color:#7a7a7d">{{ pBrand }} · {{ pCategory }}</div>
+      </div>
+    </div>
+    <div class="blueprint" style="padding:20px;display:flex;flex-direction:column;gap:16px">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div>
+        <div class="h" style="font-size:16px;margin-bottom:6px">Overall rating</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <sc-for list="{{ ratingPicker }}" as="s" hint-placeholder-count="5">
+            <button onClick="{{ s.onPick }}" style="border:0;background:transparent;cursor:pointer;font-size:30px;line-height:1;padding:0;color:{{ s.color }}">{{ s.glyph }}</button>
+          </sc-for>
+          <span style="font-size:13px;color:#5d5d60;margin-left:8px">{{ draftRatingLabel }}</span>
+        </div>
+      </div>
+      <div class="field"><label>Headline</label><input class="input" value="{{ draftTitle }}" onChange="{{ onDraftTitle }}" placeholder="What is most important to know?"></div>
+      <div class="field"><label>Written review</label><textarea class="input" value="{{ draftText }}" onChange="{{ onDraftText }}" placeholder="What did you like or dislike? What did you use this product for?"></textarea></div>
+      <div class="field"><label>Add a photo or video</label><div class="ph" style="height:96px"><span>Drop files here</span></div></div>
+      <div style="display:flex;gap:12px">
+        <button class="btn btn-primary" onClick="{{ submitReview }}">Submit review</button>
+        <button class="btn btn-secondary" onClick="{{ backToProduct }}">Cancel</button>
+      </div>
+    </div>
+  </main>
+
+  <footer style="background:var(--color-accent-900);color:#d4d4d7;margin-top:20px">
+    <div style="max-width:1280px;margin:0 auto;padding:38px 24px;display:grid;grid-template-columns:repeat(4,1fr);gap:28px;font-size:13px">
+      <div>
+        <div class="h" style="color:#f2f2f3;font-size:15px;margin-bottom:10px;letter-spacing:.1em;text-transform:uppercase">Get to know us</div>
+        <div style="display:flex;flex-direction:column;gap:6px"><span>About the store</span><span>Careers</span><span>Sustainability</span></div>
+      </div>
+      <div>
+        <div class="h" style="color:#f2f2f3;font-size:15px;margin-bottom:10px;letter-spacing:.1em;text-transform:uppercase">Sell with us</div>
+        <div style="display:flex;flex-direction:column;gap:6px"><span>Become a partner</span><span>Affiliate program</span><span>Advertise products</span></div>
+      </div>
+      <div>
+        <div class="h" style="color:#f2f2f3;font-size:15px;margin-bottom:10px;letter-spacing:.1em;text-transform:uppercase">Payment</div>
+        <div style="display:flex;flex-direction:column;gap:6px"><span>Credit card</span><span>Store card</span><span>Gift cards</span></div>
+      </div>
+      <div>
+        <div class="h" style="color:#f2f2f3;font-size:15px;margin-bottom:10px;letter-spacing:.1em;text-transform:uppercase">Help</div>
+        <div style="display:flex;flex-direction:column;gap:6px"><span>Customer service</span><span>Returns</span><span>Track a package</span></div>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--color-accent-700);padding:16px 24px;text-align:center;font-size:11.5px;color:var(--color-accent-400)">Academic prototype · {{ store }} · Fictional interface built for coursework</div>
+  </footer>
+
+</div>
+</body>
+</html>
