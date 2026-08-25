@@ -4,6 +4,7 @@ import com.mercatto.users.domain.User;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -13,14 +14,14 @@ import java.util.Optional;
 class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public User register(String name, String email, String rawPassword, UserRole role) {
         User user = User.builder()
                 .name(name)
                 .email(email)
-                // TODO: replace with a real password encoder once the Auth module is plugged in.
-                .passwordHash(rawPassword)
+                .passwordHash(passwordEncoder.encode(rawPassword))
                 .role(role)
                 .build();
         return userRepository.save(user);
