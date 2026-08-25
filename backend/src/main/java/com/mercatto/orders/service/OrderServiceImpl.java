@@ -14,7 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Orders calls Catalog synchronously through {@link ProductService} (its
@@ -33,6 +35,16 @@ class OrderServiceImpl implements OrderService {
     private final PaymentGateway paymentGateway;
     private final ApplicationEventPublisher eventPublisher;
 
+    /**
+     * Validates stock against the quantity read here before charging, so an
+     * out-of-stock item is rejected instead of billed. This is still a
+     * read-then-decide check against a snapshot: the actual decrement stays
+     * asynchronous (see {@link com.mercatto.orders.event.OrderPlacedEventListener})
+     * to keep this transaction from touching Catalog's tables, so two
+     * concurrent checkouts of the last unit can both pass this check — that
+     * residual race is accepted for ORD-1 and exercised against real
+     * concurrency by the Testcontainers suite in QA-4 (#64).
+     */
     @Override
     @Transactional
     public Order checkout(Long buyerId, List<CheckoutItem> items) {
@@ -42,10 +54,20 @@ class OrderServiceImpl implements OrderService {
                 .totalAmount(BigDecimal.ZERO)
                 .build();
 
+        Map<Long, Integer> requestedQuantities = items.stream()
+                .collect(Collectors.groupingBy(CheckoutItem::productId, Collectors.summingInt(CheckoutItem::quantity)));
+
         BigDecimal total = BigDecimal.ZERO;
         for (CheckoutItem checkoutItem : items) {
             Product product = productService.findById(checkoutItem.productId())
                     .orElseThrow(() -> new IllegalArgumentException("Product not found: " + checkoutItem.productId()));
+
+            int requestedQuantity = requestedQuantities.get(checkoutItem.productId());
+            if (requestedQuantity > product.getStockQuantity()) {
+                throw new InsufficientStockException(
+                        "Insufficient stock for product " + product.getId() + ": requested "
+                                + requestedQuantity + ", available " + product.getStockQuantity());
+            }
 
             total = total.add(product.getPrice().multiply(BigDecimal.valueOf(checkoutItem.quantity())));
 
