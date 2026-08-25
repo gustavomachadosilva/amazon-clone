@@ -71,11 +71,11 @@ class OrderServiceImpl implements OrderService {
 
     @Override
     public Optional<Order> findById(Long id) {
-        return orderRepository.findById(id);
+        return orderRepository.findByIdWithItems(id);
     }
 
     @Override
     public List<Order> findByBuyer(Long buyerId) {
-        return orderRepository.findByBuyerId(buyerId);
+        return orderRepository.findByBuyerIdWithItems(buyerId);
     }
 }

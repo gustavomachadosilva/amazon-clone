@@ -1,24 +1,33 @@
-import { Route, Routes, Link } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
+import Layout from './components/layout/Layout'
 import Home from './pages/Home'
-import ProductPage from './pages/ProductPage'
+import Search from './pages/Search'
+import Product from './pages/Product'
+import WriteReview from './pages/WriteReview'
+import Lists from './pages/Lists'
 import Cart from './pages/Cart'
+import SignIn from './pages/SignIn'
+import Checkout from './pages/Checkout'
+import OrderConfirmation from './pages/OrderConfirmation'
+import Orders from './pages/Orders'
 import SellerDashboard from './pages/SellerDashboard'
 
 export default function App() {
   return (
-    <div>
-      <nav className="flex gap-4 p-4 border-b">
-        <Link to="/">Mercatto</Link>
-        <Link to="/cart">Carrinho</Link>
-        <Link to="/seller">Painel do Vendedor</Link>
-      </nav>
-
-      <Routes>
+    <Routes>
+      <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
-        <Route path="/products/:id" element={<ProductPage />} />
+        <Route path="/search" element={<Search />} />
+        <Route path="/product/:id" element={<Product />} />
+        <Route path="/product/:id/review" element={<WriteReview />} />
+        <Route path="/lists" element={<Lists />} />
         <Route path="/cart" element={<Cart />} />
-        <Route path="/seller" element={<SellerDashboard />} />
-      </Routes>
-    </div>
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/order/:id" element={<OrderConfirmation />} />
+        <Route path="/orders" element={<Orders />} />
+      </Route>
+      <Route path="/seller" element={<SellerDashboard />} />
+    </Routes>
   )
 }
