@@ -25,4 +25,7 @@ transaction.
   para a `main`.
 - Antes de abrir a PR, rode os testes e verificações do código afetado para garantir que nada
   quebrou: `mvn test` em `/backend` para mudanças de backend, e `npm run lint` / `npm run build`
-  em `/frontend` para mudanças de frontend.
+  em `/frontend` para mudanças de frontend. O skill `/pr-check` automatiza isso (testes +
+  revisão de código + checagem do Contrato de Modularidade). Se o usuário pedir para abrir a PR
+  sem ter rodado `/pr-check` na conversa, recomende rodar antes — mas a decisão de rodar ou ir
+  direto para a PR é dele.
