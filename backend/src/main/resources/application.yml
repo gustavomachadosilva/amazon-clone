@@ -1,0 +1,22 @@
+server:
+  port: ${BACKEND_PORT:8080}
+
+spring:
+  application:
+    name: mercatto
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:mercatto}
+    username: ${DB_USER:mercatto}
+    password: ${DB_PASSWORD:mercatto}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        hbm2ddl:
+          create_namespaces: true
+    open-in-view: false
+
+logging:
+  level:
+    com.mercatto: DEBUG
