@@ -11,8 +11,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("""
             select p from Product p
-            where (:query is null or lower(p.name) like lower(concat('%', :query, '%')))
-              and (:category is null or p.category = :category)
+            where (:query is null or lower(p.name) like lower(concat('%', cast(:query as string), '%')))
+              and (:category is null or p.category = cast(:category as string))
             """)
     Page<Product> search(@Param("query") String query, @Param("category") String category, Pageable pageable);
 

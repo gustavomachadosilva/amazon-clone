@@ -46,3 +46,33 @@ export const catalogApi = {
 export const sellersApi = {
   getInventory: (sellerId: number) => api.get<Page<Product>>(`/api/sellers/${sellerId}/products`),
 }
+
+export type OrderStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED'
+
+export interface OrderItem {
+  id: number
+  productId: number
+  quantity: number
+  unitPrice: number
+}
+
+export interface Order {
+  id: number
+  buyerId: number
+  status: OrderStatus
+  totalAmount: number
+  items: OrderItem[]
+  createdAt: string
+}
+
+export interface CheckoutItem {
+  productId: number
+  quantity: number
+}
+
+export const ordersApi = {
+  checkout: (buyerId: number, items: CheckoutItem[]) =>
+    api.post<Order>('/api/orders/checkout', { buyerId, items }),
+  getById: (id: number) => api.get<Order>(`/api/orders/${id}`),
+  listByBuyer: (buyerId: number) => api.get<Order[]>(`/api/orders?buyerId=${buyerId}`),
+}
