@@ -16,3 +16,13 @@ transaction.
   only) and the "Industry" design system/token set (`_ds/`). High-fidelity reference for all nine
   screens (see its `README.md`); not production code to copy directly — recreate the screens as
   React components using the frontend's own stack, mapping these tokens onto Tailwind.
+
+## Fluxo de trabalho no GitHub
+
+- Antes de começar qualquer implementação, atualize a `main` local (`git checkout main && git
+  pull`) e crie uma branch nova a partir dela para o trabalho.
+- Nunca faça push direto para a `main`. Toda mudança entra por Pull Request da branch de trabalho
+  para a `main`.
+- Antes de abrir a PR, rode os testes e verificações do código afetado para garantir que nada
+  quebrou: `mvn test` em `/backend` para mudanças de backend, e `npm run lint` / `npm run build`
+  em `/frontend` para mudanças de frontend.
