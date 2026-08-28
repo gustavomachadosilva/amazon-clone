@@ -1,7 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import Blueprint from './ui/Blueprint'
-import Placeholder from './ui/Placeholder'
-import StarRating from './ui/StarRating'
+import { Button, Blueprint, Placeholder, StarRating } from './ui'
 import { useCart } from '../context/CartContext'
 import { useReviews } from '../context/ReviewsContext'
 import { usd } from '../lib/format'
@@ -58,9 +56,9 @@ export default function ProductGridCard({ product, compact = false }: ProductGri
       </div>
       {!compact && <div style={{ fontSize: '11.5px', color: '#5d5d60' }}>{deriveDeliveryLabel(product)}</div>}
       {!compact && (
-        <button className="btn btn-primary btn-block" onClick={addToCart}>
+        <Button variant="primary" block onClick={addToCart}>
           Add to cart
-        </button>
+        </Button>
       )}
     </Blueprint>
   )

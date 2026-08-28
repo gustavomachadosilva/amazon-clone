@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Product, sellersApi } from '../services/api'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui'
 
 const SELLER_ID = 1
 
@@ -13,24 +14,24 @@ export default function SellerDashboard() {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Painel do Vendedor</h1>
-      <table className="w-full text-left border-collapse">
-        <thead>
-          <tr className="border-b">
-            <th className="py-2">Produto</th>
-            <th className="py-2">Estoque</th>
-            <th className="py-2">Preço</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Produto</TableHeader>
+            <TableHeader>Estoque</TableHeader>
+            <TableHeader>Preço</TableHeader>
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {products.map((product) => (
-            <tr key={product.id} className="border-b">
-              <td className="py-2">{product.name}</td>
-              <td className="py-2">{product.stockQuantity}</td>
-              <td className="py-2">R$ {product.price}</td>
-            </tr>
+            <TableRow key={product.id}>
+              <TableCell>{product.name}</TableCell>
+              <TableCell>{product.stockQuantity}</TableCell>
+              <TableCell>R$ {product.price}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   )
 }
