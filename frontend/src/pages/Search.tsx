@@ -3,9 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import Blueprint from '../components/ui/Blueprint'
 import Placeholder from '../components/ui/Placeholder'
 import StarRating from '../components/ui/StarRating'
+import Pagination from '../components/ui/Pagination'
 import { useCart } from '../context/CartContext'
 import { useReviews } from '../context/ReviewsContext'
-import { catalogApi, type Product } from '../services/api'
+import { catalogApi, type Page, type Product } from '../services/api'
 import { CATEGORIES } from '../lib/constants'
 import { usd } from '../lib/format'
 import { installmentLine } from '../lib/pricing'
@@ -30,17 +31,22 @@ export default function Search() {
   const minRating = Number(searchParams.get('minRating') ?? 0)
   const fastOnly = searchParams.get('fast') === '1'
   const sort = searchParams.get('sort') ?? 'relevance'
+  const pageParam = Math.max(0, Number(searchParams.get('page') ?? 1) - 1)
 
-  const [results, setResults] = useState<Product[]>([])
+  const [pageData, setPageData] = useState<Page<Product> | null>(null)
 
   useEffect(() => {
-    catalogApi.search(q || undefined, category === 'All' ? undefined : category).then((page) => setResults(page.content))
-  }, [q, category])
+    catalogApi
+      .search(q || undefined, category === 'All' ? undefined : category, pageParam)
+      .then((data) => setPageData(data))
+  }, [q, category, pageParam])
 
   function ratingOf(product: Product): number {
     const list = reviews.getReviews(product.id)
     return list.reduce((sum, r) => sum + r.stars, 0) / list.length
   }
+
+  const results = pageData?.content ?? []
 
   let filtered = results.filter((product) => {
     if (product.price > maxPrice) return false
@@ -57,6 +63,9 @@ export default function Search() {
     const next = new URLSearchParams(searchParams)
     if (value === null) next.delete(key)
     else next.set(key, value)
+    if (key !== 'page') {
+      next.delete('page')
+    }
     setSearchParams(next)
   }
 
@@ -205,6 +214,16 @@ export default function Search() {
               </Blueprint>
             ))}
           </div>
+        )}
+
+        {pageData && pageData.totalPages > 1 && (
+          <Pagination
+            currentPage={pageData.number}
+            totalPages={pageData.totalPages}
+            totalElements={pageData.totalElements}
+            pageSize={pageData.size}
+            onPageChange={(newPage) => setParam('page', (newPage + 1).toString())}
+          />
         )}
       </section>
     </div>
