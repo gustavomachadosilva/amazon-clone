@@ -44,6 +44,9 @@ public class Product {
     @Column(nullable = false)
     private String category;
 
+    @Column(name = "image_url", length = 1000)
+    private String imageUrl;
+
     // Reference by id only, never a JPA relationship: the Users module owns
     // the Seller aggregate and this module must not join across schemas.
     @Column(name = "seller_id", nullable = false)
