@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Blueprint from '../components/ui/Blueprint'
-import Placeholder from '../components/ui/Placeholder'
+import { Blueprint, Button, Placeholder } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useProductsByIds } from '../hooks/useProductsByIds'
@@ -27,9 +26,9 @@ export default function Orders() {
     return (
       <div style={{ maxWidth: 1080, margin: '0 auto', padding: 24, textAlign: 'center' }}>
         <h1>Sign in to see your orders</h1>
-        <button className="btn btn-primary" onClick={() => navigate('/signin')}>
+        <Button variant="primary" onClick={() => navigate('/signin')}>
           Sign in
-        </button>
+        </Button>
       </div>
     )
   }
@@ -42,9 +41,9 @@ export default function Orders() {
       {orders.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 40 }}>
           <h3>No orders yet</h3>
-          <button className="btn btn-primary" onClick={() => navigate('/')}>
+          <Button variant="primary" onClick={() => navigate('/')}>
             Start shopping
-          </button>
+          </Button>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginTop: 16 }}>
@@ -99,8 +98,8 @@ export default function Orders() {
                           </div>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          <button
-                            className="btn btn-primary"
+                          <Button
+                            variant="primary"
                             onClick={() => {
                               if (product) {
                                 cart.addItem(product, item.quantity)
@@ -110,10 +109,10 @@ export default function Orders() {
                             disabled={!product}
                           >
                             Buy it again
-                          </button>
-                          <button className="btn btn-secondary" onClick={() => navigate(`/product/${item.productId}/review`)}>
+                          </Button>
+                          <Button variant="secondary" onClick={() => navigate(`/product/${item.productId}/review`)}>
                             Write a product review
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     )

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Blueprint from '../components/ui/Blueprint'
+import { Blueprint, Button, Input } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { STORE_NAME } from '../lib/constants'
 
@@ -34,30 +34,25 @@ export default function SignIn() {
 
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
           {mode === 'register' && (
-            <div className="field">
-              <label>Your name</label>
-              <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </div>
+            <Input
+              label="Your name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
           )}
-          <div className="field">
-            <label>Email</label>
-            <input
-              className="input"
-              type="email"
-              placeholder="you@email.com"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </div>
-          <div className="field">
-            <label>Password</label>
-            <input
-              className="input"
-              type="password"
-              value={form.pass}
-              onChange={(e) => setForm({ ...form, pass: e.target.value })}
-            />
-          </div>
+          <Input
+            label="Email"
+            type="email"
+            placeholder="you@email.com"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+          <Input
+            label="Password"
+            type="password"
+            value={form.pass}
+            onChange={(e) => setForm({ ...form, pass: e.target.value })}
+          />
 
           {error && (
             <div style={{ fontSize: 12.5, color: 'var(--color-accent-800)', borderLeft: '2px solid var(--color-accent-800)', paddingLeft: 8 }}>
@@ -65,24 +60,24 @@ export default function SignIn() {
             </div>
           )}
 
-          <button className="btn btn-primary btn-block" type="submit">
+          <Button variant="primary" block type="submit">
             {mode === 'signin' ? 'Continue' : 'Create your account'}
-          </button>
+          </Button>
         </form>
 
         <p style={{ fontSize: 11.5, color: '#7a7a7d', marginTop: 12 }}>
           By continuing you agree to the terms of this academic prototype.
         </p>
         <div className="hr" />
-        <button
-          className="btn btn-ghost"
+        <Button
+          variant="ghost"
           onClick={() => {
             setMode(mode === 'signin' ? 'register' : 'signin')
             setError(null)
           }}
         >
           {mode === 'signin' ? `New to ${STORE_NAME}? Create an account` : 'Already have an account? Sign in'}
-        </button>
+        </Button>
       </Blueprint>
     </div>
   )

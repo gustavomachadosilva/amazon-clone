@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import Blueprint from '../components/ui/Blueprint'
-import Placeholder from '../components/ui/Placeholder'
-import StarRating from '../components/ui/StarRating'
+import { Blueprint, Button, Placeholder, Select, StarRating } from '../components/ui'
 import { useCart } from '../context/CartContext'
 import { useReviews } from '../context/ReviewsContext'
 import { catalogApi, type Product } from '../services/api'
@@ -124,8 +122,7 @@ export default function Search() {
           <div style={{ fontSize: 13, color: '#5d5d60' }}>
             {filtered.length} results {q && `for "${q}"`} {category !== 'All' && `in ${category}`}
           </div>
-          <select
-            className="input"
+          <Select
             style={{ width: 'auto' }}
             value={sort}
             onChange={(e) => setParam('sort', e.target.value === 'relevance' ? null : e.target.value)}
@@ -134,16 +131,16 @@ export default function Search() {
             <option value="low">Price: low to high</option>
             <option value="high">Price: high to low</option>
             <option value="rating">Avg. customer review</option>
-          </select>
+          </Select>
         </div>
 
         {filtered.length === 0 ? (
           <Blueprint style={{ padding: 34, textAlign: 'center' }}>
             <h3>No results</h3>
             <p style={{ color: '#5d5d60' }}>Try another keyword or clear the filters.</p>
-            <button className="btn btn-secondary" onClick={() => setSearchParams({})}>
+            <Button variant="secondary" onClick={() => setSearchParams({})}>
               Clear filters
-            </button>
+            </Button>
           </Blueprint>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -189,18 +186,19 @@ export default function Search() {
                   <div style={{ fontSize: 11.5, color: '#5d5d60' }}>{installmentLine(product.price)}</div>
                   <div style={{ fontSize: 11.5, color: '#5d5d60' }}>{deriveDeliveryLabel(product)}</div>
                   <div style={{ fontSize: 13, color: 'var(--color-accent-700)' }}>{deriveStockLabel(product)}</div>
-                  <button
-                    className="btn btn-primary btn-block"
+                  <Button
+                    variant="primary"
+                    block
                     onClick={() => {
                       cart.addItem(product)
                       navigate('/cart')
                     }}
                   >
                     Add to cart
-                  </button>
-                  <button className="btn btn-secondary btn-block" onClick={() => navigate(`/product/${product.id}`)}>
+                  </Button>
+                  <Button variant="secondary" block onClick={() => navigate(`/product/${product.id}`)}>
                     View details
-                  </button>
+                  </Button>
                 </div>
               </Blueprint>
             ))}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import Blueprint from '../components/ui/Blueprint'
+import { Blueprint, Button, Table, TableBody, TableCell, TableRow } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { ordersApi, type Order } from '../services/api'
 import { DEFAULT_ADDRESS, PAYMENT_OPTIONS, SHIPPING_OPTIONS } from '../lib/constants'
@@ -38,34 +38,34 @@ export default function OrderConfirmation() {
           A confirmation was sent to {user?.email ?? 'you'}. Arriving Thursday, August 13.
         </p>
 
-        <table className="table">
-          <tbody>
-            <tr>
-              <td>Order total</td>
-              <td>{usd(order.totalAmount)}</td>
-            </tr>
-            <tr>
-              <td>Payment</td>
-              <td>{paymentLabel}</td>
-            </tr>
-            <tr>
-              <td>Delivery</td>
-              <td>{shippingLabel}</td>
-            </tr>
-            <tr>
-              <td>Address</td>
-              <td>{address}</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table>
+          <TableBody>
+            <TableRow>
+              <TableCell>Order total</TableCell>
+              <TableCell>{usd(order.totalAmount)}</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>Payment</TableCell>
+              <TableCell>{paymentLabel}</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>Delivery</TableCell>
+              <TableCell>{shippingLabel}</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>Address</TableCell>
+              <TableCell>{address}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
 
         <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-          <button className="btn btn-primary" onClick={() => navigate('/orders')}>
+          <Button variant="primary" onClick={() => navigate('/orders')}>
             View your orders
-          </button>
-          <button className="btn btn-secondary" onClick={() => navigate('/')}>
+          </Button>
+          <Button variant="secondary" onClick={() => navigate('/')}>
             Back to the store
-          </button>
+          </Button>
         </div>
       </Blueprint>
     </div>

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import Blueprint from '../components/ui/Blueprint'
-import Placeholder from '../components/ui/Placeholder'
+import { Blueprint, Button, Input, Placeholder, Textarea } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { useReviews } from '../context/ReviewsContext'
 import { catalogApi, type Product } from '../services/api'
@@ -79,27 +78,29 @@ export default function WriteReview() {
           <div style={{ fontSize: 13, color: '#5d5d60' }}>{RATING_WORD[rating]}</div>
         </div>
 
-        <div className="field">
-          <label>What is most important to know?</label>
-          <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
-        </div>
+        <Input
+          label="What is most important to know?"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
 
-        <div className="field">
-          <label>What did you like or dislike? What did you use this product for?</label>
-          <textarea className="input" value={text} onChange={(e) => setText(e.target.value)} />
-        </div>
+        <Textarea
+          label="What did you like or dislike? What did you use this product for?"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
 
         <div className="ph" style={{ height: 96 }}>
           <span>Add a photo or video</span>
         </div>
 
         <div style={{ display: 'flex', gap: 12 }}>
-          <button className="btn btn-primary" onClick={submit} disabled={rating === 0}>
+          <Button variant="primary" onClick={submit} disabled={rating === 0}>
             Submit review
-          </button>
-          <button className="btn btn-secondary" onClick={() => navigate(`/product/${productId}`)}>
+          </Button>
+          <Button variant="secondary" onClick={() => navigate(`/product/${productId}`)}>
             Cancel
-          </button>
+          </Button>
         </div>
       </Blueprint>
     </div>

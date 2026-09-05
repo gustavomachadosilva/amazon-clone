@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Blueprint from '../components/ui/Blueprint'
-import Placeholder from '../components/ui/Placeholder'
+import { Blueprint, Button, Input, Placeholder } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useProductsByIds } from '../hooks/useProductsByIds'
@@ -64,26 +63,33 @@ export default function Checkout() {
         <Blueprint style={{ padding: 20 }}>
           <div className="kick">1 · Shipping address</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
-            <div className="field">
-              <label>Full name</label>
-              <input className="input" value={address.fullName} onChange={(e) => setAddress({ ...address, fullName: e.target.value })} />
-            </div>
-            <div className="field">
-              <label>ZIP code</label>
-              <input className="input" value={address.zip} onChange={(e) => setAddress({ ...address, zip: e.target.value })} />
-            </div>
-            <div className="field" style={{ gridColumn: 'span 2' }}>
-              <label>Street address</label>
-              <input className="input" value={address.street} onChange={(e) => setAddress({ ...address, street: e.target.value })} />
-            </div>
-            <div className="field">
-              <label>City</label>
-              <input className="input" value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
-            </div>
-            <div className="field">
-              <label>State</label>
-              <input className="input" value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} />
-            </div>
+            <Input
+              label="Full name"
+              value={address.fullName}
+              onChange={(e) => setAddress({ ...address, fullName: e.target.value })}
+            />
+            <Input
+              label="ZIP code"
+              value={address.zip}
+              onChange={(e) => setAddress({ ...address, zip: e.target.value })}
+            />
+            <Input
+              label="Street address"
+              containerClassName="col-span-2"
+              style={{ gridColumn: 'span 2' }}
+              value={address.street}
+              onChange={(e) => setAddress({ ...address, street: e.target.value })}
+            />
+            <Input
+              label="City"
+              value={address.city}
+              onChange={(e) => setAddress({ ...address, city: e.target.value })}
+            />
+            <Input
+              label="State"
+              value={address.state}
+              onChange={(e) => setAddress({ ...address, state: e.target.value })}
+            />
           </div>
         </Blueprint>
 
@@ -160,9 +166,9 @@ export default function Checkout() {
             {usd(totals.total)}
           </span>
         </div>
-        <button className="btn btn-primary btn-block" onClick={placeOrder} disabled={placing || cart.items.length === 0}>
+        <Button variant="primary" block onClick={placeOrder} disabled={placing || cart.items.length === 0}>
           Place your order
-        </button>
+        </Button>
         <p style={{ fontSize: 11.5, color: '#7a7a7d', marginTop: 8 }}>
           By placing your order you agree to the terms of this academic prototype.
         </p>

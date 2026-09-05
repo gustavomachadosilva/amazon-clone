@@ -1,7 +1,6 @@
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import Blueprint from '../components/ui/Blueprint'
-import Placeholder from '../components/ui/Placeholder'
+import { Blueprint, Button, Placeholder } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useProductsByIds } from '../hooks/useProductsByIds'
@@ -33,9 +32,9 @@ export default function Cart() {
         {cart.items.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40 }}>
             <h3>Your cart is empty</h3>
-            <button className="btn btn-primary" onClick={() => navigate('/')}>
+            <Button variant="primary" onClick={() => navigate('/')}>
               Continue shopping
-            </button>
+            </Button>
           </div>
         ) : (
           cart.items.map((line) => {
@@ -66,20 +65,20 @@ export default function Cart() {
                   )}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--color-divider)' }}>
-                      <button className="btn btn-icon" style={{ border: 0 }} onClick={() => cart.decrementQty(line.productId)}>
+                      <Button variant="icon" style={{ border: 0 }} onClick={() => cart.decrementQty(line.productId)}>
                         <Minus size={14} strokeWidth={1.5} />
-                      </button>
+                      </Button>
                       <span style={{ padding: '0 10px' }}>{line.qty}</span>
-                      <button className="btn btn-icon" style={{ border: 0 }} onClick={() => cart.incrementQty(line.productId)}>
+                      <Button variant="icon" style={{ border: 0 }} onClick={() => cart.incrementQty(line.productId)}>
                         <Plus size={14} strokeWidth={1.5} />
-                      </button>
+                      </Button>
                     </div>
-                    <button className="btn btn-ghost" onClick={() => cart.removeItem(line.productId)}>
+                    <Button variant="ghost" onClick={() => cart.removeItem(line.productId)}>
                       <Trash2 size={14} strokeWidth={1.5} /> Delete
-                    </button>
-                    <button className="btn btn-ghost" onClick={() => cart.saveForLater(line.productId)}>
+                    </Button>
+                    <Button variant="ghost" onClick={() => cart.saveForLater(line.productId)}>
                       Save for later
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', fontSize: 20 }} className="h">
@@ -105,9 +104,9 @@ export default function Cart() {
                   <Placeholder label="Product" aspect="1/1" src={products.get(line.productId)?.imageUrl} />
                   <div style={{ fontSize: 13, minHeight: 32, marginTop: 8 }}>{line.name}</div>
                   <div className="h">{usd(line.price)}</div>
-                  <button className="btn btn-secondary btn-block" onClick={() => cart.moveToCart(line.productId)}>
+                  <Button variant="secondary" block onClick={() => cart.moveToCart(line.productId)}>
                     Move to cart
-                  </button>
+                  </Button>
                 </Blueprint>
               ))}
             </div>
@@ -128,12 +127,12 @@ export default function Cart() {
           <span className="box" />
           This order contains a gift
         </label>
-        <button className="btn btn-primary btn-block" onClick={proceedToCheckout} disabled={cart.items.length === 0}>
+        <Button variant="primary" block onClick={proceedToCheckout} disabled={cart.items.length === 0}>
           Proceed to checkout
-        </button>
-        <button className="btn btn-secondary btn-block" onClick={() => navigate('/')}>
+        </Button>
+        <Button variant="secondary" block onClick={() => navigate('/')}>
           Continue shopping
-        </button>
+        </Button>
       </Blueprint>
     </div>
   )
