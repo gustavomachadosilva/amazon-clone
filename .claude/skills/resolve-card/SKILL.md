@@ -2,7 +2,7 @@
 name: resolve-card
 description: Look up a card (issue) on this repo's GitHub Project board by number, show its full details, and ask the user how to proceed. Use when the user runs /resolve-card <NUMBER> or asks to look up/start a project card or issue by number.
 argument-hint: <NÚMERO DO CARD>
-allowed-tools: [Bash(gh repo view*), Bash(gh project list*), Bash(gh project item-list*), Bash(gh issue view*), Bash(git status*), Bash(git checkout*), Bash(git pull*), AskUserQuestion, Agent]
+allowed-tools: [Bash(gh repo view*), Bash(gh project list*), Bash(gh project item-list*), Bash(gh issue view*), Bash(gh pr create*), Bash(git status*), Bash(git checkout*), Bash(git pull*), Bash(git push*), AskUserQuestion, Agent, Skill]
 ---
 
 # /resolve-card — Buscar card no GitHub Projects
@@ -136,6 +136,25 @@ antes, não decida sozinho.
 
 ### Depois da implementação
 
-Resuma o que foi feito e lembre o usuário que o skill `/pr-check` roda testes +
-revisão de código + checagem do Contrato de Modularidade antes de abrir a PR. Não rode
-`/pr-check` nem abra a PR sozinho — apenas sugira, conforme o `CLAUDE.md`.
+Resuma o que foi feito e pergunte ao usuário como quer seguir (`AskUserQuestion`) —
+**nunca abra a PR sem essa pergunta, e só abra se o usuário autorizar explicitamente.**
+Ofereça **abrir a PR direto** como opção padrão/recomendada (isso já é o comportamento
+esperado desta skill), e mencione `/pr-check` (testes + revisão de código + checklist
+do Contrato de Modularidade) como sugestão para quem quiser essa checagem extra antes
+— mas em nenhum dos dois casos a PR é aberta sem a confirmação do usuário na pergunta.
+
+- **Se o usuário autorizar abrir a PR direto**: push da branch criada na Etapa 0 e
+  `gh pr create`:
+  ```bash
+  git push -u origin feature/<NUMERO>-<slug>
+  gh pr create --base main --title "<título do card>" \
+    --body "Closes #<NUMERO>
+
+  <resumo curto do que foi implementado, com base no plano da Etapa 1>"
+  ```
+  Informe a URL da PR criada ao final.
+
+- **Se o usuário escolher rodar o `/pr-check` antes**: chame
+  `Skill(skill: "pr-check")` e, com o resultado em mãos, pergunte novamente como
+  seguir (abrir a PR, corrigir algo primeiro, etc.) — de novo, só abra com autorização
+  explícita.
