@@ -1,6 +1,8 @@
 package com.mercatto.orders.service;
 
 import com.mercatto.orders.domain.Order;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 import java.util.List;
 import java.util.Optional;
@@ -10,7 +12,7 @@ import java.util.Optional;
  */
 public interface OrderService {
 
-    record CheckoutItem(Long productId, int quantity) {}
+    record CheckoutItem(@NotNull @Positive Long productId, @Positive int quantity) {}
 
     Order checkout(Long buyerId, List<CheckoutItem> items);
 

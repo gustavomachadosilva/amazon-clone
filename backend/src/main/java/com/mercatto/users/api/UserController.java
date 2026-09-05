@@ -3,6 +3,11 @@ package com.mercatto.users.api;
 import com.mercatto.users.domain.User;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.UserService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +26,7 @@ public class UserController {
     private final UserService userService;
 
     @PostMapping("/register")
-    public ResponseEntity<User> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<User> register(@Valid @RequestBody RegisterRequest request) {
         User user = userService.register(request.name(), request.email(), request.password(), request.role());
         return ResponseEntity.ok(user);
     }
@@ -41,7 +46,11 @@ public class UserController {
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
     }
 
-    public record RegisterRequest(String name, String email, String password, UserRole role) {}
+    public record RegisterRequest(
+            @NotBlank @Size(max = 255) String name,
+            @NotBlank @Email @Size(max = 255) String email,
+            @NotBlank @Size(min = 8, max = 72) String password,
+            @NotNull UserRole role) {}
 
     public record LoginRequest(String email, String password) {}
 
