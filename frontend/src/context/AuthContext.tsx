@@ -19,8 +19,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!email.includes('@')) return 'Enter a valid email address.'
 
     try {
-      const user = await usersApi.login(email, password)
-      setUser(user)
+      const { token, expiresAt, ...user } = await usersApi.login(email, password)
+      setUser({ ...user, token, tokenExpiresAt: expiresAt })
       return null
     } catch (e) {
       if (e instanceof ApiRequestError && e.status === 401) {

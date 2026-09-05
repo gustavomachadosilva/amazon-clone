@@ -131,7 +131,12 @@ export interface UserResponse {
   role: UserRole
 }
 
+export interface LoginResponse extends UserResponse {
+  token: string
+  expiresAt: string
+}
+
 export const usersApi = {
-  login: (email: string, password: string) => api.post<UserResponse>('/api/users/login', { email, password }),
+  login: (email: string, password: string) => api.post<LoginResponse>('/api/users/login', { email, password }),
   register: (payload: RegisterPayload) => api.post<UserResponse>('/api/users/register', payload),
 }
