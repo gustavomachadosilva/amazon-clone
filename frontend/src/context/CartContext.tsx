@@ -122,6 +122,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook colocalizado com o Provider; separar em arquivo próprio é refatoração fora do escopo deste card
 export function useCart(): CartContextValue {
   const context = useContext(CartContext)
   if (!context) throw new Error('useCart must be used within CartProvider')
