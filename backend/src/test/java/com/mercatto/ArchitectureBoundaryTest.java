@@ -15,7 +15,7 @@ public class ArchitectureBoundaryTest {
     @Test
     void catalog_should_not_depend_on_orders_or_sellers() {
         noClasses().that().resideInAPackage("..catalog..")
-            .should().dependOnClassesThat().resideInAnyPackage("..orders..", "..sellers..")
+            .should().dependOnClassesThat().resideInAnyPackage("..orders..", "..sellers..", "..cart..")
             .check(classes);
     }
 
