@@ -3,6 +3,7 @@ package com.mercatto.users.api;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mercatto.users.domain.User;
 import com.mercatto.users.domain.UserRole;
+import com.mercatto.users.service.EmailAlreadyExistsException;
 import com.mercatto.users.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -51,6 +53,20 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.email").value("jane@example.com"))
                 .andExpect(content().string(org.hamcrest.Matchers.not(
                         org.hamcrest.Matchers.containsString("passwordHash"))));
+    }
+
+    @Test
+    void registerWithExistingEmail_returns409() throws Exception {
+        when(userService.register(anyString(), anyString(), anyString(), any(UserRole.class)))
+                .thenThrow(new EmailAlreadyExistsException("E-mail já cadastrado: jane@example.com"));
+
+        mockMvc.perform(post("/api/users/register")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(
+                                new UserController.RegisterRequest("Jane Doe", "jane@example.com", "super-secret-123", UserRole.BUYER))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.message").value("E-mail já cadastrado: jane@example.com"));
     }
 
     @Test
