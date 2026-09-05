@@ -29,6 +29,9 @@ class UserServiceImpl implements UserService {
 
     @Override
     public Optional<User> authenticate(String email, String rawPassword) {
+        if (rawPassword == null) {
+            return Optional.empty();
+        }
         return userRepository.findByEmail(email)
                 .filter(user -> passwordEncoder.matches(rawPassword, user.getPasswordHash()));
     }
