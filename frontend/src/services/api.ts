@@ -30,22 +30,32 @@ export interface Product {
   imageUrl?: string
 }
 
-interface Page<T> {
+export interface Page<T> {
   content: T[]
+  totalPages: number
+  totalElements: number
+  number: number
+  size: number
+  first: boolean
+  last: boolean
+  empty: boolean
 }
 
 export const catalogApi = {
-  search: (query?: string, category?: string) => {
+  search: (query?: string, category?: string, page: number = 0, size: number = 10) => {
     const params = new URLSearchParams()
     if (query) params.set('query', query)
     if (category) params.set('category', category)
+    params.set('page', page.toString())
+    params.set('size', size.toString())
     return api.get<Page<Product>>(`/api/catalog/products?${params.toString()}`)
   },
   getById: (id: number) => api.get<Product>(`/api/catalog/products/${id}`),
 }
 
 export const sellersApi = {
-  getInventory: (sellerId: number) => api.get<Page<Product>>(`/api/sellers/${sellerId}/products`),
+  getInventory: (sellerId: number, page: number = 0, size: number = 10) =>
+    api.get<Page<Product>>(`/api/sellers/${sellerId}/products?page=${page}&size=${size}`),
 }
 
 export type OrderStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED'

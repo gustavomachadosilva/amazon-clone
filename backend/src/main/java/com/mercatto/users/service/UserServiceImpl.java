@@ -28,6 +28,12 @@ class UserServiceImpl implements UserService {
     }
 
     @Override
+    public Optional<User> authenticate(String email, String rawPassword) {
+        return userRepository.findByEmail(email)
+                .filter(user -> passwordEncoder.matches(rawPassword, user.getPasswordHash()));
+    }
+
+    @Override
     public Optional<User> findById(Long id) {
         return userRepository.findById(id);
     }
