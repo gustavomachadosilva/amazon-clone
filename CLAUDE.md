@@ -19,10 +19,11 @@ transaction.
 
 ## Fluxo de trabalho no GitHub
 
-- Antes de começar qualquer implementação, atualize a `main` local (`git checkout main && git
-  pull`) e crie uma branch nova a partir dela para o trabalho.
-- Nunca faça push direto para a `main`. Toda mudança entra por Pull Request da branch de trabalho
-  para a `main`.
+- Antes de começar qualquer implementação, atualize a `dev` local (`git checkout dev && git
+  pull`) e crie uma branch nova a partir dela para o trabalho. `dev` é a branch de integração e
+  default branch do repositório — não existe `main`.
+- Nunca faça push direto para a `dev`. Toda mudança entra por Pull Request da branch de trabalho
+  para a `dev`.
 - Antes de abrir a PR, rode os testes e verificações do código afetado para garantir que nada
   quebrou: `mvn test` em `/backend` para mudanças de backend, e `npm run lint` / `npm run build`
   em `/frontend` para mudanças de frontend. O skill `/pr-check` automatiza isso (testes +

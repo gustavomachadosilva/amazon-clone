@@ -15,7 +15,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -42,6 +44,17 @@ class UserServiceImplTest {
         User saved = userCaptor.getValue();
         assertThat(saved.getPasswordHash()).isNotEqualTo(rawPassword);
         assertThat(passwordEncoder.matches(rawPassword, saved.getPasswordHash())).isTrue();
+    }
+
+    @Test
+    void registerWithExistingEmail_throwsEmailAlreadyExistsException() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.existsByEmail("jane@example.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> userService.register("Jane Doe", "jane@example.com", "super-secret-123", UserRole.BUYER))
+                .isInstanceOf(EmailAlreadyExistsException.class);
+
+        verify(userRepository, never()).save(any());
     }
 
     @Test

@@ -63,6 +63,28 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void emailAlreadyExists_mapsTo409WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/email-already-exists"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value("email already registered"))
+                .andExpect(jsonPath("$.path").value("/test/email-already-exists"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void dataIntegrityViolation_mapsTo409WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/data-integrity-violation"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value("A conflicting record already exists"))
+                .andExpect(jsonPath("$.path").value("/test/data-integrity-violation"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
     void methodArgumentNotValid_mapsTo400WithStandardBody() throws Exception {
         mockMvc.perform(post("/test/validated")
                         .contentType(MediaType.APPLICATION_JSON)
