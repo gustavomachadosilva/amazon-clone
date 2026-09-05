@@ -88,4 +88,13 @@ class UserServiceImplTest {
 
         assertThat(result).isEmpty();
     }
+
+    @Test
+    void authenticateReturnsEmptyWhenPasswordIsNull() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+
+        Optional<User> result = userService.authenticate("jane@example.com", null);
+
+        assertThat(result).isEmpty();
+    }
 }
