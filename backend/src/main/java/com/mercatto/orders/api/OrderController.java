@@ -1,12 +1,9 @@
 package com.mercatto.orders.api;
 
 import com.mercatto.orders.domain.Order;
-import com.mercatto.orders.service.InsufficientStockException;
 import com.mercatto.orders.service.OrderService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,11 +37,6 @@ public class OrderController {
     @GetMapping
     public List<Order> byBuyer(@RequestParam Long buyerId) {
         return orderService.findByBuyer(buyerId);
-    }
-
-    @ExceptionHandler(InsufficientStockException.class)
-    public ResponseEntity<String> handleInsufficientStock(InsufficientStockException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
     }
 
     public record CheckoutRequest(Long buyerId, List<OrderService.CheckoutItem> items) {}
