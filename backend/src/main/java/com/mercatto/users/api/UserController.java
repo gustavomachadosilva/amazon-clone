@@ -2,6 +2,7 @@ package com.mercatto.users.api;
 
 import com.mercatto.users.domain.User;
 import com.mercatto.users.domain.UserRole;
+import com.mercatto.users.service.TokenService;
 import com.mercatto.users.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -18,12 +19,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
+
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
+    private final TokenService tokenService;
 
     @PostMapping("/register")
     public ResponseEntity<User> register(@Valid @RequestBody RegisterRequest request) {
@@ -39,9 +43,12 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<UserResponse> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
         return userService.authenticate(request.email(), request.password())
-                .map(UserResponse::from)
+                .map(user -> {
+                    TokenService.IssuedToken issuedToken = tokenService.issue(user.getId(), user.getRole());
+                    return LoginResponse.from(user, issuedToken);
+                })
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
     }
@@ -54,9 +61,10 @@ public class UserController {
 
     public record LoginRequest(String email, String password) {}
 
-    public record UserResponse(Long id, String name, String email, UserRole role) {
-        static UserResponse from(User user) {
-            return new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getRole());
+    public record LoginResponse(Long id, String name, String email, UserRole role, String token, Instant expiresAt) {
+        static LoginResponse from(User user, TokenService.IssuedToken issuedToken) {
+            return new LoginResponse(user.getId(), user.getName(), user.getEmail(), user.getRole(),
+                    issuedToken.value(), issuedToken.expiresAt());
         }
     }
 }
