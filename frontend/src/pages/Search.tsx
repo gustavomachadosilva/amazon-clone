@@ -150,7 +150,7 @@ export default function Search() {
                 style={{ padding: 16, display: 'grid', gridTemplateColumns: '180px 1fr 210px', gap: 16 }}
               >
                 <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${product.id}`)}>
-                  <Placeholder label="Product" aspect="1/1" />
+                  <Placeholder label="Product" aspect="1/1" src={product.imageUrl} />
                 </div>
                 <div>
                   <div

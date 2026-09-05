@@ -118,7 +118,7 @@ export default function Lists() {
                   return (
                     <Blueprint key={productId} style={{ padding: 12, display: 'grid', gridTemplateColumns: '110px 1fr 190px', gap: 12 }}>
                       <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${productId}`)}>
-                        <Placeholder label="Product" aspect="1/1" />
+                        <Placeholder label="Product" aspect="1/1" src={product.imageUrl} />
                       </div>
                       <div>
                         <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${productId}`)}>

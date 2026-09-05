@@ -45,7 +45,7 @@ export default function WriteReview() {
       <h1>Create a review</h1>
 
       <Blueprint style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-        <Placeholder label="Product" aspect="1/1" className="w-[82px]" />
+        <Placeholder label="Product" aspect="1/1" className="w-[82px]" src={product.imageUrl} />
         <div>
           <div className="h">{product.name}</div>
           <div style={{ fontSize: 12.5, color: '#7a7a7d' }}>
