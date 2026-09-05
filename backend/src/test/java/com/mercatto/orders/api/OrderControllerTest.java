@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.anyList;
@@ -25,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -35,6 +37,7 @@ class OrderControllerTest {
 
     private static final AuthenticatedUser BUYER = new AuthenticatedUser(10L, UserRole.BUYER);
     private static final AuthenticatedUser SELLER = new AuthenticatedUser(10L, UserRole.SELLER);
+    private static final AuthenticatedUser OTHER_BUYER = new AuthenticatedUser(20L, UserRole.BUYER);
 
     @Autowired
     private MockMvc mockMvc;
@@ -101,5 +104,32 @@ class OrderControllerTest {
                 .andExpect(status().isBadRequest());
 
         verifyNoInteractions(orderService);
+    }
+
+    @Test
+    void getByIdAsOwner_returns200() throws Exception {
+        Order order = Order.builder().id(1L).buyerId(10L).status(OrderStatus.PAID).totalAmount(BigDecimal.TEN).build();
+        when(orderService.findById(1L)).thenReturn(Optional.of(order));
+
+        mockMvc.perform(get("/api/orders/1").principal(BUYER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1));
+    }
+
+    @Test
+    void getByIdAsOtherBuyer_returns403() throws Exception {
+        Order order = Order.builder().id(1L).buyerId(10L).status(OrderStatus.PAID).totalAmount(BigDecimal.TEN).build();
+        when(orderService.findById(1L)).thenReturn(Optional.of(order));
+
+        mockMvc.perform(get("/api/orders/1").principal(OTHER_BUYER))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getByIdWhenNotFound_returns404() throws Exception {
+        when(orderService.findById(1L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/orders/1").principal(BUYER))
+                .andExpect(status().isNotFound());
     }
 }

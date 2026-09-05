@@ -4,7 +4,6 @@ import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.service.ProductService;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.AuthenticatedUser;
-import com.mercatto.users.service.ForbiddenRoleException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -51,9 +50,7 @@ public class ProductController {
     @PostMapping
     public ResponseEntity<Product> create(@Valid @RequestBody CreateProductRequest request, Principal principal) {
         AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
-        if (authenticatedUser.role() != UserRole.SELLER) {
-            throw new ForbiddenRoleException("Apenas vendedores podem criar produtos");
-        }
+        authenticatedUser.requireRole(UserRole.SELLER);
         Product product = Product.builder()
                 .name(request.name())
                 .description(request.description())
