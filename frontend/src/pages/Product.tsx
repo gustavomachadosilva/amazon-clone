@@ -37,6 +37,7 @@ export default function Product() {
   const [bundleChecked, setBundleChecked] = useState<Set<number>>(new Set())
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reseta quantidade ao trocar de produto; refatorar é fora do escopo deste card
     setQty(1)
     catalogApi.getById(productId).then(setProduct)
   }, [productId])
@@ -51,6 +52,7 @@ export default function Product() {
   }, [product])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- inicializa lista alvo default; refatorar para estado derivado é fora do escopo deste card
     if (lists.lists.length > 0 && !listTarget) setListTarget(lists.lists[0].id)
   }, [lists.lists, listTarget])
 

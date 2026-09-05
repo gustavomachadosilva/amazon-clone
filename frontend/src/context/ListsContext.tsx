@@ -62,6 +62,7 @@ export function ListsProvider({ children }: { children: ReactNode }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook colocalizado com o Provider; separar em arquivo próprio é refatoração fora do escopo deste card
 export function useLists(): ListsContextValue {
   const context = useContext(ListsContext)
   if (!context) throw new Error('useLists must be used within ListsProvider')

@@ -8,6 +8,7 @@ export function useProductsByIds(ids: number[]) {
 
   useEffect(() => {
     if (!ids.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset síncrono ao esvaziar ids; refatorar para fora do efeito é fora do escopo deste card
       setProducts(new Map())
       return
     }

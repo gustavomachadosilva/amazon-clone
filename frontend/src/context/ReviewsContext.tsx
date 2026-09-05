@@ -42,6 +42,7 @@ export function ReviewsProvider({ children }: { children: ReactNode }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook colocalizado com o Provider; separar em arquivo próprio é refatoração fora do escopo deste card
 export function useReviews(): ReviewsContextValue {
   const context = useContext(ReviewsContext)
   if (!context) throw new Error('useReviews must be used within ReviewsProvider')
