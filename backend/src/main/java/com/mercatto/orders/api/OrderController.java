@@ -2,6 +2,10 @@ package com.mercatto.orders.api;
 
 import com.mercatto.orders.domain.Order;
 import com.mercatto.orders.service.OrderService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,7 +26,7 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping("/checkout")
-    public ResponseEntity<Order> checkout(@RequestBody CheckoutRequest request) {
+    public ResponseEntity<Order> checkout(@Valid @RequestBody CheckoutRequest request) {
         Order order = orderService.checkout(request.buyerId(), request.items());
         return ResponseEntity.ok(order);
     }
@@ -39,5 +43,7 @@ public class OrderController {
         return orderService.findByBuyer(buyerId);
     }
 
-    public record CheckoutRequest(Long buyerId, List<OrderService.CheckoutItem> items) {}
+    public record CheckoutRequest(
+            @NotNull @Positive Long buyerId,
+            @NotEmpty @Valid List<OrderService.CheckoutItem> items) {}
 }
