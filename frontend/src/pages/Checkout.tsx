@@ -4,6 +4,7 @@ import Blueprint from '../components/ui/Blueprint'
 import Placeholder from '../components/ui/Placeholder'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
+import { useProductsByIds } from '../hooks/useProductsByIds'
 import { ordersApi } from '../services/api'
 import { DEFAULT_ADDRESS, PAYMENT_OPTIONS, SHIPPING_OPTIONS } from '../lib/constants'
 import { usd } from '../lib/format'
@@ -16,6 +17,9 @@ export default function Checkout() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const cart = useCart()
+
+  const allIds = cart.items.map((line) => line.productId)
+  const { products } = useProductsByIds(allIds)
 
   const [address, setAddress] = useState({
     fullName: user?.name ?? '',
@@ -117,7 +121,7 @@ export default function Checkout() {
           <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {cart.items.map((line) => (
               <div key={line.productId} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <Placeholder label="Product" aspect="1/1" className="w-[56px]" />
+                <Placeholder label="Product" aspect="1/1" className="w-[56px]" src={products.get(line.productId)?.imageUrl} />
                 <div style={{ flex: 1 }}>
                   <div>{line.name}</div>
                   <div style={{ fontSize: 12, color: '#7a7a7d' }}>Qty {line.qty}</div>

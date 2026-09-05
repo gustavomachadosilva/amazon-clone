@@ -88,7 +88,7 @@ export default function Orders() {
                     return (
                       <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '86px 1fr 190px', gap: 12, marginBottom: 12 }}>
                         <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${item.productId}`)}>
-                          <Placeholder label="Product" aspect="1/1" />
+                          <Placeholder label="Product" aspect="1/1" src={product?.imageUrl} />
                         </div>
                         <div>
                           <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${item.productId}`)}>

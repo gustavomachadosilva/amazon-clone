@@ -125,7 +125,7 @@ export default function Product() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr 300px', gap: 28, alignItems: 'start' }}>
         <Blueprint style={{ padding: 12 }}>
-          <Placeholder label="Main photo" aspect="1/1" />
+          <Placeholder label="Main photo" aspect="1/1" src={product.imageUrl} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 8 }}>
             {['Angle 2', 'Angle 3', 'Detail', 'In use'].map((label) => (
               <Placeholder key={label} label={label} aspect="1/1" />
@@ -306,7 +306,7 @@ export default function Product() {
                 {bundleItems.map((item, index) => (
                   <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     {index > 0 && <span>+</span>}
-                    <Placeholder label="Item" aspect="1/1" className="w-[84px]" />
+                    <Placeholder label="Item" aspect="1/1" className="w-[84px]" src={item.imageUrl} />
                   </div>
                 ))}
               </div>
@@ -332,7 +332,7 @@ export default function Product() {
               {recommended.map((item, index) => (
                 <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '88px 1fr 150px', gap: 12 }}>
                   <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${item.id}`)}>
-                    <Placeholder label="Item" aspect="1/1" />
+                    <Placeholder label="Item" aspect="1/1" src={item.imageUrl} />
                   </div>
                   <div>
                     <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${item.id}`)}>

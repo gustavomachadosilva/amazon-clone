@@ -38,7 +38,7 @@ export default function ProductGridCard({ product, compact = false }: ProductGri
       style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px', cursor: 'pointer' }}
       onClick={open}
     >
-      <Placeholder label="Product" aspect="1/1" />
+      <Placeholder label="Product" aspect="1/1" src={product.imageUrl} />
       <div style={{ fontSize: '13.5px', lineHeight: 1.3, minHeight: compact ? undefined : '36px' }}>
         {product.name}
       </div>

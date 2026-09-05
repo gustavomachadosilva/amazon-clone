@@ -52,7 +52,7 @@ export default function Cart() {
                 }}
               >
                 <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${line.productId}`)}>
-                  <Placeholder label="Product" aspect="1/1" />
+                  <Placeholder label="Product" aspect="1/1" src={product?.imageUrl} />
                 </div>
                 <div>
                   <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${line.productId}`)}>
@@ -102,7 +102,7 @@ export default function Cart() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
               {cart.saved.map((line) => (
                 <Blueprint key={line.productId} style={{ padding: 12 }}>
-                  <Placeholder label="Product" aspect="1/1" />
+                  <Placeholder label="Product" aspect="1/1" src={products.get(line.productId)?.imageUrl} />
                   <div style={{ fontSize: 13, minHeight: 32, marginTop: 8 }}>{line.name}</div>
                   <div className="h">{usd(line.price)}</div>
                   <button className="btn btn-secondary btn-block" onClick={() => cart.moveToCart(line.productId)}>
