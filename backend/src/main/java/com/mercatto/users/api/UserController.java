@@ -30,9 +30,9 @@ public class UserController {
     private final TokenService tokenService;
 
     @PostMapping("/register")
-    public ResponseEntity<User> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
         User user = userService.register(request.name(), request.email(), request.password(), request.role());
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(UserResponse.from(user));
     }
 
     @GetMapping("/{id}")
@@ -65,6 +65,12 @@ public class UserController {
         static LoginResponse from(User user, TokenService.IssuedToken issuedToken) {
             return new LoginResponse(user.getId(), user.getName(), user.getEmail(), user.getRole(),
                     issuedToken.value(), issuedToken.expiresAt());
+        }
+    }
+
+    public record UserResponse(Long id, String name, String email, UserRole role) {
+        static UserResponse from(User user) {
+            return new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getRole());
         }
     }
 }

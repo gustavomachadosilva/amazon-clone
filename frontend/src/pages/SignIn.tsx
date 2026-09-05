@@ -1,27 +1,34 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Blueprint, Button, Input } from '../components/ui'
+import { Blueprint, Button, Input, Select } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { STORE_NAME } from '../lib/constants'
+import type { UserRole } from '../types/domain'
 
 export default function SignIn() {
   const navigate = useNavigate()
   const auth = useAuth()
   const [mode, setMode] = useState<'signin' | 'register'>('signin')
-  const [form, setForm] = useState({ name: '', email: '', pass: '' })
+  const [form, setForm] = useState({ name: '', email: '', pass: '', role: 'BUYER' as UserRole })
   const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent) {
     event.preventDefault()
-    const result =
-      mode === 'signin'
-        ? auth.signIn(form.email, form.pass)
-        : auth.register(form.name, form.email, form.pass)
-    if (result) {
-      setError(result)
-      return
+    setIsSubmitting(true)
+    try {
+      const result =
+        mode === 'signin'
+          ? await auth.signIn(form.email, form.pass)
+          : await auth.register(form.name, form.email, form.pass, form.role)
+      if (result) {
+        setError(result)
+        return
+      }
+      navigate('/')
+    } finally {
+      setIsSubmitting(false)
     }
-    navigate('/')
   }
 
   return (
@@ -53,6 +60,16 @@ export default function SignIn() {
             value={form.pass}
             onChange={(e) => setForm({ ...form, pass: e.target.value })}
           />
+          {mode === 'register' && (
+            <Select
+              label="Account type"
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}
+            >
+              <option value="BUYER">I want to buy</option>
+              <option value="SELLER">I want to sell</option>
+            </Select>
+          )}
 
           {error && (
             <div style={{ fontSize: 12.5, color: 'var(--color-accent-800)', borderLeft: '2px solid var(--color-accent-800)', paddingLeft: 8 }}>
@@ -60,7 +77,7 @@ export default function SignIn() {
             </div>
           )}
 
-          <Button variant="primary" block type="submit">
+          <Button variant="primary" block type="submit" disabled={isSubmitting}>
             {mode === 'signin' ? 'Continue' : 'Create your account'}
           </Button>
         </form>
