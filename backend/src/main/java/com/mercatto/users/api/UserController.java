@@ -2,6 +2,7 @@ package com.mercatto.users.api;
 
 import com.mercatto.users.domain.User;
 import com.mercatto.users.domain.UserRole;
+import com.mercatto.users.service.AuthenticatedUser;
 import com.mercatto.users.service.TokenService;
 import com.mercatto.users.service.UserService;
 import jakarta.validation.Valid;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.security.Principal;
 import java.time.Instant;
 
 @RestController
@@ -36,7 +38,9 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> getById(@PathVariable Long id) {
+    public ResponseEntity<User> getById(@PathVariable Long id, Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        authenticatedUser.requireOwner(id);
         return userService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

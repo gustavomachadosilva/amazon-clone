@@ -3,6 +3,7 @@ package com.mercatto.users.api;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mercatto.users.domain.User;
 import com.mercatto.users.domain.UserRole;
+import com.mercatto.users.service.AuthenticatedUser;
 import com.mercatto.users.service.EmailAlreadyExistsException;
 import com.mercatto.users.service.TokenService;
 import com.mercatto.users.service.UserService;
@@ -24,6 +25,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -32,6 +34,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(UserController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class UserControllerTest {
+
+    private static final AuthenticatedUser OWNER = new AuthenticatedUser(1L, UserRole.BUYER);
+    private static final AuthenticatedUser OTHER_USER = new AuthenticatedUser(2L, UserRole.BUYER);
 
     @Autowired
     private MockMvc mockMvc;
@@ -143,5 +148,39 @@ class UserControllerTest {
                 .andExpect(status().isBadRequest());
 
         verifyNoInteractions(userService);
+    }
+
+    @Test
+    void getByIdAsOwner_returns200WithoutPasswordHash() throws Exception {
+        User user = User.builder()
+                .id(1L)
+                .name("Jane Doe")
+                .email("jane@example.com")
+                .passwordHash("$2a$10$secretHashShouldNotLeak")
+                .role(UserRole.BUYER)
+                .build();
+        when(userService.findById(1L)).thenReturn(Optional.of(user));
+
+        mockMvc.perform(get("/api/users/1").principal(OWNER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("passwordHash"))));
+    }
+
+    @Test
+    void getByIdAsOtherUser_returns403() throws Exception {
+        mockMvc.perform(get("/api/users/1").principal(OTHER_USER))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(userService);
+    }
+
+    @Test
+    void getByIdWhenNotFound_returns404() throws Exception {
+        when(userService.findById(1L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/users/1").principal(OWNER))
+                .andExpect(status().isNotFound());
     }
 }

@@ -4,7 +4,6 @@ import com.mercatto.orders.domain.Order;
 import com.mercatto.orders.service.OrderService;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.AuthenticatedUser;
-import com.mercatto.users.service.ForbiddenRoleException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
@@ -29,17 +28,19 @@ public class OrderController {
     @PostMapping("/checkout")
     public ResponseEntity<Order> checkout(@Valid @RequestBody CheckoutRequest request, Principal principal) {
         AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
-        if (authenticatedUser.role() != UserRole.BUYER) {
-            throw new ForbiddenRoleException("Apenas compradores podem finalizar pedidos");
-        }
+        authenticatedUser.requireRole(UserRole.BUYER);
         Order order = orderService.checkout(authenticatedUser.userId(), request.items());
         return ResponseEntity.ok(order);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Order> getById(@PathVariable Long id) {
+    public ResponseEntity<Order> getById(@PathVariable Long id, Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
         return orderService.findById(id)
-                .map(ResponseEntity::ok)
+                .map(order -> {
+                    authenticatedUser.requireOwner(order.getBuyerId());
+                    return ResponseEntity.ok(order);
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
