@@ -30,9 +30,9 @@ public class UserController {
     private final TokenService tokenService;
 
     @PostMapping("/register")
-    public ResponseEntity<User> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
         User user = userService.register(request.name(), request.email(), request.password(), request.role());
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(UserResponse.from(user));
     }
 
     @GetMapping("/{id}")

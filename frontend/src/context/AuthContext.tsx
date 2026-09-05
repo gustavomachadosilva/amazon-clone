@@ -1,43 +1,51 @@
 import { createContext, useContext, type ReactNode } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { idFromEmail } from '../lib/auth'
-import type { AuthUser } from '../types/domain'
+import { ApiRequestError, usersApi } from '../services/api'
+import type { AuthUser, UserRole } from '../types/domain'
 
 interface AuthContextValue {
   user: AuthUser | null
-  signIn: (email: string, password: string) => string | null
-  register: (name: string, email: string, password: string) => string | null
+  signIn: (email: string, password: string) => Promise<string | null>
+  register: (name: string, email: string, password: string, role: UserRole) => Promise<string | null>
   signOut: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-function capitalize(word: string): string {
-  return word.charAt(0).toUpperCase() + word.slice(1)
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useLocalStorage<AuthUser | null>('mercatto:auth', null)
 
-  function validate(email: string, password: string, name?: string): string | null {
+  async function signIn(email: string, password: string): Promise<string | null> {
     if (!email.includes('@')) return 'Enter a valid email address.'
-    if (password.length < 6) return 'Password must be at least 6 characters.'
-    if (name !== undefined && !name.trim()) return 'Enter your name.'
-    return null
+
+    try {
+      const user = await usersApi.login(email, password)
+      setUser(user)
+      return null
+    } catch (e) {
+      if (e instanceof ApiRequestError && e.status === 401) {
+        return 'Incorrect email or password.'
+      }
+      return 'Could not sign in. Please try again.'
+    }
   }
 
-  function signIn(email: string, password: string): string | null {
-    const error = validate(email, password)
-    if (error) return error
-    setUser({ id: idFromEmail(email), name: capitalize(email.split('@')[0]), email })
-    return null
-  }
+  async function register(name: string, email: string, password: string, role: UserRole): Promise<string | null> {
+    if (!email.includes('@')) return 'Enter a valid email address.'
+    if (!name.trim()) return 'Enter your name.'
+    if (password.length < 8) return 'Password must be at least 8 characters.'
 
-  function register(name: string, email: string, password: string): string | null {
-    const error = validate(email, password, name)
-    if (error) return error
-    setUser({ id: idFromEmail(email), name: name.trim(), email })
-    return null
+    try {
+      const user = await usersApi.register({ name: name.trim(), email, password, role })
+      setUser(user)
+      return null
+    } catch (e) {
+      if (e instanceof ApiRequestError) {
+        if (e.status === 409) return 'This email is already registered.'
+        if (e.status === 400) return e.apiMessage ?? 'Please check the information provided.'
+      }
+      return 'Could not create your account. Please try again.'
+    }
   }
 
   function signOut() {

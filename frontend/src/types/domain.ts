@@ -20,8 +20,11 @@ export interface Review {
   helpful: number
 }
 
+export type UserRole = 'BUYER' | 'SELLER'
+
 export interface AuthUser {
   id: number
   name: string
   email: string
+  role: UserRole
 }

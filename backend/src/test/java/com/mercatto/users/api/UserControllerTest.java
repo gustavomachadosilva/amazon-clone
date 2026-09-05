@@ -116,7 +116,9 @@ class UserControllerTest {
                         .content(objectMapper.writeValueAsString(
                                 new UserController.RegisterRequest("Jane Doe", "jane@example.com", "password123", UserRole.BUYER))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1));
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("passwordHash"))));
 
         verify(userService).register("Jane Doe", "jane@example.com", "password123", UserRole.BUYER);
     }
