@@ -4,8 +4,7 @@ import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.repository.ProductRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -13,7 +12,13 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Seeds the catalog with sample products fetched from the public DummyJSON API, so the
+ * storefront never renders empty against a freshly created database. Only active on the
+ * {@code dev} profile — never runs in production.
+ */
 @Component
+@Profile("dev")
 public class DummyJsonSeeder {
 
     private static final Logger log = LoggerFactory.getLogger(DummyJsonSeeder.class);
@@ -25,8 +30,7 @@ public class DummyJsonSeeder {
         this.restClient = RestClient.create();
     }
 
-    @EventListener(ApplicationReadyEvent.class)
-    public void seedDatabase() {
+    public void seedProducts(Long sellerId) {
         if (productRepository.count() > 0) {
             log.info("Database already populated. Skipping DummyJSON seed.");
             return;
@@ -54,7 +58,7 @@ public class DummyJsonSeeder {
                             .stockQuantity(dto.stock())
                             .category(dto.category())
                             .imageUrl(imageUrl)
-                            .sellerId(1L) // Default seller
+                            .sellerId(sellerId)
                             .build();
                 }).collect(Collectors.toList());
 

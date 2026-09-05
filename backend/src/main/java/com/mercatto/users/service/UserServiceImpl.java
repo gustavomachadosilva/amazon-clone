@@ -45,6 +45,11 @@ class UserServiceImpl implements UserService {
     }
 
     @Override
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+
+    @Override
     public boolean isSeller(Long userId) {
         return userRepository.findById(userId)
                 .map(user -> user.getRole() == UserRole.SELLER)
