@@ -2,7 +2,7 @@
 name: resolve-card
 description: Look up a card (issue) on this repo's GitHub Project board by number, show its full details, and ask the user how to proceed. Use when the user runs /resolve-card <NUMBER> or asks to look up/start a project card or issue by number.
 argument-hint: <NÚMERO DO CARD>
-allowed-tools: [Bash(gh repo view*), Bash(gh project list*), Bash(gh project item-list*), Bash(gh issue view*), AskUserQuestion]
+allowed-tools: [Bash(gh repo view*), Bash(gh project list*), Bash(gh project item-list*), Bash(gh issue view*), Bash(git status*), Bash(git checkout*), Bash(git pull*), AskUserQuestion, Agent]
 ---
 
 # /resolve-card — Buscar card no GitHub Projects
@@ -69,3 +69,73 @@ Pergunte ao usuário como deseja seguir — não presuma a próxima ação. Ofer
 alternativas plausíveis (ex.: começar a implementar agora, criar uma branch, apenas
 queria ver as informações, mover o status do card) mas deixe a decisão explicitamente
 com o usuário antes de tomar qualquer ação no código ou no board.
+
+Se o usuário confirmar que quer implementar o card agora, siga o fluxo orquestrado
+abaixo.
+
+## Execução orquestrada (planejamento → implementação)
+
+Quando o usuário confirmar que quer implementar o card, não implemente você mesmo
+diretamente nesta skill. Execute em duas etapas sequenciais, cada uma delegada a um
+agente diferente via `Agent`. Cada agente é disparado sem memória desta conversa, então
+todo prompt precisa ser autocontido: inclua número/título/URL do card, corpo completo e
+critérios de aceite, labels e dependências, o trecho relevante do "Contrato de
+Modularidade" (`README.md`) e o fluxo de Git do `CLAUDE.md`.
+
+### Etapa 0 — Preparar a branch
+
+Antes de acionar os agentes, siga o fluxo de Git do `CLAUDE.md`: atualize a `main`
+local e crie a branch de trabalho a partir dela. Rode `git status` antes — se houver
+mudanças não commitadas de outra tarefa, avise o usuário e não descarte nada.
+
+```bash
+git status
+git checkout main
+git pull
+git checkout -b feature/<NUMERO>-<slug-curto-do-título>
+```
+
+O padrão de nome de branch já usado no repo é `feature/<numero>-<slug>` (ex.:
+`feature/37-login-endpoint`) — minúsculo, palavras separadas por hífen.
+
+### Etapa 1 — Planejamento (agente `Plan`)
+
+Chame `Agent` com `subagent_type: "Plan"` e `run_in_background: false` (a etapa
+seguinte depende do resultado). No prompt, dê ao agente:
+
+- Todos os dados do card (título, corpo, critérios de aceite, labels, dependências,
+  URL).
+- O(s) módulo(s) de backend/frontend provavelmente afetado(s).
+- As regras do "Contrato de Modularidade" (`README.md`) que se aplicam.
+- Peça um plano concreto e passo a passo: arquivos a criar/alterar, ordem das
+  mudanças, e estratégia de teste (ArchUnit/testes unitários no backend, lint/build no
+  frontend) — só o plano, sem escrever código.
+
+Quando o plano voltar, apresente ao usuário um resumo objetivo (passos principais,
+arquivos envolvidos) e pergunte se pode seguir para a implementação com esse plano ou
+se algo precisa ajustar antes. Não pule esta confirmação — é a única checagem antes de
+código ser escrito.
+
+### Etapa 2 — Implementação (agente diferente do planejamento)
+
+Depois que o usuário aprovar o plano, chame `Agent` novamente com um `subagent_type`
+diferente do usado na Etapa 1 (ex.: `general-purpose`), passando o plano aprovado e os
+dados do card no prompt — de novo autocontido, este agente também não viu a conversa
+nem o plano. Instrua-o a:
+
+- Implementar seguindo o plano e o Contrato de Modularidade.
+- Rodar `mvn test` (backend) e/ou `npm run lint && npm run build` (frontend), conforme
+  o que foi alterado — o mesmo gate descrito no `CLAUDE.md`.
+- Reportar o que foi feito, o que passou/falhou nos testes, e qualquer desvio do plano
+  original com o motivo.
+
+Rode esta etapa em foreground (`run_in_background: false`) quando o usuário estiver
+esperando o resultado nesta conversa. Para cards grandes, pode oferecer rodar em
+background e avisar o usuário quando terminar — mas confirme essa preferência com ele
+antes, não decida sozinho.
+
+### Depois da implementação
+
+Resuma o que foi feito e lembre o usuário que o skill `/pr-check` roda testes +
+revisão de código + checagem do Contrato de Modularidade antes de abrir a PR. Não rode
+`/pr-check` nem abra a PR sozinho — apenas sugira, conforme o `CLAUDE.md`.
