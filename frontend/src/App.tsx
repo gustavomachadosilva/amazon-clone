@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router-dom'
+import RequireRole from './components/auth/RequireRole'
 import Layout from './components/layout/Layout'
 import Home from './pages/Home'
 import Search from './pages/Search'
@@ -27,7 +28,14 @@ export default function App() {
         <Route path="/order/:id" element={<OrderConfirmation />} />
         <Route path="/orders" element={<Orders />} />
       </Route>
-      <Route path="/seller" element={<SellerDashboard />} />
+      <Route
+        path="/seller"
+        element={
+          <RequireRole role="SELLER">
+            <SellerDashboard />
+          </RequireRole>
+        }
+      />
     </Routes>
   )
 }
