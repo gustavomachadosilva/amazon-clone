@@ -2,6 +2,7 @@ package com.mercatto.config;
 
 import com.mercatto.orders.service.InsufficientStockException;
 import com.mercatto.users.service.EmailAlreadyExistsException;
+import com.mercatto.users.service.ForbiddenRoleException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -49,6 +50,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<ApiError> handleEmailAlreadyExists(EmailAlreadyExistsException ex, HttpServletRequest request) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ForbiddenRoleException.class)
+    public ResponseEntity<ApiError> handleForbiddenRole(ForbiddenRoleException ex, HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN, ex.getMessage(), request);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

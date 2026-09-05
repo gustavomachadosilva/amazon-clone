@@ -2,10 +2,12 @@ package com.mercatto.cart.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mercatto.cart.service.CartService;
+import com.mercatto.users.service.TokenService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -27,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(CartController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class CartControllerTest {
 
     @Autowired
@@ -37,6 +40,9 @@ class CartControllerTest {
 
     @MockBean
     private CartService cartService;
+
+    @MockBean
+    private TokenService tokenService;
 
     private static CartService.CartView emptyCart(Long userId) {
         return new CartService.CartView(userId, List.of(), List.of(), 0, BigDecimal.ZERO);

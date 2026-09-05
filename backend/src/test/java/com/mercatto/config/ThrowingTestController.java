@@ -2,6 +2,7 @@ package com.mercatto.config;
 
 import com.mercatto.orders.service.InsufficientStockException;
 import com.mercatto.users.service.EmailAlreadyExistsException;
+import com.mercatto.users.service.ForbiddenRoleException;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.validation.annotation.Validated;
@@ -39,6 +40,11 @@ public class ThrowingTestController {
     @GetMapping("/email-already-exists")
     public String emailAlreadyExists() {
         throw new EmailAlreadyExistsException("email already registered");
+    }
+
+    @GetMapping("/forbidden-role")
+    public String forbiddenRole() {
+        throw new ForbiddenRoleException("Apenas vendedores podem criar produtos");
     }
 
     @GetMapping("/data-integrity-violation")

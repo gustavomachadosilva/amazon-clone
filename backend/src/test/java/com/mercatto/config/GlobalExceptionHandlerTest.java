@@ -1,8 +1,11 @@
 package com.mercatto.config;
 
+import com.mercatto.users.service.TokenService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -24,10 +27,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * setup.
  */
 @WebMvcTest(controllers = ThrowingTestController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class GlobalExceptionHandlerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @MockBean
+    private TokenService tokenService;
 
     @Test
     void illegalArgument_mapsTo400WithStandardBody() throws Exception {
@@ -70,6 +77,17 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.error").value("Conflict"))
                 .andExpect(jsonPath("$.message").value("email already registered"))
                 .andExpect(jsonPath("$.path").value("/test/email-already-exists"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void forbiddenRole_mapsTo403WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/forbidden-role"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value("Apenas vendedores podem criar produtos"))
+                .andExpect(jsonPath("$.path").value("/test/forbidden-role"))
                 .andExpect(jsonPath("$.timestamp").exists());
     }
 
