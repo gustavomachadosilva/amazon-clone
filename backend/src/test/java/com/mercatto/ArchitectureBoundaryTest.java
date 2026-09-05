@@ -15,7 +15,7 @@ public class ArchitectureBoundaryTest {
     @Test
     void catalog_should_not_depend_on_orders_or_sellers() {
         noClasses().that().resideInAPackage("..catalog..")
-            .should().dependOnClassesThat().resideInAnyPackage("..orders..", "..sellers..")
+            .should().dependOnClassesThat().resideInAnyPackage("..orders..", "..sellers..", "..cart..")
             .check(classes);
     }
 
@@ -23,6 +23,13 @@ public class ArchitectureBoundaryTest {
     void modules_should_be_free_of_cycles() {
         SlicesRuleDefinition.slices().matching("com.mercatto.(*)..")
             .should().beFreeOfCycles()
+            .check(classes);
+    }
+
+    @Test
+    void business_modules_should_not_depend_on_config() {
+        noClasses().that().resideInAnyPackage("..users..", "..catalog..", "..orders..", "..sellers..")
+            .should().dependOnClassesThat().resideInAPackage("..config..")
             .check(classes);
     }
 }

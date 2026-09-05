@@ -1,7 +1,9 @@
 package com.mercatto.config;
 
 import com.mercatto.orders.service.InsufficientStockException;
+import com.mercatto.users.service.EmailAlreadyExistsException;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,6 +34,16 @@ public class ThrowingTestController {
     @GetMapping("/insufficient-stock")
     public String insufficientStock() {
         throw new InsufficientStockException("not enough stock");
+    }
+
+    @GetMapping("/email-already-exists")
+    public String emailAlreadyExists() {
+        throw new EmailAlreadyExistsException("email already registered");
+    }
+
+    @GetMapping("/data-integrity-violation")
+    public String dataIntegrityViolation() {
+        throw new DataIntegrityViolationException("unique constraint violated");
     }
 
     @GetMapping("/unexpected")

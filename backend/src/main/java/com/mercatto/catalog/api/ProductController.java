@@ -2,6 +2,12 @@ package com.mercatto.catalog.api;
 
 import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.service.ProductService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/api/catalog/products")
@@ -37,7 +45,25 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<Product> create(@RequestBody Product product) {
+    public ResponseEntity<Product> create(@Valid @RequestBody CreateProductRequest request) {
+        Product product = Product.builder()
+                .name(request.name())
+                .description(request.description())
+                .price(request.price())
+                .stockQuantity(request.stockQuantity())
+                .category(request.category())
+                .imageUrl(request.imageUrl())
+                .sellerId(request.sellerId())
+                .build();
         return ResponseEntity.ok(productService.create(product));
     }
+
+    public record CreateProductRequest(
+            @NotBlank @Size(max = 255) String name,
+            @Size(max = 2000) String description,
+            @NotNull @Positive BigDecimal price,
+            @NotNull @PositiveOrZero Integer stockQuantity,
+            @NotBlank @Size(max = 255) String category,
+            @Size(max = 1000) String imageUrl,
+            @NotNull @Positive Long sellerId) {}
 }

@@ -57,6 +57,30 @@ Postgres runs the SQL in `backend/src/main/resources/db/init/` on first boot, cr
 - Backend: `cd backend && mvn spring-boot:run` (needs a local Postgres matching your `.env`).
 - Frontend: `cd frontend && npm install && npm run dev`.
 
+## Seed de dados (ambiente de desenvolvimento)
+
+Para que `Home.tsx` e `SellerDashboard.tsx` nunca renderizem vazios em um ambiente novo, o backend
+semeia dados automaticamente ao subir:
+
+- **Usuários** (`users.service.UserSeeder`): uma lista fixa de contas variadas — 3 sellers (o
+  seller âncora `seller.demo@mercatto.dev` / `Seller123!`, dono dos produtos semeados, mais 2
+  sellers extras) e 6 buyers, cada um com nome e e-mail próprios.
+- **Produtos** (`catalog.service.DummyJsonSeeder`): ~50 produtos importados da API pública
+  [DummyJSON](https://dummyjson.com/), associados ao seller âncora acima.
+
+Esse seed só roda quando `SPRING_PROFILES_ACTIVE=dev` (o padrão em `.env.example` e no
+`docker-compose.yml`) — **nunca em produção**. Ele também é idempotente: em toda subida verifica
+o que já existe (por e-mail, para usuários; pela contagem de produtos, para o catálogo) e só cria
+o que estiver faltando, então rodar `docker compose up` várias vezes não duplica dados nem falha.
+
+Para resetar e repopular do zero (apaga todos os dados do Postgres, incluindo o volume
+`db_data`):
+
+```bash
+docker compose down -v   # remove o volume do Postgres, apaga TODOS os dados
+docker compose up --build
+```
+
 ## Contrato de Modularidade
 
 Rules every module must follow. Violating these turns the modular monolith into a monolito de

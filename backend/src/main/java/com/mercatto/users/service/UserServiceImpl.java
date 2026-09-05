@@ -18,6 +18,9 @@ class UserServiceImpl implements UserService {
 
     @Override
     public User register(String name, String email, String rawPassword, UserRole role) {
+        if (userRepository.existsByEmail(email)) {
+            throw new EmailAlreadyExistsException("E-mail já cadastrado: " + email);
+        }
         User user = User.builder()
                 .name(name)
                 .email(email)
@@ -39,6 +42,11 @@ class UserServiceImpl implements UserService {
     @Override
     public Optional<User> findById(Long id) {
         return userRepository.findById(id);
+    }
+
+    @Override
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
     }
 
     @Override
