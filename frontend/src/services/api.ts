@@ -27,6 +27,7 @@ export interface Product {
   stockQuantity: number
   category: string
   sellerId: number
+  imageUrl?: string
 }
 
 export interface Page<T> {

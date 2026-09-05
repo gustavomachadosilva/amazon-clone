@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { Search } from 'lucide-react'
+import { Button } from '../ui'
 import { useAuth } from '../../context/AuthContext'
 import { useCart } from '../../context/CartContext'
 import { CATEGORIES, STORE_NAME } from '../../lib/constants'
@@ -92,9 +93,9 @@ export default function Header() {
             placeholder="Search products, brands and categories"
             style={{ flex: 1, border: 0, padding: '0 10px', color: '#1d1f20', fontSize: 14 }}
           />
-          <button
+          <Button
             type="submit"
-            className="btn btn-primary"
+            variant="primary"
             style={{
               border: 0,
               borderRadius: 0,
@@ -105,7 +106,7 @@ export default function Header() {
             }}
           >
             <Search size={16} strokeWidth={1.5} />
-          </button>
+          </Button>
         </form>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, flex: 'none' }}>

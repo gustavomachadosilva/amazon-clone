@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Blueprint from '../components/ui/Blueprint'
-import Placeholder from '../components/ui/Placeholder'
-import StarRating from '../components/ui/StarRating'
+import { Blueprint, Button, Input, Placeholder, StarRating } from '../components/ui'
 import { useCart } from '../context/CartContext'
 import { useLists } from '../context/ListsContext'
 import { useReviews } from '../context/ReviewsContext'
@@ -64,16 +62,15 @@ export default function Lists() {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          <input
-            className="input"
+          <Input
             placeholder="New list name"
             value={newListName}
             onChange={(e) => setNewListName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && createList()}
           />
-          <button className="btn btn-primary" onClick={createList}>
+          <Button variant="primary" onClick={createList}>
             Add
-          </button>
+          </Button>
         </div>
       </aside>
 
@@ -82,9 +79,9 @@ export default function Lists() {
           <Blueprint style={{ padding: 34, textAlign: 'center' }}>
             <h3>This list is empty</h3>
             <p style={{ color: '#5d5d60' }}>Open a product and use &ldquo;Add to list&rdquo; to save it here.</p>
-            <button className="btn btn-primary" onClick={() => navigate('/')}>
+            <Button variant="primary" onClick={() => navigate('/')}>
               Browse products
-            </button>
+            </Button>
           </Blueprint>
         ) : (
           <>
@@ -94,12 +91,12 @@ export default function Lists() {
                 <p style={{ fontSize: 13, color: '#5d5d60' }}>{activeList.items.length} item(s) · private list</p>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-secondary" onClick={addAllToCart}>
+                <Button variant="secondary" onClick={addAllToCart}>
                   Add all to cart
-                </button>
-                <button className="btn btn-ghost" onClick={() => lists.deleteList(activeList.id)}>
+                </Button>
+                <Button variant="ghost" onClick={() => lists.deleteList(activeList.id)}>
                   Delete list
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -107,9 +104,9 @@ export default function Lists() {
               <Blueprint style={{ padding: 34, textAlign: 'center', marginTop: 16 }}>
                 <h3>This list is empty</h3>
                 <p style={{ color: '#5d5d60' }}>Open a product and use &ldquo;Add to list&rdquo; to save it here.</p>
-                <button className="btn btn-primary" onClick={() => navigate('/')}>
+                <Button variant="primary" onClick={() => navigate('/')}>
                   Browse products
-                </button>
+                </Button>
               </Blueprint>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
@@ -121,7 +118,7 @@ export default function Lists() {
                   return (
                     <Blueprint key={productId} style={{ padding: 12, display: 'grid', gridTemplateColumns: '110px 1fr 190px', gap: 12 }}>
                       <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${productId}`)}>
-                        <Placeholder label="Product" aspect="1/1" />
+                        <Placeholder label="Product" aspect="1/1" src={product.imageUrl} />
                       </div>
                       <div>
                         <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${productId}`)}>
@@ -139,18 +136,19 @@ export default function Lists() {
                         <div className="h" style={{ fontSize: 21 }}>
                           {usd(product.price)}
                         </div>
-                        <button
-                          className="btn btn-primary btn-block"
+                        <Button
+                          variant="primary"
+                          block
                           onClick={() => {
                             cart.addItem(product)
                             navigate('/cart')
                           }}
                         >
                           Add to cart
-                        </button>
-                        <button className="btn btn-ghost btn-block" onClick={() => lists.removeFromList(activeList.id, productId)}>
+                        </Button>
+                        <Button variant="ghost" block onClick={() => lists.removeFromList(activeList.id, productId)}>
                           Remove from list
-                        </button>
+                        </Button>
                       </div>
                     </Blueprint>
                   )

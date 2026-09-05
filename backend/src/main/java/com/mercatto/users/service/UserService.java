@@ -14,6 +14,8 @@ public interface UserService {
 
     User register(String name, String email, String rawPassword, UserRole role);
 
+    Optional<User> authenticate(String email, String rawPassword);
+
     Optional<User> findById(Long id);
 
     boolean isSeller(Long userId);

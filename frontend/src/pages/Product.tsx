@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import Blueprint from '../components/ui/Blueprint'
-import Placeholder from '../components/ui/Placeholder'
-import StarRating from '../components/ui/StarRating'
+import { Blueprint, Button, Input, Placeholder, Select, StarRating, Table, TableBody, TableCell, TableRow } from '../components/ui'
 import ProductGridCard from '../components/ProductGridCard'
 import { useCart } from '../context/CartContext'
 import { useLists } from '../context/ListsContext'
@@ -98,16 +96,19 @@ export default function Product() {
     }
     const list = lists.lists.find((l) => l.id === target)
     const result = lists.addToList(target, product.id)
-    setListFeedback(result === 'added' ? `Added to ${list?.name ?? 'list'}.` : `Already in ${list?.name ?? 'list'}.`)
+    setListFeedback(result ?? `Saved to ${list?.name ?? 'your list'}`)
+    setTimeout(() => setListFeedback(''), 3000)
   }
 
   function saveNewList() {
-    if (!newListName.trim()) return
-    const list = lists.createList(newListName)
-    setListTarget(list.id)
-    setNewListName('')
+    if (!newListName.trim() || !product) return
+    const created = lists.createList(newListName.trim())
+    lists.addToList(created.id, product.id)
+    setListTarget(created.id)
     setCreatingList(false)
-    setListFeedback(`List "${list.name}" created.`)
+    setNewListName('')
+    setListFeedback(`Saved to ${created.name}`)
+    setTimeout(() => setListFeedback(''), 3000)
   }
 
   return (
@@ -125,7 +126,7 @@ export default function Product() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr 300px', gap: 28, alignItems: 'start' }}>
         <Blueprint style={{ padding: 12 }}>
-          <Placeholder label="Main photo" aspect="1/1" />
+          <Placeholder label="Main photo" aspect="1/1" src={product.imageUrl} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 8 }}>
             {['Angle 2', 'Angle 3', 'Detail', 'In use'].map((label) => (
               <Placeholder key={label} label={label} aspect="1/1" />
@@ -134,64 +135,72 @@ export default function Product() {
         </Blueprint>
 
         <div>
-          <h1 style={{ fontSize: 34, lineHeight: 1.08 }}>{product.name}</h1>
-          <div style={{ fontSize: 13, marginBottom: 8 }}>
-            Brand: <a href="#brand">{deriveBrandLabel(product)}</a>
+          <div className="kick">{product.category}</div>
+          <h1 style={{ fontSize: 34, lineHeight: 1.15 }}>{product.name}</h1>
+          <div style={{ fontSize: 13, color: 'var(--color-accent-700)', marginBottom: 8 }}>
+            Visit the {deriveBrandLabel(product)} store
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 14, paddingBottom: 12, borderBottom: '1px solid var(--color-divider)' }}>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <StarRating rating={rating} />
-            <span>{rating.toFixed(1)}</span>
-            <span style={{ color: '#7a7a7d' }}>{productReviews.length.toLocaleString('en-US')} ratings</span>
+            <span style={{ color: 'var(--color-accent-700)' }}>
+              {rating.toFixed(1)} ({productReviews.length.toLocaleString('en-US')} ratings)
+            </span>
           </div>
 
-          <div style={{ margin: '16px 0' }}>
-            <div className="h" style={{ fontSize: 38, color: 'var(--color-accent-800)' }}>
-              {usd(product.price)}
-            </div>
-            {listPrice > product.price && (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span style={{ fontSize: 14, color: '#98989b', textDecoration: 'line-through' }}>{usd(listPrice)}</span>
-                <span className="tag tag-accent">-{discountPct}%</span>
-              </div>
+          <div className="hr" />
+
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, margin: '12px 0' }}>
+            {discountPct > 0 && (
+              <span className="h" style={{ color: 'var(--color-accent-800)', fontSize: 24 }}>
+                -{discountPct}%
+              </span>
             )}
-            <div style={{ fontSize: 12.5, color: '#5d5d60' }}>{installmentLine(product.price)}</div>
+            <span className="h" style={{ fontSize: 38 }}>
+              {usd(product.price)}
+            </span>
+            {listPrice > product.price && (
+              <span style={{ color: '#98989b', textDecoration: 'line-through', fontSize: 14 }}>
+                Typical price: {usd(listPrice)}
+              </span>
+            )}
           </div>
+          <div style={{ fontSize: 12.5, color: '#5d5d60' }}>{installmentLine(product.price)}</div>
 
-          <div className="kick">About this item</div>
-          <ul style={{ fontSize: 13.5, paddingLeft: 18 }}>
-            {bullets.map((bullet) => (
-              <li key={bullet}>{bullet}</li>
+          <div className="hr" />
+
+          <ul style={{ paddingLeft: 18, fontSize: 13.5, lineHeight: 1.6, color: '#424244' }}>
+            {bullets.map((b, i) => (
+              <li key={i}>{b}</li>
             ))}
           </ul>
 
-          <Blueprint style={{ padding: 16, marginTop: 20 }}>
-            <div className="h" style={{ fontSize: 16, marginBottom: 8 }}>
-              Product details
-            </div>
-            <table className="table">
-              <tbody>
-                <tr>
-                  <td>Brand</td>
-                  <td>{deriveBrandLabel(product)}</td>
-                </tr>
-                <tr>
-                  <td>Department</td>
-                  <td>{product.category}</td>
-                </tr>
-                <tr>
-                  <td>Item model number</td>
-                  <td>{deriveModelNumber(product)}</td>
-                </tr>
-                <tr>
-                  <td>Warranty</td>
-                  <td>{WARRANTY_LABEL}</td>
-                </tr>
-                <tr>
-                  <td>Sold by</td>
-                  <td>{STORE_NAME}</td>
-                </tr>
-              </tbody>
-            </table>
+          <Blueprint style={{ marginTop: 20, padding: 14 }}>
+            <div className="kick">Technical specifications</div>
+            <Table>
+              <TableBody>
+                <TableRow>
+                  <TableCell style={{ width: 140 }}>Brand</TableCell>
+                  <TableCell>{deriveBrandLabel(product)}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Model</TableCell>
+                  <TableCell>{deriveModelNumber(product)}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Category</TableCell>
+                  <TableCell>{product.category}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Warranty</TableCell>
+                  <TableCell>{WARRANTY_LABEL}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Sold by</TableCell>
+                  <TableCell>{STORE_NAME}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           </Blueprint>
         </div>
 
@@ -206,62 +215,63 @@ export default function Product() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, color: '#5d5d60' }}>Qty</span>
-            <select className="input" style={{ width: 'auto', minHeight: 32 }} value={qty} onChange={(e) => setQty(Number(e.target.value))}>
+            <Select style={{ width: 'auto', minHeight: 32 }} value={qty} onChange={(e) => setQty(Number(e.target.value))}>
               {[1, 2, 3, 4, 5].map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
-          <button
-            className="btn btn-primary btn-block"
+          <Button
+            variant="primary"
+            block
             onClick={() => {
               cart.addItem(product, qty)
               navigate('/cart')
             }}
           >
             Add to cart
-          </button>
-          <button
-            className="btn btn-secondary btn-block"
+          </Button>
+          <Button
+            variant="secondary"
+            block
             onClick={() => {
               cart.addItem(product, qty)
               navigate('/checkout')
             }}
           >
             Buy now
-          </button>
+          </Button>
 
           <div style={{ border: '1px solid var(--color-divider)', padding: 12, display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
             <div className="kick">Add to a list</div>
             {!creatingList ? (
               <>
-                <select className="input" value={listTarget} onChange={(e) => setListTarget(e.target.value)}>
+                <Select value={listTarget} onChange={(e) => setListTarget(e.target.value)}>
                   {lists.lists.map((list) => (
                     <option key={list.id} value={list.id}>
                       {list.name} ({list.items.length})
                     </option>
                   ))}
-                </select>
-                <button className="btn btn-secondary" onClick={addToList}>
+                </Select>
+                <Button variant="secondary" onClick={addToList}>
                   Add to list
-                </button>
-                <button className="btn btn-ghost" onClick={() => setCreatingList(true)}>
+                </Button>
+                <Button variant="ghost" onClick={() => setCreatingList(true)}>
                   + Create a new list
-                </button>
+                </Button>
               </>
             ) : (
               <>
-                <input
-                  className="input"
+                <Input
                   placeholder="New list name"
                   value={newListName}
                   onChange={(e) => setNewListName(e.target.value)}
                 />
-                <button className="btn btn-primary" onClick={saveNewList}>
+                <Button variant="primary" onClick={saveNewList}>
                   Save
-                </button>
+                </Button>
               </>
             )}
             {listFeedback && <div style={{ fontSize: 12, color: 'var(--color-accent-700)' }}>{listFeedback}</div>}
@@ -306,7 +316,7 @@ export default function Product() {
                 {bundleItems.map((item, index) => (
                   <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     {index > 0 && <span>+</span>}
-                    <Placeholder label="Item" aspect="1/1" className="w-[84px]" />
+                    <Placeholder label="Item" aspect="1/1" className="w-[84px]" src={item.imageUrl} />
                   </div>
                 ))}
               </div>
@@ -323,16 +333,16 @@ export default function Product() {
               <div style={{ fontSize: 12, color: '#7a7a7d', marginBottom: 8 }}>
                 {bundleChecked.size} of {bundleItems.length} items selected
               </div>
-              <button className="btn btn-primary" onClick={addBundleToCart}>
+              <Button variant="primary" onClick={addBundleToCart}>
                 Add selected to cart
-              </button>
+              </Button>
             </Blueprint>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {recommended.map((item, index) => (
                 <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '88px 1fr 150px', gap: 12 }}>
                   <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${item.id}`)}>
-                    <Placeholder label="Item" aspect="1/1" />
+                    <Placeholder label="Item" aspect="1/1" src={item.imageUrl} />
                   </div>
                   <div>
                     <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${item.id}`)}>
@@ -345,15 +355,15 @@ export default function Product() {
                   </div>
                   <div>
                     <div className="h">{usd(item.price)}</div>
-                    <button
-                      className="btn btn-secondary"
+                    <Button
+                      variant="secondary"
                       onClick={() => {
                         cart.addItem(item)
                         navigate('/cart')
                       }}
                     >
                       Add to cart
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -365,9 +375,9 @@ export default function Product() {
       <div style={{ borderTop: '1px solid var(--color-divider)', paddingTop: 28, marginTop: 28 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2>Customer reviews</h2>
-          <button className="btn btn-secondary" onClick={() => navigate(`/product/${product.id}/review`)}>
+          <Button variant="secondary" onClick={() => navigate(`/product/${product.id}/review`)}>
             Write a review
-          </button>
+          </Button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 24 }}>
           <div>
@@ -399,9 +409,9 @@ export default function Product() {
                   {review.author} · {review.date} · Verified purchase
                 </div>
                 <p style={{ fontSize: 13.5, maxWidth: '70ch', color: '#424244' }}>{review.text}</p>
-                <button className="btn btn-ghost" onClick={() => reviews.markHelpful(product.id, index)}>
+                <Button variant="ghost" onClick={() => reviews.markHelpful(product.id, index)}>
                   Helpful ({review.helpful})
-                </button>
+                </Button>
               </div>
             ))}
           </div>

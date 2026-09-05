@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Blueprint from '../components/ui/Blueprint'
-import Placeholder from '../components/ui/Placeholder'
+import { Blueprint, Placeholder, Button, Card } from '../components/ui'
 import ProductGridCard from '../components/ProductGridCard'
 import { catalogApi, type Product } from '../services/api'
 import { CATEGORIES } from '../lib/constants'
@@ -34,12 +33,12 @@ export default function Home() {
             Over 40,000 items from 900 sellers, with tracked delivery and 30-day returns.
           </p>
           <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-            <button className="btn btn-primary" onClick={() => navigate('/search?sort=low')}>
+            <Button variant="primary" onClick={() => navigate('/search?sort=low')}>
               See today&rsquo;s deals
-            </button>
-            <button className="btn btn-secondary" onClick={() => navigate('/search')}>
+            </Button>
+            <Button variant="secondary" onClick={() => navigate('/search')}>
               Browse catalogue
-            </button>
+            </Button>
           </div>
         </div>
         <Placeholder label="Campaign image" aspect="16/10" />
@@ -49,15 +48,16 @@ export default function Home() {
         <h2>Shop by category</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 16, marginTop: 12 }}>
           {CATEGORIES.slice(1).map((name) => (
-            <Blueprint
+            <Card
               key={name}
-              className="prod"
+              blueprint
+              hoverLift
               style={{ padding: 14, cursor: 'pointer' }}
               onClick={() => navigate(`/search?category=${name}`)}
             >
               <Placeholder label={name} aspect="1/1" />
               <div style={{ fontSize: 15, marginTop: 8 }}>{name}</div>
-            </Blueprint>
+            </Card>
           ))}
         </div>
       </div>
@@ -65,9 +65,9 @@ export default function Home() {
       <div style={{ marginTop: 40 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2>Recommended for you</h2>
-          <button className="btn btn-ghost" onClick={() => navigate('/search')}>
+          <Button variant="ghost" onClick={() => navigate('/search')}>
             See all
-          </button>
+          </Button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, marginTop: 12 }}>
           {products.slice(0, 10).map((product) => (
