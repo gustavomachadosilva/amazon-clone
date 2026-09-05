@@ -25,4 +25,11 @@ public class ArchitectureBoundaryTest {
             .should().beFreeOfCycles()
             .check(classes);
     }
+
+    @Test
+    void business_modules_should_not_depend_on_config() {
+        noClasses().that().resideInAnyPackage("..users..", "..catalog..", "..orders..", "..sellers..")
+            .should().dependOnClassesThat().resideInAPackage("..config..")
+            .check(classes);
+    }
 }
