@@ -16,7 +16,7 @@ export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([])
 
   useEffect(() => {
-    if (user) ordersApi.listByBuyer(user.id).then(setOrders)
+    if (user) ordersApi.listByBuyer().then(setOrders)
   }, [user])
 
   const allIds = orders.flatMap((order) => order.items.map((item) => item.productId))

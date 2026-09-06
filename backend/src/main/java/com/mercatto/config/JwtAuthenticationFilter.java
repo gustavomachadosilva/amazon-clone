@@ -70,7 +70,16 @@ class JwtAuthenticationFilter extends OncePerRequestFilter {
         String method = request.getMethod();
         String path = request.getRequestURI();
 
+        // CORS preflight requests never carry the Authorization header; blocking them here
+        // would return 401 before Spring's CorsFilter can add the response headers the browser
+        // needs, breaking every cross-origin call regardless of credentials.
+        if ("OPTIONS".equals(method)) {
+            return true;
+        }
         if ("POST".equals(method) && ("/api/users/register".equals(path) || "/api/users/login".equals(path))) {
+            return true;
+        }
+        if ("GET".equals(method) && "/api/health".equals(path)) {
             return true;
         }
         return "GET".equals(method) && path.startsWith("/api/catalog/products");

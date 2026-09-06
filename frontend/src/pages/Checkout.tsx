@@ -43,7 +43,6 @@ export default function Checkout() {
     setPlacing(true)
     try {
       const order = await ordersApi.checkout(
-        user!.id,
         cart.items.map((line) => ({ productId: line.productId, quantity: line.qty })),
       )
       cart.clear()
