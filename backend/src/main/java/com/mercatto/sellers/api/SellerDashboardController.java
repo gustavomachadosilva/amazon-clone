@@ -1,7 +1,6 @@
 package com.mercatto.sellers.api;
 
 import com.mercatto.catalog.domain.Product;
-import com.mercatto.orders.domain.Order;
 import com.mercatto.sellers.service.SellerDashboardService;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.AuthenticatedUser;
@@ -32,7 +31,7 @@ public class SellerDashboardController {
     }
 
     @GetMapping("/orders")
-    public List<Order> receivedOrders(@PathVariable Long sellerId, Principal principal) {
+    public List<SellerDashboardService.SellerOrderView> receivedOrders(@PathVariable Long sellerId, Principal principal) {
         AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
         authenticatedUser.requireRole(UserRole.SELLER);
         authenticatedUser.requireOwner(sellerId);
