@@ -12,12 +12,14 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -120,5 +122,75 @@ class ProductServiceImplTest {
 
         assertThatThrownBy(() -> productService.decreaseStock(1L, 1))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void updateSavesChangesAndReturnsUpdatedProduct() {
+        Instant createdAt = Instant.parse("2024-01-01T00:00:00Z");
+        Product existing = Product.builder()
+                .id(1L)
+                .sellerId(10L)
+                .createdAt(createdAt)
+                .name("Old name")
+                .description("Old description")
+                .price(BigDecimal.ONE)
+                .stockQuantity(1)
+                .category("old-category")
+                .imageUrl("http://old")
+                .build();
+        when(productRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Product changes = Product.builder()
+                .name("New name")
+                .description("New description")
+                .price(BigDecimal.TEN)
+                .stockQuantity(5)
+                .category("new-category")
+                .imageUrl("http://new")
+                .build();
+
+        Product result = productService.update(1L, changes);
+
+        assertThat(result.getName()).isEqualTo("New name");
+        assertThat(result.getDescription()).isEqualTo("New description");
+        assertThat(result.getPrice()).isEqualTo(BigDecimal.TEN);
+        assertThat(result.getStockQuantity()).isEqualTo(5);
+        assertThat(result.getCategory()).isEqualTo("new-category");
+        assertThat(result.getImageUrl()).isEqualTo("http://new");
+        assertThat(result.getId()).isEqualTo(1L);
+        assertThat(result.getSellerId()).isEqualTo(10L);
+        assertThat(result.getCreatedAt()).isEqualTo(createdAt);
+
+        verify(productRepository).save(existing);
+    }
+
+    @Test
+    void updateThrowsWhenProductNotFound() {
+        when(productRepository.findById(1L)).thenReturn(Optional.empty());
+
+        Product changes = Product.builder().name("New name").build();
+
+        assertThatThrownBy(() -> productService.update(1L, changes))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void deleteRemovesProductWhenExists() {
+        when(productRepository.existsById(1L)).thenReturn(true);
+
+        productService.delete(1L);
+
+        verify(productRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteThrowsWhenProductNotFound() {
+        when(productRepository.existsById(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> productService.delete(1L))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(productRepository, never()).deleteById(any());
     }
 }
