@@ -100,4 +100,16 @@ class OrderServiceImpl implements OrderService {
     public List<Order> findByBuyer(Long buyerId) {
         return orderRepository.findByBuyerIdWithItems(buyerId);
     }
+
+    @Override
+    public List<Order> findByProductIds(List<Long> productIds) {
+        if (productIds.isEmpty()) {
+            return List.of();
+        }
+        List<Long> orderIds = orderRepository.findOrderIdsByItemsProductIdIn(productIds);
+        if (orderIds.isEmpty()) {
+            return List.of();
+        }
+        return orderRepository.findByIdInWithItems(orderIds);
+    }
 }

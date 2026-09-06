@@ -1,6 +1,8 @@
 package com.mercatto.sellers.api;
 
 import com.mercatto.catalog.domain.Product;
+import com.mercatto.orders.domain.Order;
+import com.mercatto.orders.domain.OrderStatus;
 import com.mercatto.sellers.service.SellerDashboardService;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.AuthenticatedUser;
@@ -69,6 +71,35 @@ class SellerDashboardControllerTest {
     @Test
     void inventoryAsBuyer_returns403() throws Exception {
         mockMvc.perform(get("/api/sellers/10/products").principal(BUYER))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(sellerDashboardService);
+    }
+
+    @Test
+    void receivedOrdersAsOwnSeller_returns200() throws Exception {
+        Order order = Order.builder().id(1L).buyerId(20L).status(OrderStatus.PAID)
+                .totalAmount(BigDecimal.TEN).build();
+        when(sellerDashboardService.getReceivedOrders(10L)).thenReturn(List.of(order));
+
+        mockMvc.perform(get("/api/sellers/10/orders").principal(SELLER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1));
+
+        verify(sellerDashboardService).getReceivedOrders(10L);
+    }
+
+    @Test
+    void receivedOrdersAsOtherSeller_returns403() throws Exception {
+        mockMvc.perform(get("/api/sellers/10/orders").principal(OTHER_SELLER))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(sellerDashboardService);
+    }
+
+    @Test
+    void receivedOrdersAsBuyer_returns403() throws Exception {
+        mockMvc.perform(get("/api/sellers/10/orders").principal(BUYER))
                 .andExpect(status().isForbidden());
 
         verifyNoInteractions(sellerDashboardService);

@@ -20,6 +20,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     Page<Product> findBySellerId(Long sellerId, Pageable pageable);
 
+    List<Long> findIdBySellerId(Long sellerId);
+
     @Query("select distinct p.category from Product p order by p.category")
     List<String> findDistinctCategories();
 }

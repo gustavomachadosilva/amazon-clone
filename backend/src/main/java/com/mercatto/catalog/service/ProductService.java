@@ -24,6 +24,14 @@ public interface ProductService {
 
     Page<Product> findBySeller(Long sellerId, Pageable pageable);
 
+    /**
+     * Returns only the ids of a seller's products, for cross-module
+     * composition (e.g. Sellers looking up which orders contain one of its
+     * products) — cheaper than {@link #findBySeller} and avoids exposing the
+     * full {@link Product} entity/page to callers that only need ids.
+     */
+    List<Long> findProductIdsBySeller(Long sellerId);
+
     void decreaseStock(Long productId, int quantity);
 
     List<String> listCategories();
