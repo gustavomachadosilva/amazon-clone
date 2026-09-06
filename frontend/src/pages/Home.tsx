@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Blueprint, Placeholder, Button, Card } from '../components/ui'
+import { Blueprint, Placeholder, Button, Card, Input, Select } from '../components/ui'
 import ProductGridCard from '../components/ProductGridCard'
 import { catalogApi, type Product } from '../services/api'
 import { CATEGORIES } from '../lib/constants'
@@ -8,10 +8,25 @@ import { CATEGORIES } from '../lib/constants'
 export default function Home() {
   const navigate = useNavigate()
   const [products, setProducts] = useState<Product[]>([])
+  const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('All')
+  const [categories, setCategories] = useState<string[]>([])
 
   useEffect(() => {
     catalogApi.search().then((page) => setProducts(page.content))
   }, [])
+
+  useEffect(() => {
+    catalogApi.getCategories().then(setCategories)
+  }, [])
+
+  function handleSearchSubmit(event: React.FormEvent) {
+    event.preventDefault()
+    const params = new URLSearchParams()
+    if (query) params.set('q', query)
+    if (category !== 'All') params.set('category', category)
+    navigate(`/search?${params.toString()}`)
+  }
 
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px' }}>
@@ -32,6 +47,25 @@ export default function Home() {
           <p style={{ maxWidth: '46ch', color: '#5d5d60' }}>
             Over 40,000 items from 900 sellers, with tracked delivery and 30-day returns.
           </p>
+          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <Select value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: 180 }}>
+              <option value="All">All categories</option>
+              {categories.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </Select>
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search products"
+              style={{ flex: 1 }}
+            />
+            <Button type="submit" variant="primary">
+              Search
+            </Button>
+          </form>
           <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
             <Button variant="primary" onClick={() => navigate('/search?sort=low')}>
               See today&rsquo;s deals
