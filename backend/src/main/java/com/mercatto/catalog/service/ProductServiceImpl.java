@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -45,5 +46,10 @@ class ProductServiceImpl implements ProductService {
         }
         product.setStockQuantity(updated);
         productRepository.save(product);
+    }
+
+    @Override
+    public List<String> listCategories() {
+        return productRepository.findDistinctCategories();
     }
 }
