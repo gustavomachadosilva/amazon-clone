@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { Button, Blueprint, Placeholder, StarRating } from './ui'
+import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useReviews } from '../context/ReviewsContext'
 import { usd } from '../lib/format'
@@ -13,6 +14,7 @@ interface ProductGridCardProps {
 
 export default function ProductGridCard({ product, compact = false }: ProductGridCardProps) {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const cart = useCart()
   const reviews = useReviews()
 
@@ -26,6 +28,10 @@ export default function ProductGridCard({ product, compact = false }: ProductGri
 
   function addToCart(event: React.MouseEvent) {
     event.stopPropagation()
+    if (!user) {
+      navigate('/signin')
+      return
+    }
     cart.addItem(product)
     navigate('/cart')
   }
