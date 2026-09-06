@@ -117,10 +117,9 @@ export interface CheckoutItem {
 }
 
 export const ordersApi = {
-  checkout: (buyerId: number, items: CheckoutItem[]) =>
-    api.post<Order>('/api/orders/checkout', { buyerId, items }),
+  checkout: (items: CheckoutItem[]) => api.post<Order>('/api/orders/checkout', { items }),
   getById: (id: number) => api.get<Order>(`/api/orders/${id}`),
-  listByBuyer: (buyerId: number) => api.get<Order[]>(`/api/orders?buyerId=${buyerId}`),
+  listByBuyer: () => api.get<Order[]>('/api/orders'),
 }
 
 export interface RegisterPayload {

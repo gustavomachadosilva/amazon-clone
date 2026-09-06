@@ -5,6 +5,8 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +25,9 @@ import java.util.Date;
 @Service
 class JwtTokenService implements TokenService {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtTokenService.class);
     private static final String ROLE_CLAIM = "role";
+    private static final String PLACEHOLDER_SECRET = "replace-me";
 
     private final SecretKey signingKey;
     private final long expirationMs;
@@ -33,6 +37,10 @@ class JwtTokenService implements TokenService {
         // JWT_SECRET is short (e.g. the "replace-me" placeholder), the configured secret is
         // stretched into a fixed-size 256-bit key via SHA-256. In production a long, random
         // JWT_SECRET should still be used — this only guarantees the minimum key size.
+        if (PLACEHOLDER_SECRET.equals(secret)) {
+            log.warn("jwt.secret is using the default placeholder value. Set the JWT_SECRET " +
+                    "environment variable to a real random secret before running this in production.");
+        }
         this.signingKey = Keys.hmacShaKeyFor(sha256(secret));
         this.expirationMs = expirationMs;
     }

@@ -61,8 +61,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Register doesn't return a session by itself, so log in right away with the same
-    // credentials to establish one.
-    return signIn(email, password)
+    // credentials to establish one. The account already exists at this point, so a failure
+    // here must not be reported as a registration/sign-in error — that reads as "it didn't
+    // work" when retrying would actually now fail with "already registered".
+    const signInError = await signIn(email, password)
+    if (signInError) {
+      return 'Account created, but automatic sign-in failed. Please sign in with your new credentials.'
+    }
+    return null
   }
 
   function signOut() {
