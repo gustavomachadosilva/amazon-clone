@@ -18,6 +18,10 @@ public interface ProductService {
 
     Product create(Product product);
 
+    Product update(Long id, Product changes);
+
+    void delete(Long id);
+
     Page<Product> findBySeller(Long sellerId, Pageable pageable);
 
     void decreaseStock(Long productId, int quantity);

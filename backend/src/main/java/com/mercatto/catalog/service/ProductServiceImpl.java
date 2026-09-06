@@ -32,6 +32,27 @@ class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    public Product update(Long id, Product changes) {
+        Product existing = productRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + id));
+        existing.setName(changes.getName());
+        existing.setDescription(changes.getDescription());
+        existing.setPrice(changes.getPrice());
+        existing.setStockQuantity(changes.getStockQuantity());
+        existing.setCategory(changes.getCategory());
+        existing.setImageUrl(changes.getImageUrl());
+        return productRepository.save(existing);
+    }
+
+    @Override
+    public void delete(Long id) {
+        if (!productRepository.existsById(id)) {
+            throw new IllegalArgumentException("Product not found: " + id);
+        }
+        productRepository.deleteById(id);
+    }
+
+    @Override
     public Page<Product> findBySeller(Long sellerId, Pageable pageable) {
         return productRepository.findBySellerId(sellerId, pageable);
     }
