@@ -1,12 +1,7 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react'
-import { useLocalStorage } from '../hooks/useLocalStorage'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useAuth } from '../context/AuthContext'
+import { cartApi, type CartItemView, type CartView, type Product } from '../services/api'
 import type { CartLine } from '../types/domain'
-import type { Product } from '../services/api'
-
-interface CartState {
-  items: CartLine[]
-  saved: CartLine[]
-}
 
 interface CartContextValue {
   items: CartLine[]
@@ -24,90 +19,74 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null)
 
-const EMPTY_STATE: CartState = { items: [], saved: [] }
+const EMPTY_VIEW: CartView = { userId: 0, items: [], savedForLater: [], itemCount: 0, total: 0 }
+
+function toLine(item: CartItemView): CartLine {
+  return { productId: item.productId, name: item.productName, price: item.unitPrice, qty: item.quantity }
+}
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useLocalStorage<CartState>('mercatto:cart', EMPTY_STATE)
+  const { user } = useAuth()
+  const [view, setView] = useState<CartView>(EMPTY_VIEW)
+
+  useEffect(() => {
+    if (!user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reseta carrinho ao deslogar; sincroniza com autenticação externa, fora do escopo deste card
+      setView(EMPTY_VIEW)
+      return
+    }
+    cartApi.get(user.id).then(setView).catch(console.error)
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps -- refetch apenas quando o id do usuário muda
+
+  function applyMutation(promise: Promise<CartView>) {
+    promise.then(setView).catch(console.error)
+  }
 
   function addItem(product: Product, qty = 1) {
-    setState((prev) => {
-      const existing = prev.items.find((line) => line.productId === product.id)
-      if (existing) {
-        return {
-          ...prev,
-          items: prev.items.map((line) =>
-            line.productId === product.id ? { ...line, qty: line.qty + qty } : line,
-          ),
-        }
-      }
-      return {
-        ...prev,
-        items: [...prev.items, { productId: product.id, name: product.name, price: product.price, qty }],
-      }
-    })
+    if (!user) return
+    applyMutation(cartApi.addItem(user.id, product.id, qty))
   }
 
   function incrementQty(productId: number) {
-    setState((prev) => ({
-      ...prev,
-      items: prev.items.map((line) => (line.productId === productId ? { ...line, qty: line.qty + 1 } : line)),
-    }))
+    if (!user) return
+    applyMutation(cartApi.addItem(user.id, productId, 1))
   }
 
   function decrementQty(productId: number) {
-    setState((prev) => ({
-      ...prev,
-      items: prev.items.map((line) =>
-        line.productId === productId ? { ...line, qty: Math.max(1, line.qty - 1) } : line,
-      ),
-    }))
+    if (!user) return
+    const line = view.items.find((i) => i.productId === productId)
+    if (!line) return
+    const next = Math.max(1, line.quantity - 1)
+    applyMutation(cartApi.updateQuantity(user.id, productId, next))
   }
 
   function removeItem(productId: number) {
-    setState((prev) => ({ ...prev, items: prev.items.filter((line) => line.productId !== productId) }))
+    if (!user) return
+    applyMutation(cartApi.removeItem(user.id, productId))
   }
 
   function saveForLater(productId: number) {
-    setState((prev) => {
-      const line = prev.items.find((l) => l.productId === productId)
-      if (!line) return prev
-      return {
-        items: prev.items.filter((l) => l.productId !== productId),
-        saved: [...prev.saved, line],
-      }
-    })
+    if (!user) return
+    applyMutation(cartApi.saveForLater(user.id, productId))
   }
 
   function moveToCart(productId: number) {
-    setState((prev) => {
-      const line = prev.saved.find((l) => l.productId === productId)
-      if (!line) return prev
-      const remainingSaved = prev.saved.filter((l) => l.productId !== productId)
-      const existing = prev.items.find((l) => l.productId === productId)
-      const items = existing
-        ? prev.items.map((l) => (l.productId === productId ? { ...l, qty: l.qty + 1 } : l))
-        : [...prev.items, { ...line, qty: line.qty + 1 }]
-      return { items, saved: remainingSaved }
-    })
+    if (!user) return
+    applyMutation(cartApi.moveToCart(user.id, productId))
   }
 
   function clear() {
-    setState(EMPTY_STATE)
+    if (!user) return
+    applyMutation(cartApi.clear(user.id))
   }
-
-  const itemCount = useMemo(() => state.items.reduce((sum, line) => sum + line.qty, 0), [state.items])
-  const subtotal = useMemo(
-    () => state.items.reduce((sum, line) => sum + line.price * line.qty, 0),
-    [state.items],
-  )
 
   return (
     <CartContext.Provider
       value={{
-        items: state.items,
-        saved: state.saved,
-        itemCount,
-        subtotal,
+        items: view.items.map(toLine),
+        saved: view.savedForLater.map(toLine),
+        itemCount: view.itemCount,
+        subtotal: view.total,
         addItem,
         incrementQty,
         decrementQty,
