@@ -97,6 +97,17 @@ class ProductServiceImplTest {
     }
 
     @Test
+    void findProductIdsBySellerDelegatesToRepository() {
+        List<Long> productIds = List.of(1L, 2L, 3L);
+        when(productRepository.findIdBySellerId(10L)).thenReturn(productIds);
+
+        List<Long> result = productService.findProductIdsBySeller(10L);
+
+        assertThat(result).isEqualTo(productIds);
+        verify(productRepository).findIdBySellerId(10L);
+    }
+
+    @Test
     void decreaseStockReducesStockWhenSufficient() {
         Product product = Product.builder().id(1L).stockQuantity(5).build();
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));

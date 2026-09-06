@@ -58,6 +58,11 @@ class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    public List<Long> findProductIdsBySeller(Long sellerId) {
+        return productRepository.findIdBySellerId(sellerId);
+    }
+
+    @Override
     public void decreaseStock(Long productId, int quantity) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found: " + productId));

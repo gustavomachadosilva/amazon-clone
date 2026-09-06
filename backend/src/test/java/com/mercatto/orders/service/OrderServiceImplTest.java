@@ -87,4 +87,33 @@ class OrderServiceImplTest {
         verify(paymentGateway).charge(any(), any(), any());
         verify(eventPublisher).publishEvent(any(OrderPlacedEvent.class));
     }
+
+    @Test
+    void findByProductIdsReturnsEmptyListWithoutInteractingWithRepositoryWhenProductIdsIsEmpty() {
+        List<Order> result = orderService.findByProductIds(List.of());
+
+        assertThat(result).isEmpty();
+        verifyNoInteractions(orderRepository);
+    }
+
+    @Test
+    void findByProductIdsReturnsEmptyListWithoutFetchingOrdersWhenNoOrderIdsMatch() {
+        when(orderRepository.findOrderIdsByItemsProductIdIn(List.of(1L))).thenReturn(List.of());
+
+        List<Order> result = orderService.findByProductIds(List.of(1L));
+
+        assertThat(result).isEmpty();
+        verify(orderRepository, never()).findByIdInWithItems(any());
+    }
+
+    @Test
+    void findByProductIdsChainsOrderIdLookupThenFetchesOrdersWithItems() {
+        Order order = Order.builder().id(5L).build();
+        when(orderRepository.findOrderIdsByItemsProductIdIn(List.of(1L, 2L))).thenReturn(List.of(5L));
+        when(orderRepository.findByIdInWithItems(List.of(5L))).thenReturn(List.of(order));
+
+        List<Order> result = orderService.findByProductIds(List.of(1L, 2L));
+
+        assertThat(result).containsExactly(order);
+    }
 }
