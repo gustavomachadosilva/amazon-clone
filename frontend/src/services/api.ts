@@ -89,6 +89,7 @@ export const catalogApi = {
     return api.get<Page<Product>>(`/api/catalog/products?${params.toString()}`)
   },
   getById: (id: number) => api.get<Product>(`/api/catalog/products/${id}`),
+  getCategories: () => api.get<string[]>('/api/catalog/categories'),
 }
 
 export const sellersApi = {
