@@ -18,6 +18,7 @@ export default function Lists() {
 
   useEffect(() => {
     if (!lists.lists.find((l) => l.id === activeListId)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- realinha seleção ativa quando a lista some; refatorar para estado derivado é fora do escopo deste card
       setActiveListId(lists.lists[0]?.id ?? '')
     }
   }, [lists.lists, activeListId])

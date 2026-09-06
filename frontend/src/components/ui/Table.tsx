@@ -1,6 +1,6 @@
 import type { HTMLAttributes, TableHTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from 'react'
 
-export interface TableProps extends TableHTMLAttributes<HTMLTableElement> {}
+export type TableProps = TableHTMLAttributes<HTMLTableElement>
 
 export function Table({ className = '', children, ...props }: TableProps) {
   return (

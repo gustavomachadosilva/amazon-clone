@@ -2,6 +2,8 @@ package com.mercatto.catalog.api;
 
 import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.service.ProductService;
+import com.mercatto.users.domain.UserRole;
+import com.mercatto.users.service.AuthenticatedUser;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.security.Principal;
 
 @RestController
 @RequestMapping("/api/catalog/products")
@@ -45,7 +48,9 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<Product> create(@Valid @RequestBody CreateProductRequest request) {
+    public ResponseEntity<Product> create(@Valid @RequestBody CreateProductRequest request, Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        authenticatedUser.requireRole(UserRole.SELLER);
         Product product = Product.builder()
                 .name(request.name())
                 .description(request.description())
@@ -53,7 +58,7 @@ public class ProductController {
                 .stockQuantity(request.stockQuantity())
                 .category(request.category())
                 .imageUrl(request.imageUrl())
-                .sellerId(request.sellerId())
+                .sellerId(authenticatedUser.userId())
                 .build();
         return ResponseEntity.ok(productService.create(product));
     }
@@ -64,6 +69,5 @@ public class ProductController {
             @NotNull @Positive BigDecimal price,
             @NotNull @PositiveOrZero Integer stockQuantity,
             @NotBlank @Size(max = 255) String category,
-            @Size(max = 1000) String imageUrl,
-            @NotNull @Positive Long sellerId) {}
+            @Size(max = 1000) String imageUrl) {}
 }

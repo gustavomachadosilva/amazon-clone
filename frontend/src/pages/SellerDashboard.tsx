@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Product, sellersApi } from '../services/api'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui'
-
-const SELLER_ID = 1
+import { useAuth } from '../context/AuthContext'
 
 export default function SellerDashboard() {
+  const { user } = useAuth()
   const [products, setProducts] = useState<Product[]>([])
 
   useEffect(() => {
-    sellersApi.getInventory(SELLER_ID).then((page) => setProducts(page.content)).catch(console.error)
-  }, [])
+    if (!user) return
+    sellersApi.getInventory(user.id).then((page) => setProducts(page.content)).catch(console.error)
+  }, [user])
 
   return (
     <div className="p-6">

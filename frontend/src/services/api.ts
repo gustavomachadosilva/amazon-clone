@@ -1,13 +1,48 @@
+import { readStoredToken } from './auth-token'
+import type { UserRole } from '../types/domain'
+
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
 
+interface ApiErrorBody {
+  timestamp?: string
+  status?: number
+  error?: string
+  message?: string
+  path?: string
+}
+
+export class ApiRequestError extends Error {
+  status: number
+  apiMessage?: string
+
+  constructor(status: number, apiMessage?: string) {
+    super(apiMessage ?? `Request failed with status ${status}`)
+    this.name = 'ApiRequestError'
+    this.status = status
+    this.apiMessage = apiMessage
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = readStoredToken()
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
     ...options,
   })
 
   if (!response.ok) {
-    throw new Error(`Request to ${path} failed with status ${response.status}`)
+    let apiMessage: string | undefined
+    try {
+      const body = (await response.json()) as ApiErrorBody
+      apiMessage = body?.message
+    } catch {
+      // Body empty or not JSON (e.g. login 401 returns an empty body) — fall back to no message.
+    }
+    throw new ApiRequestError(response.status, apiMessage)
   }
 
   return response.json() as Promise<T>
@@ -82,8 +117,31 @@ export interface CheckoutItem {
 }
 
 export const ordersApi = {
-  checkout: (buyerId: number, items: CheckoutItem[]) =>
-    api.post<Order>('/api/orders/checkout', { buyerId, items }),
+  checkout: (items: CheckoutItem[]) => api.post<Order>('/api/orders/checkout', { items }),
   getById: (id: number) => api.get<Order>(`/api/orders/${id}`),
-  listByBuyer: (buyerId: number) => api.get<Order[]>(`/api/orders?buyerId=${buyerId}`),
+  listByBuyer: () => api.get<Order[]>('/api/orders'),
+}
+
+export interface RegisterPayload {
+  name: string
+  email: string
+  password: string
+  role: UserRole
+}
+
+export interface UserResponse {
+  id: number
+  name: string
+  email: string
+  role: UserRole
+}
+
+export interface LoginResponse extends UserResponse {
+  token: string
+  expiresAt: string
+}
+
+export const usersApi = {
+  login: (email: string, password: string) => api.post<LoginResponse>('/api/users/login', { email, password }),
+  register: (payload: RegisterPayload) => api.post<UserResponse>('/api/users/register', payload),
 }

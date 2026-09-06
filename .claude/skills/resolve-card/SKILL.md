@@ -2,7 +2,7 @@
 name: resolve-card
 description: Look up a card (issue) on this repo's GitHub Project board by number, show its full details, and ask the user how to proceed. Use when the user runs /resolve-card <NUMBER> or asks to look up/start a project card or issue by number.
 argument-hint: <NÚMERO DO CARD>
-allowed-tools: [Bash(gh repo view*), Bash(gh project list*), Bash(gh project item-list*), Bash(gh issue view*), Bash(git status*), Bash(git checkout*), Bash(git pull*), AskUserQuestion, Agent]
+allowed-tools: [Bash(gh repo view*), Bash(gh project list*), Bash(gh project item-list*), Bash(gh issue view*), Bash(gh pr create*), Bash(git status*), Bash(git checkout*), Bash(git pull*), Bash(git push*), Bash(git branch*), AskUserQuestion, Agent, Skill, EnterWorktree, ExitWorktree]
 ---
 
 # /resolve-card — Buscar card no GitHub Projects
@@ -82,21 +82,43 @@ todo prompt precisa ser autocontido: inclua número/título/URL do card, corpo c
 critérios de aceite, labels e dependências, o trecho relevante do "Contrato de
 Modularidade" (`README.md`) e o fluxo de Git do `CLAUDE.md`.
 
-### Etapa 0 — Preparar a branch
+A resolução do card é sempre feita em um worktree próprio da tarefa — nunca diretamente
+no diretório de trabalho principal da sessão. Isso isola as mudanças do card de qualquer
+outro trabalho em andamento e evita conflito com a branch `dev`.
 
-Antes de acionar os agentes, siga o fluxo de Git do `CLAUDE.md`: atualize a `main`
-local e crie a branch de trabalho a partir dela. Rode `git status` antes — se houver
-mudanças não commitadas de outra tarefa, avise o usuário e não descarte nada.
+### Etapa 0 — Preparar o worktree
+
+Rode `git status` antes de qualquer coisa — se houver mudanças não commitadas de outra
+tarefa no diretório principal, avise o usuário e não descarte nada.
+
+O worktree precisa ser criado em cima da `dev` local **já atualizada**, então primeiro
+sincronize a `dev`:
 
 ```bash
 git status
-git checkout main
+git checkout dev
 git pull
-git checkout -b feature/<NUMERO>-<slug-curto-do-título>
 ```
 
-O padrão de nome de branch já usado no repo é `feature/<numero>-<slug>` (ex.:
-`feature/37-login-endpoint`) — minúsculo, palavras separadas por hífen.
+Só então crie o worktree da tarefa com a ferramenta `EnterWorktree` (não use
+`git worktree add` manualmente — a ferramenta já cria o worktree em
+`.claude/worktrees/` e troca o diretório de trabalho da sessão para lá):
+
+```
+EnterWorktree(name: "card-<NUMERO>-<slug-curto-do-título>")
+```
+
+Depois de criado, confira o nome do branch gerado (`git branch --show-current`). O
+padrão de nome de branch já usado no repo é `feature/<numero>-<slug>` (ex.:
+`feature/37-login-endpoint`) — minúsculo, palavras separadas por hífen. Se o branch
+criado pelo `EnterWorktree` não seguir esse padrão, renomeie-o antes de prosseguir:
+
+```bash
+git branch -m feature/<NUMERO>-<slug-curto-do-título>
+```
+
+As etapas seguintes (planejamento e implementação) rodam com o diretório de trabalho já
+dentro desse worktree.
 
 ### Etapa 1 — Planejamento (agente `Plan`)
 
@@ -136,6 +158,39 @@ antes, não decida sozinho.
 
 ### Depois da implementação
 
-Resuma o que foi feito e lembre o usuário que o skill `/pr-check` roda testes +
-revisão de código + checagem do Contrato de Modularidade antes de abrir a PR. Não rode
-`/pr-check` nem abra a PR sozinho — apenas sugira, conforme o `CLAUDE.md`.
+Resuma o que foi feito e pergunte ao usuário como quer seguir (`AskUserQuestion`),
+oferecendo **abrir a PR direto** como opção padrão/recomendada — isso agora é o
+comportamento normal desta skill, não é mais preciso confirmar cada vez com
+antecedência. Mencione `/pr-check` (testes + revisão de código + checklist do Contrato
+de Modularidade) como sugestão para quem quiser essa checagem extra antes, mas deixe
+claro que não é obrigatório.
+
+- **Se o usuário escolher abrir a PR direto**: push da branch criada na Etapa 0 e
+  `gh pr create`:
+  ```bash
+  git push -u origin feature/<NUMERO>-<slug>
+  gh pr create --base dev --title "<título do card>" \
+    --body "Closes #<NUMERO>
+
+  <resumo curto do que foi implementado, com base no plano da Etapa 1>"
+  ```
+  Informe a URL da PR criada ao final.
+
+- **Se o usuário escolher rodar o `/pr-check` antes**: chame
+  `Skill(skill: "pr-check")` e, com o resultado em mãos, pergunte novamente como
+  seguir (abrir a PR, corrigir algo primeiro, etc.).
+
+### Depois de abrir a PR — o que fazer com o worktree
+
+A PR já foi aberta a partir do worktree da Etapa 0. Não decida sozinho o destino desse
+worktree — apresente as opções ao usuário (`AskUserQuestion`) e só então aja:
+
+- **Manter o worktree**: útil se o usuário for continuar trabalhando nesse card (ex.:
+  ajustes pedidos na revisão da PR). Use `ExitWorktree(action: "keep")` se for sair da
+  sessão dele, ou simplesmente não faça nada e continue nele.
+- **Remover o worktree agora**: já que o trabalho está commitado e com push feito para
+  a PR remota, é seguro liberar o espaço em disco. Use
+  `ExitWorktree(action: "remove")`. Se houver qualquer mudança não commitada ou commit
+  fora da branch da PR, a ferramenta recusa a remoção a menos que
+  `discard_changes: true` seja passado — nesse caso, confirme com o usuário antes de
+  forçar, para não descartar trabalho sem querer.

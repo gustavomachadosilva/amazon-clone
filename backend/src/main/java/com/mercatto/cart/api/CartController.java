@@ -1,6 +1,7 @@
 package com.mercatto.cart.api;
 
 import com.mercatto.cart.service.CartService;
+import com.mercatto.users.service.AuthenticatedUser;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.security.Principal;
+
 @RestController
 @RequestMapping("/api/cart")
 @RequiredArgsConstructor
@@ -23,47 +26,66 @@ public class CartController {
     private final CartService cartService;
 
     @GetMapping("/{userId}")
-    public CartService.CartView getCart(@PathVariable Long userId) {
+    public CartService.CartView getCart(@PathVariable Long userId, Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        authenticatedUser.requireOwner(userId);
         return cartService.getCart(userId);
     }
 
     @PostMapping("/{userId}/items")
-    public CartService.CartView addItem(@PathVariable Long userId, @Valid @RequestBody AddItemRequest request) {
+    public CartService.CartView addItem(@PathVariable Long userId, @Valid @RequestBody AddItemRequest request,
+                                         Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        authenticatedUser.requireOwner(userId);
         return cartService.addItem(userId, request.productId(), request.quantity());
     }
 
     @PutMapping("/{userId}/items/{productId}")
     public ResponseEntity<CartService.CartView> updateQuantity(@PathVariable Long userId,
                                                                  @PathVariable Long productId,
-                                                                 @Valid @RequestBody UpdateQuantityRequest request) {
+                                                                 @Valid @RequestBody UpdateQuantityRequest request,
+                                                                 Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        authenticatedUser.requireOwner(userId);
         return cartService.updateQuantity(userId, productId, request.quantity())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{userId}/items/{productId}")
-    public ResponseEntity<CartService.CartView> removeItem(@PathVariable Long userId, @PathVariable Long productId) {
+    public ResponseEntity<CartService.CartView> removeItem(@PathVariable Long userId, @PathVariable Long productId,
+                                                             Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        authenticatedUser.requireOwner(userId);
         return cartService.removeItem(userId, productId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/{userId}/items/{productId}/save-for-later")
-    public ResponseEntity<CartService.CartView> saveForLater(@PathVariable Long userId, @PathVariable Long productId) {
+    public ResponseEntity<CartService.CartView> saveForLater(@PathVariable Long userId, @PathVariable Long productId,
+                                                               Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        authenticatedUser.requireOwner(userId);
         return cartService.saveForLater(userId, productId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/{userId}/items/{productId}/move-to-cart")
-    public ResponseEntity<CartService.CartView> moveToCart(@PathVariable Long userId, @PathVariable Long productId) {
+    public ResponseEntity<CartService.CartView> moveToCart(@PathVariable Long userId, @PathVariable Long productId,
+                                                             Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        authenticatedUser.requireOwner(userId);
         return cartService.moveToCart(userId, productId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{userId}")
-    public CartService.CartView clear(@PathVariable Long userId) {
+    public CartService.CartView clear(@PathVariable Long userId, Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        authenticatedUser.requireOwner(userId);
         return cartService.clear(userId);
     }
 
