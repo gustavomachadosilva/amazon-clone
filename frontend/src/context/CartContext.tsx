@@ -35,6 +35,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // silently lose one of them.
   const viewRef = useRef(view)
   const queueRef = useRef<Promise<CartView>>(Promise.resolve(view))
+  // Identifies which user "owns" the in-flight queue at any given time, so a
+  // fetch/mutation that resolves after logout (or after a different user has
+  // since logged in) can detect it's stale and skip updateView instead of
+  // overwriting the current view with another session's cart data.
+  const userIdRef = useRef<number | null>(null)
 
   function updateView(next: CartView) {
     viewRef.current = next
@@ -42,16 +47,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    userIdRef.current = user?.id ?? null
     if (!user) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reseta carrinho ao deslogar; sincroniza com autenticação externa, fora do escopo deste card
       updateView(EMPTY_VIEW)
       queueRef.current = Promise.resolve(EMPTY_VIEW)
       return
     }
+    const ownerId = user.id
     queueRef.current = cartApi
       .get(user.id)
       .then((fetched) => {
-        updateView(fetched)
+        if (userIdRef.current === ownerId) updateView(fetched)
         return fetched
       })
       .catch((err) => {
@@ -61,10 +68,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps -- refetch apenas quando o id do usuário muda
 
   function applyMutation(mutate: (current: CartView) => Promise<CartView>) {
+    const ownerId = userIdRef.current
     queueRef.current = queueRef.current
       .then(mutate)
       .then((updated) => {
-        updateView(updated)
+        if (userIdRef.current === ownerId) updateView(updated)
         return updated
       })
       .catch((err) => {
