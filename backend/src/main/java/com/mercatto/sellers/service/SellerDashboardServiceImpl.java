@@ -11,9 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -29,19 +27,14 @@ class SellerDashboardServiceImpl implements SellerDashboardService {
 
     @Override
     public List<SellerOrderView> getReceivedOrders(Long sellerId) {
-        List<Long> productIds = productService.findProductIdsBySeller(sellerId);
-        if (productIds.isEmpty()) {
-            return List.of();
-        }
-        Set<Long> ownProductIds = new HashSet<>(productIds);
-        return orderService.findByProductIds(productIds).stream()
-                .map(order -> toSellerOrderView(order, ownProductIds))
+        return orderService.findBySellerId(sellerId).stream()
+                .map(order -> toSellerOrderView(order, sellerId))
                 .toList();
     }
 
-    private SellerOrderView toSellerOrderView(Order order, Set<Long> ownProductIds) {
+    private SellerOrderView toSellerOrderView(Order order, Long sellerId) {
         List<SellerOrderItemView> items = order.getItems().stream()
-                .filter(item -> ownProductIds.contains(item.getProductId()))
+                .filter(item -> sellerId.equals(item.getSellerId()))
                 .map(this::toSellerOrderItemView)
                 .toList();
         BigDecimal subtotal = items.stream()

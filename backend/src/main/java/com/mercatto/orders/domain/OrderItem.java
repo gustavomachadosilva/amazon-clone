@@ -40,6 +40,12 @@ public class OrderItem {
     @Column(name = "product_id", nullable = false)
     private Long productId;
 
+    // Denormalized from Product.sellerId at checkout time so a seller's
+    // order history survives the product later being deleted from the
+    // catalog (querying live Product rows would lose that link).
+    @Column(name = "seller_id")
+    private Long sellerId;
+
     @Column(nullable = false)
     private Integer quantity;
 

@@ -18,7 +18,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,28 +33,24 @@ class SellerDashboardServiceImplTest {
     private SellerDashboardServiceImpl sellerDashboardService;
 
     @Test
-    void getReceivedOrdersComposesProductIdsThenOrders() {
-        List<Long> productIds = List.of(1L, 2L);
+    void getReceivedOrdersDelegatesToOrderServiceBySellerId() {
         Order order = Order.builder().id(100L).buyerId(20L).status(OrderStatus.PAID).build();
-        order.addItem(OrderItem.builder().productId(1L).quantity(3).unitPrice(BigDecimal.TEN).build());
-        when(productService.findProductIdsBySeller(10L)).thenReturn(productIds);
-        when(orderService.findByProductIds(productIds)).thenReturn(List.of(order));
+        order.addItem(OrderItem.builder().productId(1L).sellerId(10L).quantity(3).unitPrice(BigDecimal.TEN).build());
+        when(orderService.findBySellerId(10L)).thenReturn(List.of(order));
 
         List<SellerOrderView> result = sellerDashboardService.getReceivedOrders(10L);
 
         assertThat(result).containsExactly(new SellerOrderView(100L, 20L, OrderStatus.PAID, order.getCreatedAt(),
                 List.of(new SellerOrderItemView(1L, 3, BigDecimal.TEN)), BigDecimal.valueOf(30)));
-        verify(orderService).findByProductIds(productIds);
+        verify(orderService).findBySellerId(10L);
     }
 
     @Test
     void getReceivedOrdersOnlyIncludesItemsBelongingToTheSeller() {
-        List<Long> productIds = List.of(1L);
         Order order = Order.builder().id(100L).buyerId(20L).status(OrderStatus.PAID).build();
-        order.addItem(OrderItem.builder().productId(1L).quantity(2).unitPrice(BigDecimal.TEN).build());
-        order.addItem(OrderItem.builder().productId(99L).quantity(5).unitPrice(BigDecimal.valueOf(50)).build());
-        when(productService.findProductIdsBySeller(10L)).thenReturn(productIds);
-        when(orderService.findByProductIds(productIds)).thenReturn(List.of(order));
+        order.addItem(OrderItem.builder().productId(1L).sellerId(10L).quantity(2).unitPrice(BigDecimal.TEN).build());
+        order.addItem(OrderItem.builder().productId(99L).sellerId(77L).quantity(5).unitPrice(BigDecimal.valueOf(50)).build());
+        when(orderService.findBySellerId(10L)).thenReturn(List.of(order));
 
         List<SellerOrderView> result = sellerDashboardService.getReceivedOrders(10L);
 
@@ -65,12 +60,24 @@ class SellerDashboardServiceImplTest {
     }
 
     @Test
-    void getReceivedOrdersReturnsEmptyWithoutCallingOrderServiceWhenSellerHasNoProducts() {
-        when(productService.findProductIdsBySeller(10L)).thenReturn(List.of());
+    void getReceivedOrdersSurvivesProductBeingDeletedFromCatalog() {
+        // Order placed before the product was later deleted from the catalog: sellerId is
+        // denormalized onto the order item at checkout time, so the order still shows up.
+        Order order = Order.builder().id(100L).buyerId(20L).status(OrderStatus.PAID).build();
+        order.addItem(OrderItem.builder().productId(1L).sellerId(10L).quantity(1).unitPrice(BigDecimal.TEN).build());
+        when(orderService.findBySellerId(10L)).thenReturn(List.of(order));
+
+        List<SellerOrderView> result = sellerDashboardService.getReceivedOrders(10L);
+
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    void getReceivedOrdersReturnsEmptyWhenSellerHasNoOrders() {
+        when(orderService.findBySellerId(10L)).thenReturn(List.of());
 
         List<SellerOrderView> result = sellerDashboardService.getReceivedOrders(10L);
 
         assertThat(result).isEmpty();
-        verifyNoInteractions(orderService);
     }
 }
