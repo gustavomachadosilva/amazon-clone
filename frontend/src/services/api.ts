@@ -45,6 +45,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new ApiRequestError(response.status, apiMessage)
   }
 
+  if (response.status === 204) {
+    return undefined as T
+  }
+
   return response.json() as Promise<T>
 }
 
@@ -79,6 +83,15 @@ export interface Page<T> {
   empty: boolean
 }
 
+export interface ProductInput {
+  name: string
+  description?: string
+  price: number
+  stockQuantity: number
+  category: string
+  imageUrl?: string
+}
+
 export const catalogApi = {
   search: (query?: string, category?: string, page: number = 0, size: number = 10) => {
     const params = new URLSearchParams()
@@ -90,6 +103,9 @@ export const catalogApi = {
   },
   getById: (id: number) => api.get<Product>(`/api/catalog/products/${id}`),
   getCategories: () => api.get<string[]>('/api/catalog/categories'),
+  create: (input: ProductInput) => api.post<Product>('/api/catalog/products', input),
+  update: (id: number, input: ProductInput) => api.put<Product>(`/api/catalog/products/${id}`, input),
+  remove: (id: number) => api.delete<void>(`/api/catalog/products/${id}`),
 }
 
 export const sellersApi = {
