@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +33,7 @@ class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional
     public Product update(Long id, Product changes) {
         Product existing = productRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found: " + id));
@@ -45,6 +47,7 @@ class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
         if (!productRepository.existsById(id)) {
             throw new IllegalArgumentException("Product not found: " + id);
@@ -58,11 +61,7 @@ class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public List<Long> findProductIdsBySeller(Long sellerId) {
-        return productRepository.findIdBySellerId(sellerId);
-    }
-
-    @Override
+    @Transactional
     public void decreaseStock(Long productId, int quantity) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found: " + productId));
