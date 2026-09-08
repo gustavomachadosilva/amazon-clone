@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -60,8 +61,13 @@ class ProductServiceImpl implements ProductService {
         return productRepository.findBySellerId(sellerId, pageable);
     }
 
+    // REQUIRES_NEW: this is invoked from an AFTER_COMMIT event listener, where the
+    // triggering transaction's resources are still bound to the thread until the
+    // listener returns — a default-propagation @Transactional here would silently
+    // join that (already-physically-committed) transaction instead of opening a
+    // fresh one, so retries would keep reusing the same stale persistence context.
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void decreaseStock(Long productId, int quantity) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found: " + productId));
