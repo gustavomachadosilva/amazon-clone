@@ -36,8 +36,9 @@ class OrderPlacedEventListener {
                 return;
             } catch (OptimisticLockingFailureException ex) {
                 // A concurrent PUT bumped Product's @Version between commit and here;
-                // decreaseStock re-reads the current row on each call, so retrying
-                // resolves the conflict instead of silently dropping the decrement.
+                // decreaseStock runs in its own REQUIRES_NEW transaction, so each retry
+                // re-reads the current row in a fresh transaction instead of reusing a
+                // stale one, resolving the conflict rather than silently dropping it.
                 if (attempt == MAX_ATTEMPTS) {
                     log.error("Failed to decrease stock for product {} after {} attempts due to concurrent updates (order already placed)",
                             item.productId(), MAX_ATTEMPTS, ex);
