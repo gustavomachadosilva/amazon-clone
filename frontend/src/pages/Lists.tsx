@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Blueprint, Button, Input, Placeholder, StarRating } from '../components/ui'
+import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useLists } from '../context/ListsContext'
 import { useReviews } from '../context/ReviewsContext'
@@ -10,6 +11,7 @@ import { deriveDeliveryLabel, deriveStockLabel } from '../lib/mockProductMeta'
 
 export default function Lists() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const lists = useLists()
   const cart = useCart()
   const reviews = useReviews()
@@ -34,6 +36,7 @@ export default function Lists() {
   }
 
   function addAllToCart() {
+    if (!user) return
     if (!activeList) return
     activeList.items.forEach((productId) => {
       const product = products.get(productId)
@@ -141,6 +144,10 @@ export default function Lists() {
                           variant="primary"
                           block
                           onClick={() => {
+                            if (!user) {
+                              navigate('/signin')
+                              return
+                            }
                             cart.addItem(product)
                             navigate('/cart')
                           }}

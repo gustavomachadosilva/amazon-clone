@@ -45,6 +45,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new ApiRequestError(response.status, apiMessage)
   }
 
+  if (response.status === 204) {
+    return undefined as T
+  }
+
   return response.json() as Promise<T>
 }
 
@@ -52,6 +56,9 @@ export const api = {
   get: <T,>(path: string) => request<T>(path),
   post: <T,>(path: string, body: unknown) =>
     request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+  put: <T,>(path: string, body: unknown) =>
+    request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
+  delete: <T,>(path: string) => request<T>(path, { method: 'DELETE' }),
 }
 
 export interface Product {
@@ -76,6 +83,15 @@ export interface Page<T> {
   empty: boolean
 }
 
+export interface ProductInput {
+  name: string
+  description?: string
+  price: number
+  stockQuantity: number
+  category: string
+  imageUrl?: string
+}
+
 export const catalogApi = {
   search: (query?: string, category?: string, page: number = 0, size: number = 10) => {
     const params = new URLSearchParams()
@@ -86,6 +102,10 @@ export const catalogApi = {
     return api.get<Page<Product>>(`/api/catalog/products?${params.toString()}`)
   },
   getById: (id: number) => api.get<Product>(`/api/catalog/products/${id}`),
+  getCategories: () => api.get<string[]>('/api/catalog/categories'),
+  create: (input: ProductInput) => api.post<Product>('/api/catalog/products', input),
+  update: (id: number, input: ProductInput) => api.put<Product>(`/api/catalog/products/${id}`, input),
+  remove: (id: number) => api.delete<void>(`/api/catalog/products/${id}`),
 }
 
 export const sellersApi = {
@@ -144,4 +164,36 @@ export interface LoginResponse extends UserResponse {
 export const usersApi = {
   login: (email: string, password: string) => api.post<LoginResponse>('/api/users/login', { email, password }),
   register: (payload: RegisterPayload) => api.post<UserResponse>('/api/users/register', payload),
+}
+
+export interface CartItemView {
+  productId: number
+  productName: string
+  unitPrice: number
+  quantity: number
+  lineTotal: number
+  savedForLater: boolean
+}
+
+export interface CartView {
+  userId: number
+  items: CartItemView[]
+  savedForLater: CartItemView[]
+  itemCount: number
+  total: number
+}
+
+export const cartApi = {
+  get: (userId: number) => api.get<CartView>(`/api/cart/${userId}`),
+  addItem: (userId: number, productId: number, quantity: number) =>
+    api.post<CartView>(`/api/cart/${userId}/items`, { productId, quantity }),
+  updateQuantity: (userId: number, productId: number, quantity: number) =>
+    api.put<CartView>(`/api/cart/${userId}/items/${productId}`, { quantity }),
+  removeItem: (userId: number, productId: number) =>
+    api.delete<CartView>(`/api/cart/${userId}/items/${productId}`),
+  saveForLater: (userId: number, productId: number) =>
+    api.post<CartView>(`/api/cart/${userId}/items/${productId}/save-for-later`, undefined),
+  moveToCart: (userId: number, productId: number) =>
+    api.post<CartView>(`/api/cart/${userId}/items/${productId}/move-to-cart`, undefined),
+  clear: (userId: number) => api.delete<CartView>(`/api/cart/${userId}`),
 }

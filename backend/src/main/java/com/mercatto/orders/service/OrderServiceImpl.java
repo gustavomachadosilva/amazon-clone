@@ -73,6 +73,7 @@ class OrderServiceImpl implements OrderService {
 
             order.addItem(OrderItem.builder()
                     .productId(product.getId())
+                    .sellerId(product.getSellerId())
                     .quantity(checkoutItem.quantity())
                     .unitPrice(product.getPrice())
                     .build());
@@ -99,5 +100,14 @@ class OrderServiceImpl implements OrderService {
     @Override
     public List<Order> findByBuyer(Long buyerId) {
         return orderRepository.findByBuyerIdWithItems(buyerId);
+    }
+
+    @Override
+    public List<Order> findBySellerId(Long sellerId) {
+        List<Long> orderIds = orderRepository.findOrderIdsByItemsSellerId(sellerId);
+        if (orderIds.isEmpty()) {
+            return List.of();
+        }
+        return orderRepository.findByIdInWithItems(orderIds);
     }
 }

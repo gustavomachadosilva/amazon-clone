@@ -14,9 +14,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
 import java.security.Principal;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/catalog/products")
@@ -64,6 +67,51 @@ public class ProductController {
     }
 
     public record CreateProductRequest(
+            @NotBlank @Size(max = 255) String name,
+            @Size(max = 2000) String description,
+            @NotNull @Positive BigDecimal price,
+            @NotNull @PositiveOrZero Integer stockQuantity,
+            @NotBlank @Size(max = 255) String category,
+            @Size(max = 1000) String imageUrl) {}
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Product> update(@PathVariable Long id,
+                                           @Valid @RequestBody UpdateProductRequest request,
+                                           Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        Optional<Product> existing = productService.findById(id);
+        if (existing.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        authenticatedUser.requireRole(UserRole.SELLER);
+        authenticatedUser.requireOwner(existing.get().getSellerId());
+
+        Product changes = Product.builder()
+                .name(request.name())
+                .description(request.description())
+                .price(request.price())
+                .stockQuantity(request.stockQuantity())
+                .category(request.category())
+                .imageUrl(request.imageUrl())
+                .build();
+        return ResponseEntity.ok(productService.update(id, changes));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id, Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        Optional<Product> existing = productService.findById(id);
+        if (existing.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        authenticatedUser.requireRole(UserRole.SELLER);
+        authenticatedUser.requireOwner(existing.get().getSellerId());
+
+        productService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    public record UpdateProductRequest(
             @NotBlank @Size(max = 255) String name,
             @Size(max = 2000) String description,
             @NotNull @Positive BigDecimal price,

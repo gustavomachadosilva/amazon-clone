@@ -110,4 +110,76 @@ class UserServiceImplTest {
 
         assertThat(result).isEmpty();
     }
+
+    @Test
+    void isSellerReturnsTrueWhenUserRoleIsSeller() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        User sellerUser = User.builder()
+                .id(1L)
+                .name("Jane Doe")
+                .email("jane@example.com")
+                .role(UserRole.SELLER)
+                .build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sellerUser));
+
+        assertThat(userService.isSeller(1L)).isTrue();
+    }
+
+    @Test
+    void isSellerReturnsFalseWhenUserRoleIsBuyer() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        User buyerUser = User.builder()
+                .id(1L)
+                .name("Jane Doe")
+                .email("jane@example.com")
+                .role(UserRole.BUYER)
+                .build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(buyerUser));
+
+        assertThat(userService.isSeller(1L)).isFalse();
+    }
+
+    @Test
+    void isSellerReturnsFalseWhenUserDoesNotExist() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThat(userService.isSeller(99L)).isFalse();
+    }
+
+    @Test
+    void findByIdDelegatesToRepository() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        User user = User.builder()
+                .id(1L)
+                .name("Jane Doe")
+                .email("jane@example.com")
+                .role(UserRole.BUYER)
+                .build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        assertThat(userService.findById(1L)).contains(user);
+    }
+
+    @Test
+    void findByIdReturnsEmptyWhenNotFound() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThat(userService.findById(1L)).isEmpty();
+    }
+
+    @Test
+    void findByEmailDelegatesToRepository() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        User user = User.builder()
+                .id(1L)
+                .name("Jane Doe")
+                .email("jane@example.com")
+                .role(UserRole.BUYER)
+                .build();
+        when(userRepository.findByEmail("jane@example.com")).thenReturn(Optional.of(user));
+
+        assertThat(userService.findByEmail("jane@example.com")).contains(user);
+    }
 }

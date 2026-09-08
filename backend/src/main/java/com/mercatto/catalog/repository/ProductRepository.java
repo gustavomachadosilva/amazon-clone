@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("""
@@ -17,4 +19,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> search(@Param("query") String query, @Param("category") String category, Pageable pageable);
 
     Page<Product> findBySellerId(Long sellerId, Pageable pageable);
+
+    @Query("select distinct p.category from Product p order by p.category")
+    List<String> findDistinctCategories();
 }

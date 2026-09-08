@@ -1,7 +1,10 @@
 package com.mercatto.sellers.api;
 
 import com.mercatto.catalog.domain.Product;
+import com.mercatto.orders.domain.OrderStatus;
 import com.mercatto.sellers.service.SellerDashboardService;
+import com.mercatto.sellers.service.SellerDashboardService.SellerOrderItemView;
+import com.mercatto.sellers.service.SellerDashboardService.SellerOrderView;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.AuthenticatedUser;
 import com.mercatto.users.service.TokenService;
@@ -16,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -69,6 +73,36 @@ class SellerDashboardControllerTest {
     @Test
     void inventoryAsBuyer_returns403() throws Exception {
         mockMvc.perform(get("/api/sellers/10/products").principal(BUYER))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(sellerDashboardService);
+    }
+
+    @Test
+    void receivedOrdersAsOwnSeller_returns200() throws Exception {
+        SellerOrderView order = new SellerOrderView(1L, 20L, OrderStatus.PAID, Instant.now(),
+                List.of(new SellerOrderItemView(5L, 2, BigDecimal.TEN)), BigDecimal.valueOf(20));
+        when(sellerDashboardService.getReceivedOrders(10L)).thenReturn(List.of(order));
+
+        mockMvc.perform(get("/api/sellers/10/orders").principal(SELLER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].orderId").value(1))
+                .andExpect(jsonPath("$[0].items[0].productId").value(5));
+
+        verify(sellerDashboardService).getReceivedOrders(10L);
+    }
+
+    @Test
+    void receivedOrdersAsOtherSeller_returns403() throws Exception {
+        mockMvc.perform(get("/api/sellers/10/orders").principal(OTHER_SELLER))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(sellerDashboardService);
+    }
+
+    @Test
+    void receivedOrdersAsBuyer_returns403() throws Exception {
+        mockMvc.perform(get("/api/sellers/10/orders").principal(BUYER))
                 .andExpect(status().isForbidden());
 
         verifyNoInteractions(sellerDashboardService);

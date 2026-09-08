@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Blueprint, Button, Pagination, Placeholder, Select, StarRating } from '../components/ui'
+import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useReviews } from '../context/ReviewsContext'
 import { catalogApi, type Page, type Product } from '../services/api'
@@ -19,6 +20,7 @@ const RATING_OPTIONS = [4.5, 4, 3, 0]
 export default function Search() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const { user } = useAuth()
   const cart = useCart()
   const reviews = useReviews()
 
@@ -198,6 +200,10 @@ export default function Search() {
                     variant="primary"
                     block
                     onClick={() => {
+                      if (!user) {
+                        navigate('/signin')
+                        return
+                      }
                       cart.addItem(product)
                       navigate('/cart')
                     }}

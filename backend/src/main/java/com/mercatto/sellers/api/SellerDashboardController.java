@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/sellers/{sellerId}")
@@ -27,5 +28,13 @@ public class SellerDashboardController {
         authenticatedUser.requireRole(UserRole.SELLER);
         authenticatedUser.requireOwner(sellerId);
         return sellerDashboardService.getInventory(sellerId, pageable);
+    }
+
+    @GetMapping("/orders")
+    public List<SellerDashboardService.SellerOrderView> receivedOrders(@PathVariable Long sellerId, Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        authenticatedUser.requireRole(UserRole.SELLER);
+        authenticatedUser.requireOwner(sellerId);
+        return sellerDashboardService.getReceivedOrders(sellerId);
     }
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Blueprint, Button, Input, Placeholder, Select, StarRating, Table, TableBody, TableCell, TableRow } from '../components/ui'
 import ProductGridCard from '../components/ProductGridCard'
+import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useLists } from '../context/ListsContext'
 import { useReviews } from '../context/ReviewsContext'
@@ -23,6 +24,7 @@ export default function Product() {
   const { id } = useParams<{ id: string }>()
   const productId = Number(id)
   const navigate = useNavigate()
+  const { user } = useAuth()
   const cart = useCart()
   const lists = useLists()
   const reviews = useReviews()
@@ -84,6 +86,10 @@ export default function Product() {
   }
 
   function addBundleToCart() {
+    if (!user) {
+      navigate('/signin')
+      return
+    }
     bundleItems.filter((p) => bundleChecked.has(p.id)).forEach((p) => cart.addItem(p))
     navigate('/cart')
   }
@@ -229,6 +235,10 @@ export default function Product() {
             variant="primary"
             block
             onClick={() => {
+              if (!user) {
+                navigate('/signin')
+                return
+              }
               cart.addItem(product, qty)
               navigate('/cart')
             }}
@@ -239,6 +249,10 @@ export default function Product() {
             variant="secondary"
             block
             onClick={() => {
+              if (!user) {
+                navigate('/signin')
+                return
+              }
               cart.addItem(product, qty)
               navigate('/checkout')
             }}
@@ -360,6 +374,10 @@ export default function Product() {
                     <Button
                       variant="secondary"
                       onClick={() => {
+                        if (!user) {
+                          navigate('/signin')
+                          return
+                        }
                         cart.addItem(item)
                         navigate('/cart')
                       }}

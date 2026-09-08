@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -54,6 +55,13 @@ public class Product {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    // Optimistic locking: a concurrent stock decrement (checkout) and a
+    // seller edit (PUT) both read-then-write this row; without a version
+    // check the later save silently overwrites the earlier one instead of
+    // failing, which can revert a stock decrement invisibly.
+    @Version
+    private Long version;
 
     @PrePersist
     void onCreate() {
