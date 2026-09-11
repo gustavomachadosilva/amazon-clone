@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
+import org.springframework.web.bind.annotation.RequestHeader;
 import java.util.List;
 
 @RestController
@@ -26,10 +27,13 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping("/checkout")
-    public ResponseEntity<Order> checkout(@Valid @RequestBody CheckoutRequest request, Principal principal) {
+    public ResponseEntity<Order> checkout(
+            @Valid @RequestBody CheckoutRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            Principal principal) {
         AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
         authenticatedUser.requireRole(UserRole.BUYER);
-        Order order = orderService.checkout(authenticatedUser.userId(), request.items());
+        Order order = orderService.checkout(authenticatedUser.userId(), request.items(), idempotencyKey);
         return ResponseEntity.ok(order);
     }
 

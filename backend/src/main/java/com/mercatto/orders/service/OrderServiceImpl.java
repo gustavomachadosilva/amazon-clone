@@ -47,11 +47,19 @@ class OrderServiceImpl implements OrderService {
      */
     @Override
     @Transactional
-    public Order checkout(Long buyerId, List<CheckoutItem> items) {
+    public Order checkout(Long buyerId, List<CheckoutItem> items, String idempotencyKey) {
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            Optional<Order> existingOrder = orderRepository.findByIdempotencyKey(idempotencyKey);
+            if (existingOrder.isPresent()) {
+                return existingOrder.get();
+            }
+        }
+
         Order order = Order.builder()
                 .buyerId(buyerId)
                 .status(OrderStatus.PENDING)
                 .totalAmount(BigDecimal.ZERO)
+                .idempotencyKey(idempotencyKey)
                 .build();
 
         Map<Long, Integer> requestedQuantities = items.stream()

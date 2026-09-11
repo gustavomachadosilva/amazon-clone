@@ -30,6 +30,7 @@ export default function Checkout() {
   const [shipping, setShipping] = useState<ShippingMethod>('standard')
   const [payment, setPayment] = useState<PaymentMethod>('card')
   const [placing, setPlacing] = useState(false)
+  const [idempotencyKey] = useState(() => crypto.randomUUID?.() ?? Math.random().toString(36).substring(2))
 
   useEffect(() => {
     if (!user) navigate('/signin')
@@ -44,6 +45,7 @@ export default function Checkout() {
     try {
       const order = await ordersApi.checkout(
         cart.items.map((line) => ({ productId: line.productId, quantity: line.qty })),
+        idempotencyKey
       )
       cart.clear()
       navigate(`/order/${order.id}`, {
