@@ -1,5 +1,6 @@
 package com.mercatto.config;
 
+import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.orders.service.InsufficientStockException;
 import com.mercatto.users.service.EmailAlreadyExistsException;
 import com.mercatto.users.service.ForbiddenRoleException;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -20,6 +22,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import java.time.Instant;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Central mapping of business/validation exceptions to a standardized {@link ApiError} response.
@@ -46,6 +49,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(InsufficientStockException.class)
     public ResponseEntity<ApiError> handleInsufficientStock(InsufficientStockException ex, HttpServletRequest request) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ProductNotFoundException.class)
+    public ResponseEntity<ApiError> handleProductNotFound(ProductNotFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
     @ExceptionHandler(EmailAlreadyExistsException.class)
@@ -79,8 +87,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                                                     HttpHeaders headers,
                                                                     HttpStatusCode status,
                                                                     WebRequest request) {
-        String detail = ex.getBindingResult().getFieldErrors().stream()
+        String fieldMessages = ex.getBindingResult().getFieldErrors().stream()
                 .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
+                .collect(Collectors.joining("; "));
+        String globalMessages = ex.getBindingResult().getGlobalErrors().stream()
+                .map(ObjectError::getDefaultMessage)
+                .collect(Collectors.joining("; "));
+        String detail = Stream.of(fieldMessages, globalMessages)
+                .filter(part -> !part.isBlank())
                 .collect(Collectors.joining("; "));
         String message = detail.isBlank() ? "Validation failed" : detail;
         return ResponseEntity.status(status).body(errorBody(status, message, pathOf(request)));
@@ -89,16 +103,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(Exception ex, Object body, HttpHeaders headers,
                                                                HttpStatusCode statusCode, WebRequest request) {
-        String message = ex.getMessage() != null ? ex.getMessage() : HttpStatus.valueOf(statusCode.value()).getReasonPhrase();
+        String message = ex.getMessage() != null ? ex.getMessage() : reasonPhraseOf(statusCode);
         return ResponseEntity.status(statusCode).body(errorBody(statusCode, message, pathOf(request)));
     }
 
     private String pathOf(WebRequest request) {
-        return ((ServletWebRequest) request).getRequest().getRequestURI();
+        if (request instanceof ServletWebRequest servletWebRequest) {
+            return servletWebRequest.getRequest().getRequestURI();
+        }
+        return request.getDescription(false);
+    }
+
+    private String reasonPhraseOf(HttpStatusCode statusCode) {
+        HttpStatus resolved = HttpStatus.resolve(statusCode.value());
+        return resolved != null ? resolved.getReasonPhrase() : String.valueOf(statusCode.value());
     }
 
     private ApiError errorBody(HttpStatusCode status, String message, String path) {
-        return new ApiError(Instant.now(), status.value(), HttpStatus.valueOf(status.value()).getReasonPhrase(), message, path);
+        return new ApiError(Instant.now(), status.value(), reasonPhraseOf(status), message, path);
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, String message, HttpServletRequest request) {

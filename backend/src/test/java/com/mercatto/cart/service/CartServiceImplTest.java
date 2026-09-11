@@ -3,6 +3,7 @@ package com.mercatto.cart.service;
 import com.mercatto.cart.domain.CartItem;
 import com.mercatto.cart.repository.CartItemRepository;
 import com.mercatto.catalog.domain.Product;
+import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.catalog.service.ProductService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,7 +60,7 @@ class CartServiceImplTest {
         when(productService.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> cartService.addItem(10L, 99L, 1))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(ProductNotFoundException.class);
 
         verify(cartItemRepository, never()).save(any());
     }
