@@ -105,6 +105,8 @@ class OrderServiceImplTest {
 
         assertThat(result.getStatus()).isEqualTo(OrderStatus.PAID);
         verify(paymentGateway).charge(any(), any(), any());
+        verify(orderReservationService).reserve(any(Order.class));
+        verify(orderReservationService).updateStatus(any(Order.class), eq(OrderStatus.PAID));
 
         ArgumentCaptor<OrderPlacedEvent> eventCaptor = ArgumentCaptor.forClass(OrderPlacedEvent.class);
         verify(eventPublisher).publishEvent(eventCaptor.capture());
