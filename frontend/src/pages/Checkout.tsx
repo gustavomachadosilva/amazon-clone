@@ -4,7 +4,7 @@ import { Blueprint, Button, Input, Placeholder } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useProductsByIds } from '../hooks/useProductsByIds'
-import { ordersApi } from '../services/api'
+import { ApiRequestError, ordersApi } from '../services/api'
 import { DEFAULT_ADDRESS, PAYMENT_OPTIONS, SHIPPING_OPTIONS } from '../lib/constants'
 import { usd } from '../lib/format'
 import { computeCheckoutTotals } from '../lib/pricing'
@@ -30,6 +30,7 @@ export default function Checkout() {
   const [shipping, setShipping] = useState<ShippingMethod>('standard')
   const [payment, setPayment] = useState<PaymentMethod>('card')
   const [placing, setPlacing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [idempotencyKey] = useState(() => crypto.randomUUID?.() ?? Math.random().toString(36).substring(2))
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function Checkout() {
 
   async function placeOrder() {
     setPlacing(true)
+    setError(null)
     try {
       const order = await ordersApi.checkout(
         cart.items.map((line) => ({ productId: line.productId, quantity: line.qty })),
@@ -51,19 +53,25 @@ export default function Checkout() {
       navigate(`/order/${order.id}`, {
         state: { shippingLabel: SHIPPING_OPTIONS[shipping], paymentLabel: PAYMENT_OPTIONS[payment] },
       })
+    } catch (err) {
+      setError(
+        err instanceof ApiRequestError && err.apiMessage
+          ? err.apiMessage
+          : 'We could not place your order. Check your connection and try again.'
+      )
     } finally {
       setPlacing(false)
     }
   }
 
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto', padding: 24, display: 'grid', gridTemplateColumns: '1fr 300px', gap: 28 }}>
-      <section style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="mx-auto grid max-w-[1080px] grid-cols-1 gap-6 px-4 py-4 md:grid-cols-[1fr_300px] md:gap-7 md:px-6 md:py-6">
+      <section className="flex flex-col gap-5">
         <h1>Checkout</h1>
 
-        <Blueprint style={{ padding: 20 }}>
+        <Blueprint className="p-4 md:p-5">
           <div className="kick">1 · Shipping address</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input
               label="Full name"
               value={address.fullName}
@@ -76,8 +84,7 @@ export default function Checkout() {
             />
             <Input
               label="Street address"
-              containerClassName="col-span-2"
-              style={{ gridColumn: 'span 2' }}
+              containerClassName="sm:col-span-2"
               value={address.street}
               onChange={(e) => setAddress({ ...address, street: e.target.value })}
             />
@@ -94,12 +101,12 @@ export default function Checkout() {
           </div>
         </Blueprint>
 
-        <Blueprint style={{ padding: 20 }}>
+        <Blueprint className="p-4 md:p-5">
           <div className="kick">2 · Delivery option</div>
-          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="mt-3 flex flex-col gap-2">
             {(Object.keys(SHIPPING_OPTIONS) as ShippingMethod[]).map((key) => (
-              <label key={key} className="radio" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label key={key} className="radio flex justify-between">
+                <span className="flex items-center gap-2">
                   <input type="radio" name="shipping" checked={shipping === key} onChange={() => setShipping(key)} />
                   <span className="dot" />
                   {SHIPPING_OPTIONS[key]}
@@ -110,11 +117,11 @@ export default function Checkout() {
           </div>
         </Blueprint>
 
-        <Blueprint style={{ padding: 20 }}>
+        <Blueprint className="p-4 md:p-5">
           <div className="kick">3 · Payment method</div>
-          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="mt-3 flex flex-col gap-2">
             {(Object.keys(PAYMENT_OPTIONS) as PaymentMethod[]).map((key) => (
-              <label key={key} className="radio" style={{ display: 'flex' }}>
+              <label key={key} className="radio flex">
                 <input type="radio" name="payment" checked={payment === key} onChange={() => setPayment(key)} />
                 <span className="dot" />
                 {PAYMENT_OPTIONS[key]}
@@ -123,24 +130,24 @@ export default function Checkout() {
           </div>
         </Blueprint>
 
-        <Blueprint style={{ padding: 20 }}>
+        <Blueprint className="p-4 md:p-5">
           <div className="kick">4 · Review items</div>
-          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="mt-3 flex flex-col gap-3">
             {cart.items.map((line) => (
-              <div key={line.productId} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <Placeholder label="Product" aspect="1/1" className="w-[56px]" src={products.get(line.productId)?.imageUrl} />
-                <div style={{ flex: 1 }}>
-                  <div>{line.name}</div>
-                  <div style={{ fontSize: 12, color: '#7a7a7d' }}>Qty {line.qty}</div>
+              <div key={line.productId} className="flex items-center gap-3">
+                <Placeholder label={line.name} aspect="1/1" className="w-[56px] flex-none" src={products.get(line.productId)?.imageUrl} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate">{line.name}</div>
+                  <div className="text-xs text-[#7a7a7d]">Qty {line.qty}</div>
                 </div>
-                <div className="h">{usd(line.price * line.qty)}</div>
+                <div className="h flex-none">{usd(line.price * line.qty)}</div>
               </div>
             ))}
           </div>
         </Blueprint>
       </section>
 
-      <Blueprint as="aside" style={{ padding: 18, position: 'sticky', top: 16, height: 'fit-content' }}>
+      <Blueprint as="aside" className="h-fit p-4 md:sticky md:top-4 md:p-[18px]">
         <div className="h" style={{ fontSize: 16, marginBottom: 8 }}>
           Order summary
         </div>
@@ -167,8 +174,28 @@ export default function Checkout() {
             {usd(totals.total)}
           </span>
         </div>
-        <Button variant="primary" block onClick={placeOrder} disabled={placing || cart.items.length === 0}>
-          Place your order
+        {error && (
+          <div
+            role="alert"
+            style={{
+              fontSize: 12.5,
+              color: 'var(--color-accent-800)',
+              borderLeft: '2px solid var(--color-accent-800)',
+              paddingLeft: 8,
+              marginTop: 12,
+            }}
+          >
+            {error} Your cart is unchanged — try again when you're ready.
+          </div>
+        )}
+        <Button
+          variant="primary"
+          block
+          onClick={placeOrder}
+          disabled={placing || cart.items.length === 0}
+          style={{ marginTop: error ? 8 : 12 }}
+        >
+          {placing ? 'Placing order…' : error ? 'Try again' : 'Place your order'}
         </Button>
         <p style={{ fontSize: 11.5, color: '#7a7a7d', marginTop: 8 }}>
           By placing your order you agree to the terms of this academic prototype.

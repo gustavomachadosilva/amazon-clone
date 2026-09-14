@@ -19,6 +19,7 @@ import {
   deriveStockLabel,
   WARRANTY_LABEL,
 } from '../lib/mockProductMeta'
+import { onEnterKey } from '../lib/a11y'
 
 export default function Product() {
   const { id } = useParams<{ id: string }>()
@@ -58,7 +59,7 @@ export default function Product() {
     if (lists.lists.length > 0 && !listTarget) setListTarget(lists.lists[0].id)
   }, [lists.lists, listTarget])
 
-  if (!product) return <div style={{ maxWidth: 1280, margin: '0 auto', padding: 24 }}>Loading…</div>
+  if (!product) return <div className="mx-auto max-w-[1280px] px-4 py-4 md:px-6 md:py-6">Loading…</div>
 
   const productReviews = reviews.getReviews(product.id)
   const rating = productReviews.reduce((sum, r) => sum + r.stars, 0) / productReviews.length
@@ -120,22 +121,34 @@ export default function Product() {
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: 24 }}>
-      <div style={{ fontSize: 12.5, color: '#7a7a7d', marginBottom: 16 }}>
-        <span style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
+    <div className="mx-auto max-w-[1280px] px-4 py-4 md:px-6 md:py-6">
+      <div className="mb-4 text-[12.5px] text-[#7a7a7d]">
+        <span
+          className="cursor-pointer"
+          role="link"
+          tabIndex={0}
+          onClick={() => navigate('/')}
+          onKeyDown={onEnterKey(() => navigate('/'))}
+        >
           Home
         </span>{' '}
         /{' '}
-        <span style={{ cursor: 'pointer' }} onClick={() => navigate(`/search?category=${product.category}`)}>
+        <span
+          className="cursor-pointer"
+          role="link"
+          tabIndex={0}
+          onClick={() => navigate(`/search?category=${product.category}`)}
+          onKeyDown={onEnterKey(() => navigate(`/search?category=${product.category}`))}
+        >
           {product.category}
         </span>{' '}
         / {product.name}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr 300px', gap: 28, alignItems: 'start' }}>
-        <Blueprint style={{ padding: 12 }}>
+      <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,420px)_1fr] md:gap-7 lg:grid-cols-[420px_1fr_300px]">
+        <Blueprint className="p-3">
           <Placeholder label="Main photo" aspect="1/1" src={product.imageUrl} />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 8 }}>
+          <div className="mt-2 grid grid-cols-4 gap-2">
             {['Angle 2', 'Angle 3', 'Detail', 'In use'].map((label) => (
               <Placeholder key={label} label={label} aspect="1/1" />
             ))}
@@ -144,51 +157,43 @@ export default function Product() {
 
         <div>
           <div className="kick">{product.category}</div>
-          <h1 style={{ fontSize: 34, lineHeight: 1.15 }}>{product.name}</h1>
-          <div style={{ fontSize: 13, color: 'var(--color-accent-700)', marginBottom: 8 }}>
-            Visit the {deriveBrandLabel(product)} store
-          </div>
+          <h1 className="text-[28px] leading-[1.15] md:text-[34px]">{product.name}</h1>
+          <div className="mb-2 text-[13px] text-accent-700">Visit the {deriveBrandLabel(product)} store</div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <div className="mb-3 flex items-center gap-2">
             <StarRating rating={rating} />
-            <span style={{ color: 'var(--color-accent-700)' }}>
+            <span className="text-accent-700">
               {rating.toFixed(1)} ({productReviews.length.toLocaleString('en-US')} ratings)
             </span>
           </div>
 
           <div className="hr" />
 
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, margin: '12px 0' }}>
+          <div className="my-3 flex flex-wrap items-baseline gap-2.5">
             {discountPct > 0 && (
-              <span className="h" style={{ color: 'var(--color-accent-800)', fontSize: 24 }}>
-                -{discountPct}%
-              </span>
+              <span className="h text-2xl text-accent-800">-{discountPct}%</span>
             )}
-            <span className="h" style={{ fontSize: 38 }}>
-              {usd(product.price)}
-            </span>
+            <span className="h text-4xl">{usd(product.price)}</span>
             {listPrice > product.price && (
-              <span style={{ color: '#98989b', textDecoration: 'line-through', fontSize: 14 }}>
-                Typical price: {usd(listPrice)}
-              </span>
+              <span className="text-sm text-[#98989b] line-through">Typical price: {usd(listPrice)}</span>
             )}
           </div>
-          <div style={{ fontSize: 12.5, color: '#5d5d60' }}>{installmentLine(product.price)}</div>
+          <div className="text-[12.5px] text-[#5d5d60]">{installmentLine(product.price)}</div>
 
           <div className="hr" />
 
-          <ul style={{ paddingLeft: 18, fontSize: 13.5, lineHeight: 1.6, color: '#424244' }}>
+          <ul className="pl-[18px] text-[13.5px] leading-relaxed text-[#424244]">
             {bullets.map((b, i) => (
               <li key={i}>{b}</li>
             ))}
           </ul>
 
-          <Blueprint style={{ marginTop: 20, padding: 14 }}>
+          <Blueprint className="mt-5 overflow-x-auto p-3.5">
             <div className="kick">Technical specifications</div>
             <Table>
               <TableBody>
                 <TableRow>
-                  <TableCell style={{ width: 140 }}>Brand</TableCell>
+                  <TableCell className="w-[140px]">Brand</TableCell>
                   <TableCell>{deriveBrandLabel(product)}</TableCell>
                 </TableRow>
                 <TableRow>
@@ -212,18 +217,14 @@ export default function Product() {
           </Blueprint>
         </div>
 
-        <Blueprint as="aside" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, position: 'sticky', top: 16 }}>
-          <div className="h" style={{ fontSize: 28 }}>
-            {usd(product.price)}
-          </div>
-          <div style={{ fontSize: 13 }}>{deriveDeliveryLabel(product)}</div>
-          <div style={{ fontSize: 12.5, color: '#7a7a7d' }}>Ships from and sold by {STORE_NAME}</div>
-          <div className="h" style={{ fontSize: 17, color: 'var(--color-accent-700)' }}>
-            {deriveStockLabel(product)}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 13, color: '#5d5d60' }}>Qty</span>
-            <Select style={{ width: 'auto', minHeight: 32 }} value={qty} onChange={(e) => setQty(Number(e.target.value))}>
+        <Blueprint as="aside" className="flex flex-col gap-2.5 p-4 md:col-span-2 lg:sticky lg:top-4 lg:col-span-1 lg:p-[18px]">
+          <div className="h text-[28px]">{usd(product.price)}</div>
+          <div className="text-[13px]">{deriveDeliveryLabel(product)}</div>
+          <div className="text-[12.5px] text-[#7a7a7d]">Ships from and sold by {STORE_NAME}</div>
+          <div className="h text-[17px] text-accent-700">{deriveStockLabel(product)}</div>
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] text-[#5d5d60]">Qty</span>
+            <Select className="w-auto min-h-8" value={qty} onChange={(e) => setQty(Number(e.target.value))}>
               {[1, 2, 3, 4, 5].map((n) => (
                 <option key={n} value={n}>
                   {n}
@@ -260,7 +261,7 @@ export default function Product() {
             Buy now
           </Button>
 
-          <div style={{ border: '1px solid var(--color-divider)', padding: 12, display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+          <div className="mt-1 flex flex-col gap-2 border border-divider p-3">
             <div className="kick">Add to a list</div>
             {!creatingList ? (
               <>
@@ -290,25 +291,25 @@ export default function Product() {
                 </Button>
               </>
             )}
-            {listFeedback && <div style={{ fontSize: 12, color: 'var(--color-accent-700)' }}>{listFeedback}</div>}
+            {listFeedback && <div className="text-xs text-accent-700">{listFeedback}</div>}
           </div>
 
           <div className="hr" />
-          <div style={{ fontSize: 12, color: '#5d5d60', lineHeight: 1.5 }}>
+          <div className="text-xs leading-relaxed text-[#5d5d60]">
             Free returns within 30 days · Secure payment · 12-month warranty
           </div>
         </Blueprint>
       </div>
 
       {alsoViewed.length > 0 && (
-        <div style={{ borderTop: '1px solid var(--color-divider)', paddingTop: 28, marginTop: 28 }}>
+        <div className="mt-7 border-t border-divider pt-7">
           <h2>Customers who viewed this item also viewed</h2>
-          <p style={{ fontSize: 13, color: '#5d5d60' }}>Based on browsing sessions that included {product.name}</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 16 }}>
+          <p className="text-[13px] text-[#5d5d60]">Based on browsing sessions that included {product.name}</p>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-6">
             {alsoViewed.map((item, index) => (
               <div key={item.id}>
                 <ProductGridCard product={item} compact />
-                <div style={{ fontSize: 11, color: 'var(--color-accent-700)', marginTop: 4 }}>
+                <div className="mt-1 text-[11px] text-accent-700">
                   {ALSO_VIEWED_SHARES[index] ?? 10}% also viewed this
                 </div>
               </div>
@@ -318,35 +319,31 @@ export default function Product() {
       )}
 
       {(bundleItems.length > 1 || recommended.length > 0) && (
-        <div style={{ borderTop: '1px solid var(--color-divider)', paddingTop: 28, marginTop: 28 }}>
+        <div className="mt-7 border-t border-divider pt-7">
           <h2>Recommended based on this item</h2>
-          <p style={{ fontSize: 13, color: '#5d5d60' }}>
+          <p className="text-[13px] text-[#5d5d60]">
             Frequently bought with or instead of this {product.category} pick
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-            <Blueprint style={{ padding: 16 }}>
-              <div className="h" style={{ fontSize: 16, marginBottom: 8 }}>
-                Frequently bought together
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 12 }}>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <Blueprint className="p-4">
+              <div className="h mb-2 text-base">Frequently bought together</div>
+              <div className="mb-3 flex flex-wrap items-center gap-1">
                 {bundleItems.map((item, index) => (
-                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div key={item.id} className="flex items-center gap-1">
                     {index > 0 && <span>+</span>}
-                    <Placeholder label="Item" aspect="1/1" className="w-[84px]" src={item.imageUrl} />
+                    <Placeholder label={item.name} aspect="1/1" className="w-[84px]" src={item.imageUrl} />
                   </div>
                 ))}
               </div>
               {bundleItems.map((item, index) => (
-                <label key={item.id} className="radio" style={{ display: 'flex', marginBottom: 6 }}>
+                <label key={item.id} className="radio mb-1.5 flex">
                   <input type="checkbox" checked={bundleChecked.has(item.id)} onChange={() => toggleBundle(item.id)} />
                   <span className="box" />
                   {index === 0 ? `This item: ${item.name}` : item.name}
                 </label>
               ))}
-              <div className="h" style={{ fontSize: 24, color: 'var(--color-accent-800)', marginTop: 8 }}>
-                Total price: {usd(bundleTotal)}
-              </div>
-              <div style={{ fontSize: 12, color: '#7a7a7d', marginBottom: 8 }}>
+              <div className="h mt-2 text-2xl text-accent-800">Total price: {usd(bundleTotal)}</div>
+              <div className="mb-2 text-xs text-[#7a7a7d]">
                 {bundleChecked.size} of {bundleItems.length} items selected
               </div>
               <Button variant="primary" onClick={addBundleToCart}>
@@ -354,22 +351,34 @@ export default function Product() {
               </Button>
             </Blueprint>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="flex flex-col gap-3">
               {recommended.map((item, index) => (
-                <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '88px 1fr 150px', gap: 12 }}>
-                  <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${item.id}`)}>
-                    <Placeholder label="Item" aspect="1/1" src={item.imageUrl} />
+                <div key={item.id} className="grid grid-cols-[72px_1fr] gap-3 sm:grid-cols-[88px_1fr_150px]">
+                  <div
+                    className="cursor-pointer"
+                    role="link"
+                    tabIndex={0}
+                    onClick={() => navigate(`/product/${item.id}`)}
+                    onKeyDown={onEnterKey(() => navigate(`/product/${item.id}`))}
+                  >
+                    <Placeholder label={item.name} aspect="1/1" src={item.imageUrl} />
                   </div>
                   <div>
-                    <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${item.id}`)}>
+                    <div
+                      className="cursor-pointer"
+                      role="link"
+                      tabIndex={0}
+                      onClick={() => navigate(`/product/${item.id}`)}
+                      onKeyDown={onEnterKey(() => navigate(`/product/${item.id}`))}
+                    >
                       {item.name}
                     </div>
                     <StarRating rating={rating} />
-                    <div style={{ fontSize: 12, color: 'var(--color-accent-700)' }}>
+                    <div className="text-xs text-accent-700">
                       {RELATED_REASONS[index % RELATED_REASONS.length].replace('{category}', product.category)}
                     </div>
                   </div>
-                  <div>
+                  <div className="col-span-2 sm:col-span-1">
                     <div className="h">{usd(item.price)}</div>
                     <Button
                       variant="secondary"
@@ -392,43 +401,39 @@ export default function Product() {
         </div>
       )}
 
-      <div style={{ borderTop: '1px solid var(--color-divider)', paddingTop: 28, marginTop: 28 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="mt-7 border-t border-divider pt-7">
+        <div className="flex items-center justify-between">
           <h2>Customer reviews</h2>
           <Button variant="secondary" onClick={() => navigate(`/product/${product.id}/review`)}>
             Write a review
           </Button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 24 }}>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-[260px_1fr]">
           <div>
-            <div className="h" style={{ fontSize: 40 }}>
-              {rating.toFixed(1)}
-            </div>
+            <div className="h text-[40px]">{rating.toFixed(1)}</div>
             <StarRating rating={rating} />
-            <div style={{ fontSize: 12.5, color: '#7a7a7d', marginBottom: 12 }}>
+            <div className="mb-3 text-[12.5px] text-[#7a7a7d]">
               {productReviews.length.toLocaleString('en-US')} global ratings
             </div>
             {RATING_DISTRIBUTION.map((row) => (
-              <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <span style={{ fontSize: 11, width: 24 }}>{row.label}</span>
-                <div style={{ flex: 1, height: 9, border: '1px solid var(--color-divider)' }}>
-                  <div style={{ width: `${row.pct}%`, height: '100%', background: 'var(--color-accent)' }} />
+              <div key={row.label} className="mb-1 flex items-center gap-2">
+                <span className="w-6 text-[11px]">{row.label}</span>
+                <div className="h-[9px] flex-1 border border-divider">
+                  <div className="h-full bg-accent" style={{ width: `${row.pct}%` }} />
                 </div>
-                <span style={{ fontSize: 11, width: 30 }}>{row.pct}%</span>
+                <span className="w-[30px] text-[11px]">{row.pct}%</span>
               </div>
             ))}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div className="flex flex-col gap-5">
             {productReviews.map((review, index) => (
               <div key={`${review.author}-${index}`}>
                 <StarRating rating={review.stars} />
-                <div className="h" style={{ fontSize: 15 }}>
-                  {review.title}
-                </div>
-                <div style={{ fontSize: 12.5, color: '#7a7a7d', marginBottom: 6 }}>
+                <div className="h text-[15px]">{review.title}</div>
+                <div className="mb-1.5 text-[12.5px] text-[#7a7a7d]">
                   {review.author} · {review.date} · Verified purchase
                 </div>
-                <p style={{ fontSize: 13.5, maxWidth: '70ch', color: '#424244' }}>{review.text}</p>
+                <p className="max-w-[70ch] text-[13.5px] text-[#424244]">{review.text}</p>
                 <Button variant="ghost" onClick={() => reviews.markHelpful(product.id, index)}>
                   Helpful ({review.helpful})
                 </Button>

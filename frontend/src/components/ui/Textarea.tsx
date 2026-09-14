@@ -1,4 +1,4 @@
-import { forwardRef, type ReactNode, type TextareaHTMLAttributes } from 'react'
+import { forwardRef, useId, type ReactNode, type TextareaHTMLAttributes } from 'react'
 
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: ReactNode
@@ -11,10 +11,12 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
   { label, error, helperText, containerClassName = '', className = '', id, ...props },
   ref
 ) {
+  const generatedId = useId()
+  const textareaId = id ?? generatedId
   const textareaElement = (
     <textarea
       ref={ref}
-      id={id}
+      id={textareaId}
       className={`input ${className}`.trim()}
       aria-invalid={error ? 'true' : undefined}
       {...props}
@@ -27,7 +29,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
 
   return (
     <div className={`field ${containerClassName}`.trim()}>
-      {label && <label htmlFor={id}>{label}</label>}
+      {label && <label htmlFor={textareaId}>{label}</label>}
       {textareaElement}
       {helperText && !error && (
         <span className="text-xs text-neutral-600 mt-1 block">{helperText}</span>

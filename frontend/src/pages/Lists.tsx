@@ -8,6 +8,7 @@ import { useReviews } from '../context/ReviewsContext'
 import { useProductsByIds } from '../hooks/useProductsByIds'
 import { usd } from '../lib/format'
 import { deriveDeliveryLabel, deriveStockLabel } from '../lib/mockProductMeta'
+import { onEnterKey, onEnterOrSpaceKey } from '../lib/a11y'
 
 export default function Lists() {
   const navigate = useNavigate()
@@ -45,27 +46,30 @@ export default function Lists() {
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: 24, display: 'grid', gridTemplateColumns: '250px 1fr', gap: 28 }}>
+    <div className="mx-auto grid max-w-[1280px] grid-cols-1 gap-6 px-4 py-4 md:grid-cols-[250px_1fr] md:gap-7 md:px-6 md:py-6">
       <aside>
         <div className="kick">Your lists</div>
-        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div className="mt-3 flex gap-2 overflow-x-auto md:flex-col md:gap-1 md:overflow-visible">
           {lists.lists.map((list) => (
             <div
               key={list.id}
+              role="button"
+              tabIndex={0}
+              aria-pressed={list.id === activeListId}
               onClick={() => setActiveListId(list.id)}
+              onKeyDown={onEnterOrSpaceKey(() => setActiveListId(list.id))}
+              className="flex-none cursor-pointer border-l-2 px-3 py-2.5"
               style={{
-                padding: '10px 12px',
-                cursor: 'pointer',
-                borderLeft: list.id === activeListId ? '2px solid var(--color-accent)' : '2px solid transparent',
+                borderLeftColor: list.id === activeListId ? 'var(--color-accent)' : 'transparent',
                 background: list.id === activeListId ? 'var(--color-surface)' : 'transparent',
               }}
             >
               <div>{list.name}</div>
-              <div style={{ fontSize: 11.5, color: '#7a7a7d' }}>{list.items.length} items</div>
+              <div className="text-[11.5px] text-[#7a7a7d]">{list.items.length} items</div>
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        <div className="mt-4 flex gap-2">
           <Input
             placeholder="New list name"
             value={newListName}
@@ -80,21 +84,21 @@ export default function Lists() {
 
       <section>
         {!activeList ? (
-          <Blueprint style={{ padding: 34, textAlign: 'center' }}>
+          <Blueprint className="p-8 text-center">
             <h3>This list is empty</h3>
-            <p style={{ color: '#5d5d60' }}>Open a product and use &ldquo;Add to list&rdquo; to save it here.</p>
+            <p className="text-[#5d5d60]">Open a product and use &ldquo;Add to list&rdquo; to save it here.</p>
             <Button variant="primary" onClick={() => navigate('/')}>
               Browse products
             </Button>
           </Blueprint>
         ) : (
           <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h1>{activeList.name}</h1>
-                <p style={{ fontSize: 13, color: '#5d5d60' }}>{activeList.items.length} item(s) · private list</p>
+                <p className="text-[13px] text-[#5d5d60]">{activeList.items.length} item(s) · private list</p>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="flex gap-2">
                 <Button variant="secondary" onClick={addAllToCart}>
                   Add all to cart
                 </Button>
@@ -105,41 +109,54 @@ export default function Lists() {
             </div>
 
             {activeList.items.length === 0 ? (
-              <Blueprint style={{ padding: 34, textAlign: 'center', marginTop: 16 }}>
+              <Blueprint className="mt-4 p-8 text-center">
                 <h3>This list is empty</h3>
-                <p style={{ color: '#5d5d60' }}>Open a product and use &ldquo;Add to list&rdquo; to save it here.</p>
+                <p className="text-[#5d5d60]">Open a product and use &ldquo;Add to list&rdquo; to save it here.</p>
                 <Button variant="primary" onClick={() => navigate('/')}>
                   Browse products
                 </Button>
               </Blueprint>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
+              <div className="mt-4 flex flex-col gap-4">
                 {activeList.items.map((productId) => {
                   const product = products.get(productId)
                   if (!product) return null
                   const productReviews = reviews.getReviews(product.id)
                   const rating = productReviews.reduce((sum, r) => sum + r.stars, 0) / productReviews.length
                   return (
-                    <Blueprint key={productId} style={{ padding: 12, display: 'grid', gridTemplateColumns: '110px 1fr 190px', gap: 12 }}>
-                      <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${productId}`)}>
-                        <Placeholder label="Product" aspect="1/1" src={product.imageUrl} />
+                    <Blueprint
+                      key={productId}
+                      className="grid grid-cols-[90px_1fr] gap-3 p-3 sm:grid-cols-[110px_1fr_190px]"
+                    >
+                      <div
+                        className="cursor-pointer"
+                        role="link"
+                        tabIndex={0}
+                        onClick={() => navigate(`/product/${productId}`)}
+                        onKeyDown={onEnterKey(() => navigate(`/product/${productId}`))}
+                      >
+                        <Placeholder label={product.name} aspect="1/1" src={product.imageUrl} />
                       </div>
                       <div>
-                        <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${productId}`)}>
+                        <div
+                          className="cursor-pointer"
+                          role="link"
+                          tabIndex={0}
+                          onClick={() => navigate(`/product/${productId}`)}
+                          onKeyDown={onEnterKey(() => navigate(`/product/${productId}`))}
+                        >
                           {product.name}
                         </div>
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
+                        <div className="flex items-center gap-1.5 text-xs">
                           <StarRating rating={rating} />
-                          <span style={{ color: '#7a7a7d' }}>({productReviews.length})</span>
+                          <span className="text-[#7a7a7d]">({productReviews.length})</span>
                         </div>
-                        <div style={{ fontSize: 12, color: '#5d5d60' }}>
+                        <div className="text-xs text-[#5d5d60]">
                           {deriveDeliveryLabel(product)} · {deriveStockLabel(product)}
                         </div>
                       </div>
-                      <div>
-                        <div className="h" style={{ fontSize: 21 }}>
-                          {usd(product.price)}
-                        </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <div className="h text-[21px]">{usd(product.price)}</div>
                         <Button
                           variant="primary"
                           block

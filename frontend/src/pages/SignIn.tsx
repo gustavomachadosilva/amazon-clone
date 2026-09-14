@@ -32,14 +32,14 @@ export default function SignIn() {
   }
 
   return (
-    <div style={{ maxWidth: 400, margin: '40px auto', padding: 24 }}>
-      <Blueprint style={{ padding: 24 }}>
-        <h1 style={{ fontSize: 24 }}>{mode === 'signin' ? 'Sign in' : 'Create account'}</h1>
-        <p style={{ fontSize: 13, color: '#5d5d60' }}>
+    <div className="mx-auto max-w-[400px] px-4 py-6 md:py-10">
+      <Blueprint className="p-5 md:p-6">
+        <h1 className="text-2xl">{mode === 'signin' ? 'Sign in' : 'Create account'}</h1>
+        <p className="text-[13px] text-[#5d5d60]">
           {mode === 'signin' ? 'Use your email and password to continue.' : 'One account for orders, lists and reviews.'}
         </p>
 
-        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+        <form onSubmit={submit} className="mt-3 flex flex-col gap-3">
           {mode === 'register' && (
             <Input
               label="Your name"
