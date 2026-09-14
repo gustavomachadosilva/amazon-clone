@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext'
 import { useReviews } from '../context/ReviewsContext'
 import { usd } from '../lib/format'
 import { deriveDeliveryLabel, deriveListPrice } from '../lib/mockProductMeta'
+import { onEnterKey } from '../lib/a11y'
 import type { Product } from '../services/api'
 
 interface ProductGridCardProps {
@@ -40,9 +41,13 @@ export default function ProductGridCard({ product, compact = false }: ProductGri
     <Blueprint
       className="prod"
       style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px', cursor: 'pointer' }}
+      role="link"
+      tabIndex={0}
+      aria-label={`View ${product.name}`}
       onClick={open}
+      onKeyDown={onEnterKey(open)}
     >
-      <Placeholder label="Product" aspect="1/1" src={product.imageUrl} />
+      <Placeholder label={product.name} aspect="1/1" src={product.imageUrl} />
       <div style={{ fontSize: '13.5px', lineHeight: 1.3, minHeight: compact ? undefined : '36px' }}>
         {product.name}
       </div>

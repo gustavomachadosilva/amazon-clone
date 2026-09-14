@@ -29,26 +29,18 @@ export default function Home() {
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px' }}>
-      <Blueprint
-        style={{
-          padding: 34,
-          display: 'grid',
-          gridTemplateColumns: '1.15fr 1fr',
-          gap: 34,
-          alignItems: 'center',
-        }}
-      >
+    <div className="mx-auto max-w-[1280px] px-4 py-4 md:px-6 md:py-6">
+      <Blueprint className="grid grid-cols-1 items-center gap-6 p-5 md:grid-cols-[1.15fr_1fr] md:gap-[34px] md:p-[34px]">
         <div>
           <div className="kick">2026 catalogue · Free shipping over $49</div>
-          <h1 style={{ fontSize: 52, lineHeight: 1.02, maxWidth: '15ch' }}>
+          <h1 className="max-w-[15ch] text-[32px] leading-[1.05] md:text-[52px] md:leading-[1.02]">
             Everything the workshop, the desk and the kitchen need.
           </h1>
-          <p style={{ maxWidth: '46ch', color: '#5d5d60' }}>
+          <p className="max-w-[46ch] text-[#5d5d60]">
             Over 40,000 items from 900 sellers, with tracked delivery and 30-day returns.
           </p>
-          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <Select value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: 180 }}>
+          <form onSubmit={handleSearchSubmit} className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <Select value={category} onChange={(e) => setCategory(e.target.value)} className="sm:w-[180px]">
               <option value="All">All categories</option>
               {categories.map((name) => (
                 <option key={name} value={name}>
@@ -60,13 +52,13 @@ export default function Home() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search products"
-              style={{ flex: 1 }}
+              className="sm:flex-1"
             />
             <Button type="submit" variant="primary">
               Search
             </Button>
           </form>
-          <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <Button variant="primary" onClick={() => navigate('/search?sort=low')}>
               See today&rsquo;s deals
             </Button>
@@ -78,32 +70,34 @@ export default function Home() {
         <Placeholder label="Campaign image" aspect="16/10" />
       </Blueprint>
 
-      <div style={{ marginTop: 40 }}>
+      <div className="mt-10">
         <h2>Shop by category</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 16, marginTop: 12 }}>
+        <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-6">
           {CATEGORIES.slice(1).map((name) => (
             <Card
               key={name}
+              as="button"
+              type="button"
               blueprint
               hoverLift
-              style={{ padding: 14, cursor: 'pointer' }}
+              className="w-full cursor-pointer p-3.5 text-left"
               onClick={() => navigate(`/search?category=${name}`)}
             >
               <Placeholder label={name} aspect="1/1" />
-              <div style={{ fontSize: 15, marginTop: 8 }}>{name}</div>
+              <div className="mt-2 text-[15px]">{name}</div>
             </Card>
           ))}
         </div>
       </div>
 
-      <div style={{ marginTop: 40 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="mt-10">
+        <div className="flex items-center justify-between">
           <h2>Recommended for you</h2>
           <Button variant="ghost" onClick={() => navigate('/search')}>
             See all
           </Button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, marginTop: 12 }}>
+        <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {products.slice(0, 10).map((product) => (
             <ProductGridCard key={product.id} product={product} />
           ))}

@@ -42,43 +42,35 @@ export default function Pagination({
   const endItem = totalElements ? Math.min((currentPage + 1) * pageSize, totalElements) : (currentPage + 1) * pageSize
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '16px 0',
-        marginTop: '24px',
-        borderTop: '1px solid var(--color-divider, #e5e5e5)',
-        fontSize: '14px',
-      }}
+    <nav
+      aria-label="Pagination"
+      className="mt-6 flex flex-col items-center gap-3 border-t border-divider py-4 text-sm sm:flex-row sm:justify-between sm:gap-2"
     >
-      <div style={{ color: '#5d5d60', fontSize: '13px' }}>
+      <div className="text-[13px] text-[#5d5d60]">
         {totalElements !== undefined ? (
           <>
-            Exibindo <strong>{startItem}</strong>–<strong>{endItem}</strong> de <strong>{totalElements}</strong> resultados
+            Showing <strong>{startItem}</strong>–<strong>{endItem}</strong> of <strong>{totalElements}</strong> results
           </>
         ) : (
           <>
-            Página <strong>{currentPage + 1}</strong> de <strong>{totalPages}</strong>
+            Page <strong>{currentPage + 1}</strong> of <strong>{totalPages}</strong>
           </>
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+      <div className="flex flex-wrap items-center justify-center gap-1.5">
         <button
-          className="btn btn-secondary"
-          style={{ padding: '6px 12px', fontSize: '13px' }}
+          className="btn btn-secondary min-h-11 px-3 text-[13px]"
           disabled={currentPage === 0}
           onClick={() => onPageChange(currentPage - 1)}
         >
-          &laquo; Anterior
+          &laquo; Previous
         </button>
 
         {pages.map((p, idx) => {
           if (p === '...') {
             return (
-              <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#98989b' }}>
+              <span key={`ellipsis-${idx}`} className="px-1 text-[#98989b]">
                 ...
               </span>
             )
@@ -88,13 +80,8 @@ export default function Pagination({
           return (
             <button
               key={p}
-              className={isCurrent ? 'btn btn-primary' : 'btn btn-secondary'}
-              style={{
-                minWidth: '34px',
-                padding: '6px 10px',
-                fontSize: '13px',
-                fontWeight: isCurrent ? 600 : 400,
-              }}
+              className={`btn min-h-11 min-w-11 px-2.5 text-[13px] ${isCurrent ? 'btn-primary font-semibold' : 'btn-secondary'}`}
+              aria-current={isCurrent ? 'page' : undefined}
               onClick={() => onPageChange(p)}
             >
               {p + 1}
@@ -103,14 +90,13 @@ export default function Pagination({
         })}
 
         <button
-          className="btn btn-secondary"
-          style={{ padding: '6px 12px', fontSize: '13px' }}
+          className="btn btn-secondary min-h-11 px-3 text-[13px]"
           disabled={currentPage >= totalPages - 1}
           onClick={() => onPageChange(currentPage + 1)}
         >
-          Próxima &raquo;
+          Next &raquo;
         </button>
       </div>
-    </div>
+    </nav>
   )
 }

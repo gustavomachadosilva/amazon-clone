@@ -3,6 +3,7 @@ import Blueprint from './Blueprint'
 
 export interface CardProps extends HTMLAttributes<HTMLElement> {
   as?: ElementType
+  type?: 'button' | 'submit' | 'reset'
   blueprint?: boolean
   hoverLift?: boolean
   children?: ReactNode

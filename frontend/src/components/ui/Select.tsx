@@ -1,4 +1,4 @@
-import { forwardRef, type ReactNode, type SelectHTMLAttributes } from 'react'
+import { forwardRef, useId, type ReactNode, type SelectHTMLAttributes } from 'react'
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: ReactNode
@@ -12,10 +12,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   { label, error, helperText, containerClassName = '', className = '', id, children, ...props },
   ref
 ) {
+  const generatedId = useId()
+  const selectId = id ?? generatedId
   const selectElement = (
     <select
       ref={ref}
-      id={id}
+      id={selectId}
       className={`input ${className}`.trim()}
       aria-invalid={error ? 'true' : undefined}
       {...props}
@@ -30,7 +32,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
 
   return (
     <div className={`field ${containerClassName}`.trim()}>
-      {label && <label htmlFor={id}>{label}</label>}
+      {label && <label htmlFor={selectId}>{label}</label>}
       {selectElement}
       {helperText && !error && (
         <span className="text-xs text-neutral-600 mt-1 block">{helperText}</span>

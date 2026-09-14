@@ -7,6 +7,7 @@ import { useProductsByIds } from '../hooks/useProductsByIds'
 import { usd } from '../lib/format'
 import { freeShippingMessage } from '../lib/pricing'
 import { deriveDeliveryLabel, deriveStockLabel } from '../lib/mockProductMeta'
+import { onEnterKey } from '../lib/a11y'
 
 export default function Cart() {
   const navigate = useNavigate()
@@ -21,16 +22,16 @@ export default function Cart() {
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: 24, display: 'grid', gridTemplateColumns: '1fr 300px', gap: 28 }}>
+    <div className="mx-auto grid max-w-[1280px] grid-cols-1 gap-6 px-4 py-4 md:grid-cols-[1fr_300px] md:gap-7 md:px-6 md:py-6">
       <section>
         <h1>Shopping cart</h1>
-        <p style={{ fontSize: 13, color: '#5d5d60' }}>
+        <p className="text-[13px] text-[#5d5d60]">
           {cart.items.length} product(s) · prices and availability may change
         </p>
         <div className="hr" />
 
         {cart.items.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 40 }}>
+          <div className="p-10 text-center">
             <h3>Your cart is empty</h3>
             <Button variant="primary" onClick={() => navigate('/')}>
               Continue shopping
@@ -42,34 +43,50 @@ export default function Cart() {
             return (
               <div
                 key={line.productId}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '130px 1fr auto',
-                  gap: 16,
-                  padding: '16px 0',
-                  borderBottom: '1px solid var(--color-divider)',
-                }}
+                className="grid grid-cols-[100px_1fr] gap-4 border-b border-divider py-4 sm:grid-cols-[130px_1fr_auto]"
               >
-                <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${line.productId}`)}>
-                  <Placeholder label="Product" aspect="1/1" src={product?.imageUrl} />
+                <div
+                  className="cursor-pointer"
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => navigate(`/product/${line.productId}`)}
+                  onKeyDown={onEnterKey(() => navigate(`/product/${line.productId}`))}
+                >
+                  <Placeholder label={line.name} aspect="1/1" src={product?.imageUrl} />
                 </div>
                 <div>
-                  <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${line.productId}`)}>
+                  <div
+                    className="cursor-pointer"
+                    role="link"
+                    tabIndex={0}
+                    onClick={() => navigate(`/product/${line.productId}`)}
+                    onKeyDown={onEnterKey(() => navigate(`/product/${line.productId}`))}
+                  >
                     {line.name}
                   </div>
                   {product && (
                     <>
-                      <div style={{ fontSize: 13, color: 'var(--color-accent-700)' }}>{deriveStockLabel(product)}</div>
-                      <div style={{ fontSize: 12.5, color: '#5d5d60' }}>{deriveDeliveryLabel(product)}</div>
+                      <div className="text-[13px] text-accent-700">{deriveStockLabel(product)}</div>
+                      <div className="text-[12.5px] text-[#5d5d60]">{deriveDeliveryLabel(product)}</div>
                     </>
                   )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--color-divider)' }}>
-                      <Button variant="icon" style={{ border: 0 }} onClick={() => cart.decrementQty(line.productId)}>
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <div className="flex items-center border border-divider">
+                      <Button
+                        variant="icon"
+                        className="border-0"
+                        aria-label="Decrease quantity"
+                        onClick={() => cart.decrementQty(line.productId)}
+                      >
                         <Minus size={14} strokeWidth={1.5} />
                       </Button>
-                      <span style={{ padding: '0 10px' }}>{line.qty}</span>
-                      <Button variant="icon" style={{ border: 0 }} onClick={() => cart.incrementQty(line.productId)}>
+                      <span className="px-2.5">{line.qty}</span>
+                      <Button
+                        variant="icon"
+                        className="border-0"
+                        aria-label="Increase quantity"
+                        onClick={() => cart.incrementQty(line.productId)}
+                      >
                         <Plus size={14} strokeWidth={1.5} />
                       </Button>
                     </div>
@@ -81,7 +98,7 @@ export default function Cart() {
                     </Button>
                   </div>
                 </div>
-                <div style={{ textAlign: 'right', fontSize: 20 }} className="h">
+                <div className="h col-span-2 text-left text-xl sm:col-span-1 sm:text-right">
                   {usd(line.price * line.qty)}
                 </div>
               </div>
@@ -90,19 +107,19 @@ export default function Cart() {
         )}
 
         {cart.items.length > 0 && (
-          <div style={{ textAlign: 'right', fontSize: 20, marginTop: 16 }} className="h">
+          <div className="h mt-4 text-right text-xl">
             Subtotal ({cart.itemCount} items): {usd(cart.subtotal)}
           </div>
         )}
 
         {cart.saved.length > 0 && (
-          <div style={{ marginTop: 40 }}>
+          <div className="mt-10">
             <h2>Saved for later</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
               {cart.saved.map((line) => (
-                <Blueprint key={line.productId} style={{ padding: 12 }}>
-                  <Placeholder label="Product" aspect="1/1" src={products.get(line.productId)?.imageUrl} />
-                  <div style={{ fontSize: 13, minHeight: 32, marginTop: 8 }}>{line.name}</div>
+                <Blueprint key={line.productId} className="p-3">
+                  <Placeholder label={line.name} aspect="1/1" src={products.get(line.productId)?.imageUrl} />
+                  <div className="mt-2 min-h-8 text-[13px]">{line.name}</div>
                   <div className="h">{usd(line.price)}</div>
                   <Button variant="secondary" block onClick={() => cart.moveToCart(line.productId)}>
                     Move to cart
@@ -114,15 +131,11 @@ export default function Cart() {
         )}
       </section>
 
-      <Blueprint as="aside" style={{ padding: 18, position: 'sticky', top: 16, height: 'fit-content' }}>
-        <div style={{ fontSize: 13, color: 'var(--color-accent-700)', marginBottom: 8 }}>
-          {freeShippingMessage(cart.subtotal)}
-        </div>
-        <div style={{ fontSize: 13 }}>Subtotal ({cart.itemCount} items):</div>
-        <div className="h" style={{ fontSize: 26 }}>
-          {usd(cart.subtotal)}
-        </div>
-        <label className="radio" style={{ display: 'flex', margin: '12px 0' }}>
+      <Blueprint as="aside" className="h-fit p-4 md:sticky md:top-4 md:p-[18px]">
+        <div className="mb-2 text-[13px] text-accent-700">{freeShippingMessage(cart.subtotal)}</div>
+        <div className="text-[13px]">Subtotal ({cart.itemCount} items):</div>
+        <div className="h text-2xl">{usd(cart.subtotal)}</div>
+        <label className="radio my-3 flex">
           <input type="checkbox" />
           <span className="box" />
           This order contains a gift

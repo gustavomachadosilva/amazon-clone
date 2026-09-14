@@ -3,6 +3,7 @@ import { catalogApi, Product, ProductInput, sellersApi } from '../services/api'
 import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui'
 import ProductForm from '../components/ProductForm'
 import { useAuth } from '../context/AuthContext'
+import { usd } from '../lib/format'
 
 interface Feedback {
   type: 'success' | 'error'
@@ -51,10 +52,10 @@ export default function SellerDashboard() {
     try {
       if (editingProduct) {
         await catalogApi.update(editingProduct.id, input)
-        setFeedback({ type: 'success', message: 'Produto atualizado com sucesso.' })
+        setFeedback({ type: 'success', message: 'Product updated successfully.' })
       } else {
         await catalogApi.create(input)
-        setFeedback({ type: 'success', message: 'Produto criado com sucesso.' })
+        setFeedback({ type: 'success', message: 'Product created successfully.' })
       }
       closeForm()
       fetchInventory()
@@ -64,30 +65,30 @@ export default function SellerDashboard() {
   }
 
   async function handleDelete(product: Product) {
-    if (!window.confirm(`Tem certeza que deseja excluir "${product.name}"?`)) return
+    if (!window.confirm(`Are you sure you want to delete "${product.name}"?`)) return
 
     try {
       await catalogApi.remove(product.id)
-      setFeedback({ type: 'success', message: 'Produto excluído com sucesso.' })
+      setFeedback({ type: 'success', message: 'Product deleted successfully.' })
       fetchInventory()
     } catch {
-      setFeedback({ type: 'error', message: 'Não foi possível excluir o produto. Tente novamente.' })
+      setFeedback({ type: 'error', message: 'Could not delete the product. Please try again.' })
     }
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Painel do Vendedor</h1>
+    <div className="p-4 md:p-6">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-bold">Seller Dashboard</h1>
         <Button variant="primary" onClick={openNewProductForm}>
-          Novo produto
+          New product
         </Button>
       </div>
 
       {feedback && (
         <div
           className={`mb-4 rounded-md text-sm px-3 py-2 flex items-center justify-between ${
-            feedback.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-accent-50 text-accent-800'
+            feedback.type === 'success' ? 'bg-accent2-100 text-accent2-800' : 'bg-accent-100 text-accent-800'
           }`}
           role="status"
         >
@@ -95,7 +96,7 @@ export default function SellerDashboard() {
           <button
             type="button"
             onClick={() => setFeedback(null)}
-            aria-label="Dispensar"
+            aria-label="Dismiss"
             className="ml-4 text-inherit"
           >
             ×
@@ -113,35 +114,37 @@ export default function SellerDashboard() {
         />
       )}
 
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableHeader>Produto</TableHeader>
-            <TableHeader>Estoque</TableHeader>
-            <TableHeader>Preço</TableHeader>
-            <TableHeader>Ações</TableHeader>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {products.map((product) => (
-            <TableRow key={product.id}>
-              <TableCell>{product.name}</TableCell>
-              <TableCell>{product.stockQuantity}</TableCell>
-              <TableCell>R$ {product.price}</TableCell>
-              <TableCell>
-                <div className="flex gap-2">
-                  <Button variant="secondary" onClick={() => openEditForm(product)}>
-                    Editar
-                  </Button>
-                  <Button variant="secondary" onClick={() => handleDelete(product)}>
-                    Excluir
-                  </Button>
-                </div>
-              </TableCell>
+      <div className="overflow-x-auto">
+        <Table className="min-w-[560px]">
+          <TableHead>
+            <TableRow>
+              <TableHeader>Product</TableHeader>
+              <TableHeader>Stock</TableHeader>
+              <TableHeader>Price</TableHeader>
+              <TableHeader>Actions</TableHeader>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHead>
+          <TableBody>
+            {products.map((product) => (
+              <TableRow key={product.id}>
+                <TableCell>{product.name}</TableCell>
+                <TableCell>{product.stockQuantity}</TableCell>
+                <TableCell>{usd(product.price)}</TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Button variant="secondary" onClick={() => openEditForm(product)}>
+                      Edit
+                    </Button>
+                    <Button variant="secondary" onClick={() => handleDelete(product)}>
+                      Delete
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }

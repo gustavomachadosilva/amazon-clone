@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { SlidersHorizontal } from 'lucide-react'
 import { Blueprint, Button, Pagination, Placeholder, Select, StarRating } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
@@ -14,6 +15,7 @@ import {
   deriveListPrice,
   deriveStockLabel,
 } from '../lib/mockProductMeta'
+import { onEnterKey } from '../lib/a11y'
 
 const RATING_OPTIONS = [4.5, 4, 3, 0]
 
@@ -32,20 +34,34 @@ export default function Search() {
   const sort = searchParams.get('sort') ?? 'relevance'
   const pageParam = Math.max(0, Number(searchParams.get('page') ?? 1) - 1)
 
+  const requestKey = `${q}|${category}|${pageParam}`
   const [pageData, setPageData] = useState<Page<Product> | null>(null)
+  const [loadedKey, setLoadedKey] = useState<string | null>(null)
+  const loading = loadedKey !== requestKey
 
   useEffect(() => {
+    let cancelled = false
     catalogApi
       .search(q || undefined, category === 'All' ? undefined : category, pageParam)
-      .then((data) => setPageData(data))
-  }, [q, category, pageParam])
+      .then((data) => {
+        if (cancelled) return
+        setPageData(data)
+        setLoadedKey(requestKey)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [q, category, pageParam, requestKey])
 
   function ratingOf(product: Product): number {
     const list = reviews.getReviews(product.id)
     return list.reduce((sum, r) => sum + r.stars, 0) / list.length
   }
 
+  const [filtersOpen, setFiltersOpen] = useState(false)
+
   const results = pageData?.content ?? []
+  const hasActiveFilters = maxPrice < 600 || minRating > 0 || fastOnly
 
   let filtered = results.filter((product) => {
     if (product.price > maxPrice) return false
@@ -69,13 +85,23 @@ export default function Search() {
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px', display: 'grid', gridTemplateColumns: '236px 1fr', gap: 28 }}>
-      <aside>
-        <div className="kick">Filters</div>
-        <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 12, color: '#5d5d60', marginBottom: 6 }}>Department</div>
+    <div className="mx-auto grid max-w-[1280px] grid-cols-1 gap-5 px-4 py-4 md:grid-cols-[236px_1fr] md:gap-7 md:px-6 md:py-6">
+      <button
+        type="button"
+        className="btn btn-secondary flex min-h-11 w-full items-center justify-between md:hidden"
+        aria-expanded={filtersOpen}
+        onClick={() => setFiltersOpen((open) => !open)}
+      >
+        <span>Filters</span>
+        <SlidersHorizontal size={16} strokeWidth={1.5} />
+      </button>
+
+      <aside className={filtersOpen ? 'block' : 'hidden md:block'}>
+        <div className="kick hidden md:block">Filters</div>
+        <div className="mt-3 md:mt-3">
+          <div className="mb-1.5 text-xs text-[#5d5d60]">Department</div>
           {CATEGORIES.map((name) => (
-            <label className="radio" key={name} style={{ display: 'flex', marginBottom: 6 }}>
+            <label className="radio mb-1.5 flex" key={name}>
               <input
                 type="radio"
                 name="category"
@@ -88,8 +114,8 @@ export default function Search() {
           ))}
         </div>
 
-        <div style={{ marginTop: 20 }}>
-          <div style={{ fontSize: 12, color: '#5d5d60', marginBottom: 6 }}>Price up to</div>
+        <div className="mt-5">
+          <div className="mb-1.5 text-xs text-[#5d5d60]">Price up to</div>
           <input
             type="range"
             min={20}
@@ -97,15 +123,15 @@ export default function Search() {
             step={10}
             value={maxPrice}
             onChange={(e) => setParam('maxPrice', e.target.value)}
-            style={{ width: '100%', accentColor: 'var(--color-accent)' }}
+            className="w-full accent-accent"
           />
-          <div style={{ fontSize: 12.5 }}>{usd(maxPrice)}</div>
+          <div className="text-[12.5px]">{usd(maxPrice)}</div>
         </div>
 
-        <div style={{ marginTop: 20 }}>
-          <div style={{ fontSize: 12, color: '#5d5d60', marginBottom: 6 }}>Customer rating</div>
+        <div className="mt-5">
+          <div className="mb-1.5 text-xs text-[#5d5d60]">Customer rating</div>
           {RATING_OPTIONS.map((value) => (
-            <label className="radio" key={value} style={{ display: 'flex', marginBottom: 6 }}>
+            <label className="radio mb-1.5 flex" key={value}>
               <input
                 type="radio"
                 name="rating"
@@ -118,8 +144,8 @@ export default function Search() {
           ))}
         </div>
 
-        <div style={{ marginTop: 20 }}>
-          <label className="radio" style={{ display: 'flex' }}>
+        <div className="mt-5">
+          <label className="radio flex">
             <input type="checkbox" checked={fastOnly} onChange={(e) => setParam('fast', e.target.checked ? '1' : null)} />
             <span className="box" />
             Arrives tomorrow
@@ -128,12 +154,17 @@ export default function Search() {
       </aside>
 
       <section>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 13, color: '#5d5d60' }}>
-            {filtered.length} results {q && `for "${q}"`} {category !== 'All' && `in ${category}`}
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-[13px] text-[#5d5d60]">
+            {loading
+              ? 'Loading…'
+              : hasActiveFilters
+                ? `${filtered.length} of ${results.length} results on this page match your filters`
+                : `${filtered.length} results`}{' '}
+            {!loading && q && `for "${q}"`} {!loading && category !== 'All' && `in ${category}`}
           </div>
           <Select
-            style={{ width: 'auto' }}
+            className="sm:w-auto"
             value={sort}
             onChange={(e) => setParam('sort', e.target.value === 'relevance' ? null : e.target.value)}
           >
@@ -144,58 +175,66 @@ export default function Search() {
           </Select>
         </div>
 
-        {filtered.length === 0 ? (
-          <Blueprint style={{ padding: 34, textAlign: 'center' }}>
+        {loading ? (
+          <Blueprint className="p-8 text-center">
+            <p className="text-[#5d5d60]">Loading…</p>
+          </Blueprint>
+        ) : filtered.length === 0 ? (
+          <Blueprint className="p-8 text-center">
             <h3>No results</h3>
-            <p style={{ color: '#5d5d60' }}>Try another keyword or clear the filters.</p>
+            <p className="text-[#5d5d60]">Try another keyword or clear the filters.</p>
             <Button variant="secondary" onClick={() => setSearchParams({})}>
               Clear filters
             </Button>
           </Blueprint>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="flex flex-col gap-4">
             {filtered.map((product) => (
               <Blueprint
                 key={product.id}
-                style={{ padding: 16, display: 'grid', gridTemplateColumns: '180px 1fr 210px', gap: 16 }}
+                className="flex flex-col gap-4 p-4 md:grid md:grid-cols-[180px_1fr_210px]"
               >
-                <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${product.id}`)}>
-                  <Placeholder label="Product" aspect="1/1" src={product.imageUrl} />
+                <div
+                  className="max-w-[160px] cursor-pointer md:max-w-none"
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => navigate(`/product/${product.id}`)}
+                  onKeyDown={onEnterKey(() => navigate(`/product/${product.id}`))}
+                >
+                  <Placeholder label={product.name} aspect="1/1" src={product.imageUrl} />
                 </div>
                 <div>
                   <div
-                    className="h"
-                    style={{ fontSize: 20, cursor: 'pointer' }}
+                    className="h cursor-pointer text-xl"
+                    role="link"
+                    tabIndex={0}
                     onClick={() => navigate(`/product/${product.id}`)}
+                    onKeyDown={onEnterKey(() => navigate(`/product/${product.id}`))}
                   >
                     {product.name}
                   </div>
-                  <div style={{ fontSize: 12.5, color: '#7a7a7d' }}>Sold by Seller #{product.sellerId}</div>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, margin: '4px 0' }}>
+                  <div className="text-[12.5px] text-[#7a7a7d]">Sold by Seller #{product.sellerId}</div>
+                  <div className="my-1 flex items-center gap-1.5 text-xs">
                     <StarRating rating={ratingOf(product)} />
                     <span>{ratingOf(product).toFixed(1)}</span>
-                    <span style={{ color: '#7a7a7d' }}>({reviews.getReviews(product.id).length})</span>
+                    <span className="text-[#7a7a7d]">({reviews.getReviews(product.id).length})</span>
                   </div>
-                  <p style={{ fontSize: 13, color: '#5d5d60', maxWidth: '52ch' }}>{product.description}</p>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <p className="max-w-[52ch] text-[13px] text-[#5d5d60]">{product.description}</p>
+                  <div className="flex flex-wrap gap-2">
                     <span className="tag tag-outline">{product.category}</span>
                     <span className="tag tag-accent">
                       {deriveFastDelivery(product) ? 'Fast delivery' : 'Free shipping'}
                     </span>
                   </div>
                 </div>
-                <div style={{ borderLeft: '1px solid var(--color-divider)', paddingLeft: 16 }}>
-                  <div className="h" style={{ fontSize: 26 }}>
-                    {usd(product.price)}
-                  </div>
+                <div className="border-t border-divider pt-3 md:border-l md:border-t-0 md:pl-4 md:pt-0">
+                  <div className="h text-2xl">{usd(product.price)}</div>
                   {deriveListPrice(product) > product.price && (
-                    <div style={{ fontSize: 12, color: '#98989b', textDecoration: 'line-through' }}>
-                      {usd(deriveListPrice(product))}
-                    </div>
+                    <div className="text-xs text-[#98989b] line-through">{usd(deriveListPrice(product))}</div>
                   )}
-                  <div style={{ fontSize: 11.5, color: '#5d5d60' }}>{installmentLine(product.price)}</div>
-                  <div style={{ fontSize: 11.5, color: '#5d5d60' }}>{deriveDeliveryLabel(product)}</div>
-                  <div style={{ fontSize: 13, color: 'var(--color-accent-700)' }}>{deriveStockLabel(product)}</div>
+                  <div className="text-[11.5px] text-[#5d5d60]">{installmentLine(product.price)}</div>
+                  <div className="text-[11.5px] text-[#5d5d60]">{deriveDeliveryLabel(product)}</div>
+                  <div className="text-[13px] text-accent-700">{deriveStockLabel(product)}</div>
                   <Button
                     variant="primary"
                     block
@@ -223,7 +262,7 @@ export default function Search() {
           <Pagination
             currentPage={pageData.number}
             totalPages={pageData.totalPages}
-            totalElements={pageData.totalElements}
+            totalElements={hasActiveFilters ? undefined : pageData.totalElements}
             pageSize={pageData.size}
             onPageChange={(newPage) => setParam('page', (newPage + 1).toString())}
           />

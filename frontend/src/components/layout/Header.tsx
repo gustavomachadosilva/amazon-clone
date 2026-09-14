@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
-import { Search } from 'lucide-react'
+import { Search, Menu, X, User, ShoppingCart } from 'lucide-react'
 import { Button } from '../ui'
 import { useAuth } from '../../context/AuthContext'
 import { useCart } from '../../context/CartContext'
 import { CATEGORIES, STORE_NAME } from '../../lib/constants'
+import { onEnterKey } from '../../lib/a11y'
 
 export default function Header() {
   const navigate = useNavigate()
@@ -12,6 +13,7 @@ export default function Header() {
   const [searchParams] = useSearchParams()
   const { user } = useAuth()
   const { itemCount } = useCart()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const onSearchScreen = location.pathname === '/search'
   const [query, setQuery] = useState(onSearchScreen ? (searchParams.get('q') ?? '') : '')
@@ -27,6 +29,7 @@ export default function Header() {
 
   function onSubmit(event: React.FormEvent) {
     event.preventDefault()
+    setMenuOpen(false)
     runSearch()
   }
 
@@ -36,50 +39,43 @@ export default function Header() {
     const params = new URLSearchParams()
     if (name !== 'All') params.set('category', name)
     navigate(`/search?${params.toString()}`)
+    setMenuOpen(false)
+  }
+
+  function goTo(path: string) {
+    navigate(path)
+    setMenuOpen(false)
   }
 
   return (
-    <header style={{ background: 'var(--color-accent-900)', color: '#f2f2f3' }}>
-      <div
-        style={{
-          maxWidth: 1280,
-          margin: '0 auto',
-          padding: '12px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 20,
-        }}
-      >
-        <div style={{ cursor: 'pointer', flex: 'none' }} onClick={() => navigate('/')}>
-          <div className="h" style={{ fontSize: 26, letterSpacing: '.06em', textTransform: 'uppercase' }}>
-            {STORE_NAME}
-          </div>
-          <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--color-accent-400)' }}>
-            Marketplace
-          </div>
+    <header className="relative bg-accent-900 text-[#f2f2f3]">
+      <div className="mx-auto flex max-w-[1280px] items-center gap-3 px-4 py-3 md:gap-5 md:px-6">
+        <button
+          type="button"
+          className="-ml-2 flex h-11 w-11 flex-none items-center justify-center md:hidden"
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          {menuOpen ? <X size={22} strokeWidth={1.5} /> : <Menu size={22} strokeWidth={1.5} />}
+        </button>
+
+        <div
+          className="flex-none cursor-pointer"
+          role="link"
+          tabIndex={0}
+          onClick={() => goTo('/')}
+          onKeyDown={onEnterKey(() => goTo('/'))}
+        >
+          <div className="h text-xl uppercase leading-none tracking-[.06em] md:text-[26px]">{STORE_NAME}</div>
+          <div className="hidden text-[10px] uppercase tracking-[.2em] text-accent-400 md:block">Marketplace</div>
         </div>
 
-        <form
-          onSubmit={onSubmit}
-          style={{
-            flex: 1,
-            maxWidth: 720,
-            display: 'flex',
-            border: '1px solid var(--color-accent-700)',
-            background: '#f2f2f3',
-          }}
-        >
+        <form onSubmit={onSubmit} className="hidden max-w-[720px] flex-1 border border-accent-700 bg-[#f2f2f3] md:flex">
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            style={{
-              background: '#e7e7ea',
-              border: 0,
-              borderRight: '1px solid var(--color-divider)',
-              color: '#1d1f20',
-              fontSize: 12.5,
-              padding: '0 8px',
-            }}
+            className="border-0 border-r border-divider bg-neutral-200 px-2 text-[12.5px] text-foreground"
           >
             {CATEGORIES.map((name) => (
               <option key={name} value={name}>
@@ -91,58 +87,99 @@ export default function Header() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search products, brands and categories"
-            style={{ flex: 1, border: 0, padding: '0 10px', color: '#1d1f20', fontSize: 14 }}
+            className="flex-1 border-0 px-2.5 text-sm text-foreground"
           />
-          <Button
-            type="submit"
-            variant="primary"
-            style={{
-              border: 0,
-              borderRadius: 0,
-              fontSize: 14,
-              letterSpacing: '.08em',
-              textTransform: 'uppercase',
-              padding: '0 18px',
-            }}
-          >
+          <Button type="submit" variant="primary" className="rounded-none border-0 px-[18px] text-sm tracking-[.08em] uppercase">
             <Search size={16} strokeWidth={1.5} />
           </Button>
         </form>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, flex: 'none' }}>
-          <div style={{ cursor: 'pointer' }} onClick={() => navigate(user ? '/orders' : '/signin')}>
-            <div style={{ color: 'var(--color-accent-400)' }}>{user ? `Hello, ${user.name}` : 'Hello, sign in'}</div>
-            <div className="h" style={{ fontSize: 13 }}>
-              Account &amp; Lists
-            </div>
-          </div>
-          <div style={{ cursor: 'pointer' }} onClick={() => navigate('/orders')}>
-            <div style={{ color: 'var(--color-accent-400)' }}>Returns</div>
-            <div className="h" style={{ fontSize: 13 }}>
-              &amp; Orders
-            </div>
+        <div className="ml-auto flex flex-none items-center gap-1 md:hidden">
+          <button
+            type="button"
+            className="flex h-11 w-11 items-center justify-center"
+            aria-label={user ? 'Account' : 'Sign in'}
+            onClick={() => goTo(user ? '/orders' : '/signin')}
+          >
+            <User size={22} strokeWidth={1.5} />
+          </button>
+          <button
+            type="button"
+            className="relative flex h-11 w-11 items-center justify-center"
+            aria-label={`Cart, ${itemCount} item${itemCount === 1 ? '' : 's'}`}
+            onClick={() => goTo('/cart')}
+          >
+            <ShoppingCart size={22} strokeWidth={1.5} />
+            {itemCount > 0 && (
+              <span className="h absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center bg-accent-400 px-1 text-[10px] leading-none text-accent-900">
+                {itemCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        <div className="hidden flex-none items-center gap-3 text-xs md:flex">
+          <div
+            className="cursor-pointer"
+            role="link"
+            tabIndex={0}
+            onClick={() => goTo(user ? '/orders' : '/signin')}
+            onKeyDown={onEnterKey(() => goTo(user ? '/orders' : '/signin'))}
+          >
+            <div className="text-accent-400">{user ? `Hello, ${user.name}` : 'Hello, sign in'}</div>
+            <div className="h text-[13px]">Account &amp; Lists</div>
           </div>
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              border: '1px solid var(--color-accent-700)',
-              padding: '6px 10px',
-              cursor: 'pointer',
-            }}
-            onClick={() => navigate('/cart')}
+            className="cursor-pointer"
+            role="link"
+            tabIndex={0}
+            onClick={() => goTo('/orders')}
+            onKeyDown={onEnterKey(() => goTo('/orders'))}
           >
-            <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em' }}>Cart</span>
-            <span className="h" style={{ fontSize: 20, color: 'var(--color-accent-400)' }}>
-              {itemCount}
-            </span>
+            <div className="text-accent-400">Returns</div>
+            <div className="h text-[13px]">&amp; Orders</div>
+          </div>
+          <div
+            className="flex cursor-pointer items-center gap-1.5 border border-accent-700 px-2.5 py-1.5"
+            role="link"
+            tabIndex={0}
+            aria-label={`Cart, ${itemCount} item${itemCount === 1 ? '' : 's'}`}
+            onClick={() => goTo('/cart')}
+            onKeyDown={onEnterKey(() => goTo('/cart'))}
+          >
+            <span className="text-[11px] uppercase tracking-[.08em]">Cart</span>
+            <span className="h text-xl text-accent-400">{itemCount}</span>
           </div>
         </div>
       </div>
 
-      <div style={{ background: 'var(--color-accent-800)', borderTop: '1px solid var(--color-accent-700)' }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="px-4 pb-3 md:hidden">
+        <form onSubmit={onSubmit} className="flex border border-accent-700 bg-[#f2f2f3]">
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="max-w-[38%] border-0 border-r border-divider bg-neutral-200 px-2 text-[12.5px] text-foreground"
+          >
+            {CATEGORIES.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search products"
+            className="min-h-11 flex-1 border-0 px-2.5 text-sm text-foreground"
+          />
+          <Button type="submit" variant="primary" className="min-h-11 rounded-none border-0 px-4">
+            <Search size={18} strokeWidth={1.5} />
+          </Button>
+        </form>
+      </div>
+
+      <div className="hidden border-t border-accent-700 bg-accent-800 md:block">
+        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center px-6">
           <button className="navlink" onClick={() => goDepartment('All')}>
             All departments
           </button>
@@ -151,18 +188,40 @@ export default function Header() {
               {name}
             </button>
           ))}
-          <button
-            className="navlink"
-            style={{ marginLeft: 'auto', color: 'var(--color-accent-400)' }}
-            onClick={() => navigate('/lists')}
-          >
+          <button className="navlink ml-auto text-accent-400" onClick={() => navigate('/lists')}>
             Your Lists
           </button>
-          <button className="navlink" style={{ color: 'var(--color-accent-400)' }} onClick={() => navigate('/seller')}>
+          <button className="navlink text-accent-400" onClick={() => navigate('/seller')}>
             Seller Central
           </button>
         </div>
       </div>
+
+      {menuOpen && (
+        <div className="absolute inset-x-0 top-full z-30 flex flex-col border-t border-accent-700 bg-accent-800 shadow-ds-lg md:hidden">
+          <button className="navlink min-h-11 text-left" onClick={() => goDepartment('All')}>
+            All departments
+          </button>
+          {CATEGORIES.slice(1).map((name) => (
+            <button key={name} className="navlink min-h-11 text-left" onClick={() => goDepartment(name)}>
+              {name}
+            </button>
+          ))}
+          <div className="mx-3 my-1 h-px bg-accent-700" />
+          <button className="navlink min-h-11 text-left" onClick={() => goTo(user ? '/orders' : '/signin')}>
+            {user ? `Hello, ${user.name}` : 'Hello, sign in'}
+          </button>
+          <button className="navlink min-h-11 text-left" onClick={() => goTo('/orders')}>
+            Returns &amp; Orders
+          </button>
+          <button className="navlink min-h-11 text-left text-accent-400" onClick={() => goTo('/lists')}>
+            Your Lists
+          </button>
+          <button className="navlink min-h-11 text-left text-accent-400" onClick={() => goTo('/seller')}>
+            Seller Central
+          </button>
+        </div>
+      )}
     </header>
   )
 }

@@ -51,7 +51,7 @@ export default function ProductForm({
   const [errors, setErrors] = useState<FormErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
 
-  // Repopulate the form when initialProduct changes (e.g. user clicks "Editar" on a
+  // Repopulate the form when initialProduct changes (e.g. user clicks "Edit" on a
   // different product while the form is already open). Adjusting state during render
   // (rather than in an effect) avoids an extra render pass — see
   // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
@@ -71,35 +71,35 @@ export default function ProductForm({
     const imageUrl = form.imageUrl.trim()
 
     if (!name) {
-      nextErrors.name = 'Nome é obrigatório.'
+      nextErrors.name = 'Name is required.'
     } else if (name.length > 255) {
-      nextErrors.name = 'Nome deve ter no máximo 255 caracteres.'
+      nextErrors.name = 'Name must be at most 255 characters.'
     }
 
     if (description.length > 2000) {
-      nextErrors.description = 'Descrição deve ter no máximo 2000 caracteres.'
+      nextErrors.description = 'Description must be at most 2000 characters.'
     }
 
     const price = Number(form.price)
     if (form.price.trim() === '' || Number.isNaN(price)) {
-      nextErrors.price = 'Preço é obrigatório.'
+      nextErrors.price = 'Price is required.'
     } else if (price <= 0) {
-      nextErrors.price = 'Preço deve ser maior que zero.'
+      nextErrors.price = 'Price must be greater than zero.'
     }
 
     const stockQuantity = Number(form.stockQuantity)
     if (form.stockQuantity.trim() === '' || Number.isNaN(stockQuantity)) {
-      nextErrors.stockQuantity = 'Estoque é obrigatório.'
+      nextErrors.stockQuantity = 'Stock is required.'
     } else if (!Number.isInteger(stockQuantity) || stockQuantity < 0) {
-      nextErrors.stockQuantity = 'Estoque deve ser um número inteiro maior ou igual a zero.'
+      nextErrors.stockQuantity = 'Stock must be a whole number of zero or more.'
     }
 
     if (!category) {
-      nextErrors.category = 'Categoria é obrigatória.'
+      nextErrors.category = 'Category is required.'
     }
 
     if (imageUrl.length > 1000) {
-      nextErrors.imageUrl = 'URL da imagem deve ter no máximo 1000 caracteres.'
+      nextErrors.imageUrl = 'Image URL must be at most 1000 characters.'
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -134,14 +134,14 @@ export default function ProductForm({
         if (e.apiMessage) {
           setFormError(e.apiMessage)
         } else if (e.status === 403) {
-          setFormError('Você não tem permissão para editar este produto.')
+          setFormError('You do not have permission to edit this product.')
         } else if (e.status === 404) {
-          setFormError('Produto não encontrado — pode ter sido removido.')
+          setFormError('Product not found — it may have been removed.')
         } else {
-          setFormError('Não foi possível salvar o produto. Tente novamente.')
+          setFormError('Could not save the product. Please try again.')
         }
       } else {
-        setFormError('Não foi possível salvar o produto. Tente novamente.')
+        setFormError('Could not save the product. Please try again.')
       }
     }
   }
@@ -149,7 +149,7 @@ export default function ProductForm({
   return (
     <form onSubmit={handleSubmit} className="border border-neutral-200 rounded-lg p-6 mb-6 bg-white">
       <h2 className="text-lg font-semibold mb-4">
-        {isEditMode ? 'Editar produto' : 'Novo produto'}
+        {isEditMode ? 'Edit product' : 'New product'}
       </h2>
 
       {formError && (
@@ -160,7 +160,7 @@ export default function ProductForm({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
-          label="Nome"
+          label="Name"
           value={form.name}
           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
           error={errors.name}
@@ -168,12 +168,12 @@ export default function ProductForm({
         />
 
         <Select
-          label="Categoria"
+          label="Category"
           value={form.category}
           onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
           error={errors.category}
         >
-          <option value="">Selecione uma categoria</option>
+          <option value="">Select a category</option>
           {categories.map((category) => (
             <option key={category} value={category}>
               {category}
@@ -182,7 +182,7 @@ export default function ProductForm({
         </Select>
 
         <Input
-          label="Preço"
+          label="Price"
           type="number"
           step="0.01"
           min="0"
@@ -192,7 +192,7 @@ export default function ProductForm({
         />
 
         <Input
-          label="Estoque"
+          label="Stock"
           type="number"
           step="1"
           min="0"
@@ -202,7 +202,7 @@ export default function ProductForm({
         />
 
         <Input
-          label="URL da imagem"
+          label="Image URL"
           value={form.imageUrl}
           onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
           error={errors.imageUrl}
@@ -211,7 +211,7 @@ export default function ProductForm({
         />
 
         <Textarea
-          label="Descrição"
+          label="Description"
           value={form.description}
           onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           error={errors.description}
@@ -223,10 +223,10 @@ export default function ProductForm({
 
       <div className="flex gap-3 mt-6">
         <Button type="submit" variant="primary" disabled={isSubmitting}>
-          {isEditMode ? 'Salvar alterações' : 'Salvar produto'}
+          {isEditMode ? 'Save changes' : 'Save product'}
         </Button>
         <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting}>
-          Cancelar
+          Cancel
         </Button>
       </div>
     </form>
