@@ -37,6 +37,10 @@ export default function ProductGridCard({ product, compact = false }: ProductGri
     navigate('/cart')
   }
 
+  function stopKeyPropagation(event: React.KeyboardEvent) {
+    event.stopPropagation()
+  }
+
   return (
     <Blueprint
       className="prod"
@@ -67,7 +71,7 @@ export default function ProductGridCard({ product, compact = false }: ProductGri
       </div>
       {!compact && <div style={{ fontSize: '11.5px', color: '#5d5d60' }}>{deriveDeliveryLabel(product)}</div>}
       {!compact && (
-        <Button variant="primary" block onClick={addToCart}>
+        <Button variant="primary" block onClick={addToCart} onKeyDown={stopKeyPropagation}>
           Add to cart
         </Button>
       )}

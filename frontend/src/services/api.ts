@@ -26,12 +26,12 @@ export class ApiRequestError extends Error {
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = readStoredToken()
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
-    ...options,
   })
 
   if (!response.ok) {
@@ -54,8 +54,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   get: <T,>(path: string) => request<T>(path),
-  post: <T,>(path: string, body: unknown) =>
-    request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+  post: <T,>(path: string, body: unknown, headers?: HeadersInit) =>
+    request<T>(path, { method: 'POST', body: JSON.stringify(body), headers }),
   put: <T,>(path: string, body: unknown) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   delete: <T,>(path: string) => request<T>(path, { method: 'DELETE' }),
@@ -137,17 +137,12 @@ export interface CheckoutItem {
 }
 
 export const ordersApi = {
-  checkout: (items: CheckoutItem[], idempotencyKey?: string) => {
-    const headers: HeadersInit = {}
-    if (idempotencyKey) {
-      headers['Idempotency-Key'] = idempotencyKey
-    }
-    return request<Order>('/api/orders/checkout', {
-      method: 'POST',
-      body: JSON.stringify({ items }),
-      headers
-    })
-  },
+  checkout: (items: CheckoutItem[], idempotencyKey?: string) =>
+    api.post<Order>(
+      '/api/orders/checkout',
+      { items },
+      idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    ),
   getById: (id: number) => api.get<Order>(`/api/orders/${id}`),
   listByBuyer: () => api.get<Order[]>('/api/orders'),
 }
