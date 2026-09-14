@@ -39,6 +39,9 @@ public class Order {
     @Column(name = "buyer_id", nullable = false)
     private Long buyerId;
 
+    @Column(name = "idempotency_key", unique = true)
+    private String idempotencyKey;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status;

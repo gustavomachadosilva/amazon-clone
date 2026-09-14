@@ -137,7 +137,17 @@ export interface CheckoutItem {
 }
 
 export const ordersApi = {
-  checkout: (items: CheckoutItem[]) => api.post<Order>('/api/orders/checkout', { items }),
+  checkout: (items: CheckoutItem[], idempotencyKey?: string) => {
+    const headers: HeadersInit = {}
+    if (idempotencyKey) {
+      headers['Idempotency-Key'] = idempotencyKey
+    }
+    return request<Order>('/api/orders/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+      headers
+    })
+  },
   getById: (id: number) => api.get<Order>(`/api/orders/${id}`),
   listByBuyer: () => api.get<Order[]>('/api/orders'),
 }
