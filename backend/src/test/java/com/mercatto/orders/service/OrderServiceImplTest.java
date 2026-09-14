@@ -51,7 +51,7 @@ class OrderServiceImplTest {
         Product product = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(1).build();
         when(productService.findById(1L)).thenReturn(Optional.of(product));
 
-        assertThatThrownBy(() -> orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2))))
+        assertThatThrownBy(() -> orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), null))
                 .isInstanceOf(InsufficientStockException.class);
 
         verifyNoInteractions(paymentGateway);
@@ -68,7 +68,7 @@ class OrderServiceImplTest {
                 new OrderService.CheckoutItem(1L, 3),
                 new OrderService.CheckoutItem(1L, 3));
 
-        assertThatThrownBy(() -> orderService.checkout(10L, items))
+        assertThatThrownBy(() -> orderService.checkout(10L, items, null))
                 .isInstanceOf(InsufficientStockException.class);
 
         verifyNoInteractions(paymentGateway);
@@ -84,7 +84,7 @@ class OrderServiceImplTest {
                 .thenReturn(new PaymentGateway.PaymentResult(true, "tx-1", "ok"));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)));
+        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), null);
 
         assertThat(result.getStatus()).isEqualTo(OrderStatus.PAID);
         verify(paymentGateway).charge(any(), any(), any());
@@ -107,7 +107,7 @@ class OrderServiceImplTest {
                 .thenReturn(new PaymentGateway.PaymentResult(true, "tx-1", "ok"));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 3)));
+        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 3)), null);
 
         assertThat(result.getStatus()).isEqualTo(OrderStatus.PAID);
         verify(paymentGateway).charge(any(), any(), any());
@@ -128,7 +128,7 @@ class OrderServiceImplTest {
                 new OrderService.CheckoutItem(1L, 2),
                 new OrderService.CheckoutItem(2L, 3));
 
-        Order result = orderService.checkout(10L, items);
+        Order result = orderService.checkout(10L, items, null);
 
         assertThat(result.getTotalAmount()).isEqualByComparingTo(BigDecimal.valueOf(35));
         assertThat(result.getItems())
@@ -149,7 +149,7 @@ class OrderServiceImplTest {
                 new OrderService.CheckoutItem(1L, 2),
                 new OrderService.CheckoutItem(2L, 5));
 
-        assertThatThrownBy(() -> orderService.checkout(10L, items))
+        assertThatThrownBy(() -> orderService.checkout(10L, items, null))
                 .isInstanceOf(InsufficientStockException.class);
 
         verifyNoInteractions(paymentGateway);
@@ -161,7 +161,7 @@ class OrderServiceImplTest {
     void checkoutThrowsWhenProductNotFound() {
         when(productService.findById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 1))))
+        assertThatThrownBy(() -> orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 1)), null))
                 .isInstanceOf(IllegalArgumentException.class);
 
         verifyNoInteractions(paymentGateway);
@@ -177,7 +177,7 @@ class OrderServiceImplTest {
                 .thenReturn(new PaymentGateway.PaymentResult(false, null, "declined"));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)));
+        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), null);
 
         assertThat(result.getStatus()).isEqualTo(OrderStatus.FAILED);
         verify(orderRepository).save(any(Order.class));
