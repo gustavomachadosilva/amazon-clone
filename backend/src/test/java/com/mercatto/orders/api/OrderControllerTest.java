@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
@@ -54,7 +55,7 @@ class OrderControllerTest {
     @Test
     void checkoutWithValidRequest_returns200() throws Exception {
         Order order = Order.builder().id(1L).buyerId(10L).status(OrderStatus.PAID).totalAmount(BigDecimal.TEN).build();
-        when(orderService.checkout(anyLong(), anyList())).thenReturn(order);
+        when(orderService.checkout(anyLong(), anyList(), any())).thenReturn(order);
 
         OrderController.CheckoutRequest request = new OrderController.CheckoutRequest(
                 List.of(new OrderService.CheckoutItem(1L, 2)));
@@ -66,7 +67,7 @@ class OrderControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
-        verify(orderService).checkout(anyLong(), anyList());
+        verify(orderService).checkout(anyLong(), anyList(), any());
     }
 
     @Test
