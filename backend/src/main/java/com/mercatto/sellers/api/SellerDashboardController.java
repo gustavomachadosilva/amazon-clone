@@ -37,4 +37,12 @@ public class SellerDashboardController {
         authenticatedUser.requireOwner(sellerId);
         return sellerDashboardService.getReceivedOrders(sellerId);
     }
+
+    @GetMapping("/metrics")
+    public SellerDashboardService.SellerMetricsView metrics(@PathVariable Long sellerId, Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        authenticatedUser.requireRole(UserRole.SELLER);
+        authenticatedUser.requireOwner(sellerId);
+        return sellerDashboardService.getMetrics(sellerId);
+    }
 }

@@ -28,7 +28,11 @@ public interface SellerDashboardService {
     record SellerOrderView(Long orderId, Long buyerId, OrderStatus status, Instant createdAt,
                             List<SellerOrderItemView> items, BigDecimal subtotal) {}
 
+    record SellerMetricsView(BigDecimal totalRevenue, List<Product> lowStockProducts) {}
+
     Page<Product> getInventory(Long sellerId, Pageable pageable);
 
     List<SellerOrderView> getReceivedOrders(Long sellerId);
+
+    SellerMetricsView getMetrics(Long sellerId);
 }

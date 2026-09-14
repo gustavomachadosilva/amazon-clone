@@ -4,6 +4,7 @@ import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.service.ProductService;
 import com.mercatto.orders.domain.Order;
 import com.mercatto.orders.domain.OrderItem;
+import com.mercatto.orders.domain.OrderStatus;
 import com.mercatto.orders.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -46,5 +47,23 @@ class SellerDashboardServiceImpl implements SellerDashboardService {
 
     private SellerOrderItemView toSellerOrderItemView(OrderItem item) {
         return new SellerOrderItemView(item.getProductId(), item.getQuantity(), item.getUnitPrice());
+    }
+
+    @Override
+    public SellerMetricsView getMetrics(Long sellerId) {
+        List<SellerOrderView> orders = getReceivedOrders(sellerId);
+        
+        BigDecimal totalRevenue = orders.stream()
+                .filter(o -> o.status() == OrderStatus.PAID)
+                .map(SellerOrderView::subtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // A threshold of 10 for low stock
+        List<Product> lowStockProducts = productService.findBySeller(sellerId, Pageable.unpaged())
+                .stream()
+                .filter(p -> p.getStockQuantity() < 10)
+                .toList();
+
+        return new SellerMetricsView(totalRevenue, lowStockProducts);
     }
 }
