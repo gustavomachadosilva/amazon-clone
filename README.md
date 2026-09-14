@@ -1,5 +1,7 @@
 # Mercatto
 
+[![CI](https://github.com/gustavomachadosilva/amazon-clone/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/gustavomachadosilva/amazon-clone/actions/workflows/ci.yml)
+
 A marketplace project (Amazon-like) being built for a college course, structured as a **modular
 monolith**: one Spring Boot deployable, one PostgreSQL database, four business modules
 (`users`, `catalog`, `orders`, `sellers`) kept isolated by convention so the codebase doesn't
