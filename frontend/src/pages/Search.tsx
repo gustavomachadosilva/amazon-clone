@@ -36,8 +36,12 @@ export default function Search() {
 
   const requestKey = `${q}|${category}|${pageParam}`
   const [pageData, setPageData] = useState<Page<Product> | null>(null)
-  const [loadedKey, setLoadedKey] = useState<string | null>(null)
-  const loading = loadedKey !== requestKey
+  const [retryTick, setRetryTick] = useState(0)
+  const attemptKey = `${requestKey}#${retryTick}`
+  const [resolvedKey, setResolvedKey] = useState<string | null>(null)
+  const [resolvedOk, setResolvedOk] = useState(true)
+  const loading = resolvedKey !== attemptKey
+  const loadError = !loading && !resolvedOk
 
   useEffect(() => {
     let cancelled = false
@@ -46,12 +50,18 @@ export default function Search() {
       .then((data) => {
         if (cancelled) return
         setPageData(data)
-        setLoadedKey(requestKey)
+        setResolvedOk(true)
+        setResolvedKey(attemptKey)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setResolvedOk(false)
+        setResolvedKey(attemptKey)
       })
     return () => {
       cancelled = true
     }
-  }, [q, category, pageParam, requestKey])
+  }, [q, category, pageParam, attemptKey])
 
   function ratingOf(product: Product): number {
     const list = reviews.getReviews(product.id)
@@ -158,10 +168,13 @@ export default function Search() {
           <div className="text-[13px] text-[#5d5d60]">
             {loading
               ? 'Loading…'
-              : hasActiveFilters
-                ? `${filtered.length} of ${results.length} results on this page match your filters`
-                : `${filtered.length} results`}{' '}
-            {!loading && q && `for "${q}"`} {!loading && category !== 'All' && `in ${category}`}
+              : loadError
+                ? 'Search unavailable'
+                : hasActiveFilters
+                  ? `${filtered.length} of ${results.length} results on this page match your filters`
+                  : `${filtered.length} results`}{' '}
+            {!loading && !loadError && q && `for "${q}"`}{' '}
+            {!loading && !loadError && category !== 'All' && `in ${category}`}
           </div>
           <Select
             className="sm:w-auto"
@@ -178,6 +191,14 @@ export default function Search() {
         {loading ? (
           <Blueprint className="p-8 text-center">
             <p className="text-[#5d5d60]">Loading…</p>
+          </Blueprint>
+        ) : loadError ? (
+          <Blueprint className="p-8 text-center">
+            <h3>Something went wrong</h3>
+            <p className="text-[#5d5d60]">We couldn&apos;t load these results. Please try again.</p>
+            <Button variant="secondary" onClick={() => setRetryTick((tick) => tick + 1)}>
+              Retry
+            </Button>
           </Blueprint>
         ) : filtered.length === 0 ? (
           <Blueprint className="p-8 text-center">
@@ -258,7 +279,7 @@ export default function Search() {
           </div>
         )}
 
-        {pageData && pageData.totalPages > 1 && (
+        {!loadError && pageData && pageData.totalPages > 1 && (
           <Pagination
             currentPage={pageData.number}
             totalPages={pageData.totalPages}

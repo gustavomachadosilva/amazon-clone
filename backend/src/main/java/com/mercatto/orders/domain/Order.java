@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,7 +24,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "orders", schema = "orders")
+@Table(
+        name = "orders",
+        schema = "orders",
+        uniqueConstraints = @UniqueConstraint(name = "uk_orders_buyer_idempotency_key", columnNames = {"buyer_id", "idempotency_key"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -39,7 +43,7 @@ public class Order {
     @Column(name = "buyer_id", nullable = false)
     private Long buyerId;
 
-    @Column(name = "idempotency_key", unique = true)
+    @Column(name = "idempotency_key")
     private String idempotencyKey;
 
     @Enumerated(EnumType.STRING)

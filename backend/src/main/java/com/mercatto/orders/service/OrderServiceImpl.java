@@ -9,8 +9,10 @@ import com.mercatto.orders.event.OrderPlacedEvent;
 import com.mercatto.orders.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -31,6 +33,7 @@ import java.util.stream.Collectors;
 class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
+    private final OrderReservationService orderReservationService;
     private final ProductService productService;
     private final PaymentGateway paymentGateway;
     private final ApplicationEventPublisher eventPublisher;
@@ -48,8 +51,10 @@ class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public Order checkout(Long buyerId, List<CheckoutItem> items, String idempotencyKey) {
-        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
-            Optional<Order> existingOrder = orderRepository.findByIdempotencyKey(idempotencyKey);
+        String normalizedKey = normalizeIdempotencyKey(idempotencyKey);
+
+        if (normalizedKey != null) {
+            Optional<Order> existingOrder = orderRepository.findByBuyerIdAndIdempotencyKey(buyerId, normalizedKey);
             if (existingOrder.isPresent()) {
                 return existingOrder.get();
             }
@@ -59,7 +64,7 @@ class OrderServiceImpl implements OrderService {
                 .buyerId(buyerId)
                 .status(OrderStatus.PENDING)
                 .totalAmount(BigDecimal.ZERO)
-                .idempotencyKey(idempotencyKey)
+                .idempotencyKey(normalizedKey)
                 .build();
 
         Map<Long, Integer> requestedQuantities = items.stream()
@@ -88,16 +93,51 @@ class OrderServiceImpl implements OrderService {
         }
         order.setTotalAmount(total);
 
-        PaymentGateway.PaymentResult payment = paymentGateway.charge(order.getId(), total, "BRL");
-        order.setStatus(payment.approved() ? OrderStatus.PAID : OrderStatus.FAILED);
+        // Reserve the idempotency key with an INSERT before charging, in its own
+        // transaction (see OrderReservationService): on a duplicate concurrent
+        // request, the unique constraint on (buyer_id, idempotency_key) rejects the
+        // loser here instead of after a second payment-gateway charge, and rolls
+        // back cleanly without aborting this method's own transaction.
+        Order reserved;
+        try {
+            reserved = orderReservationService.reserve(order);
+        } catch (DataIntegrityViolationException raceLost) {
+            if (normalizedKey == null) {
+                throw raceLost;
+            }
+            return orderRepository.findByBuyerIdAndIdempotencyKey(buyerId, normalizedKey)
+                    .orElseThrow(() -> raceLost);
+        }
 
-        Order saved = orderRepository.save(order);
+        PaymentGateway.PaymentResult payment;
+        try {
+            payment = paymentGateway.charge(reserved.getId(), total, "BRL");
+        } catch (RuntimeException chargeFailure) {
+            // The reservation already committed in its own transaction, so a hard
+            // failure from the gateway (as opposed to a declined PaymentResult) must
+            // still mark the order FAILED — otherwise it is stuck PENDING forever
+            // and every retry with this idempotency key would keep returning that
+            // dead order instead of surfacing the failure.
+            orderReservationService.updateStatus(reserved, OrderStatus.FAILED);
+            throw chargeFailure;
+        }
+
+        // The PAID/FAILED update also commits in its own transaction: otherwise a
+        // failure here (after a successful charge) would roll back with checkout()'s
+        // own transaction and leave a charged order stuck PENDING forever, same as
+        // the gateway-exception case above.
+        Order saved = orderReservationService.updateStatus(
+                reserved, payment.approved() ? OrderStatus.PAID : OrderStatus.FAILED);
 
         if (payment.approved()) {
             eventPublisher.publishEvent(OrderPlacedEvent.from(saved));
         }
 
         return saved;
+    }
+
+    private static String normalizeIdempotencyKey(String idempotencyKey) {
+        return StringUtils.hasText(idempotencyKey) ? idempotencyKey : null;
     }
 
     @Override

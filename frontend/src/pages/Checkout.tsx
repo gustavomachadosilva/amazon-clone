@@ -12,6 +12,12 @@ import { computeCheckoutTotals } from '../lib/pricing'
 type ShippingMethod = keyof typeof SHIPPING_OPTIONS
 type PaymentMethod = keyof typeof PAYMENT_OPTIONS
 
+function generateFallbackKey(): string {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
 export default function Checkout() {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -31,7 +37,7 @@ export default function Checkout() {
   const [payment, setPayment] = useState<PaymentMethod>('card')
   const [placing, setPlacing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [idempotencyKey] = useState(() => crypto.randomUUID?.() ?? Math.random().toString(36).substring(2))
+  const [idempotencyKey] = useState(() => crypto.randomUUID?.() ?? generateFallbackKey())
 
   useEffect(() => {
     if (!user) navigate('/signin')
