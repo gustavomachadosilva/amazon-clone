@@ -1,6 +1,7 @@
 package com.mercatto.orders.service;
 
 import com.mercatto.catalog.domain.Product;
+import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.catalog.service.ProductService;
 import com.mercatto.orders.domain.Order;
 import com.mercatto.orders.domain.OrderItem;
@@ -73,7 +74,7 @@ class OrderServiceImpl implements OrderService {
         BigDecimal total = BigDecimal.ZERO;
         for (CheckoutItem checkoutItem : items) {
             Product product = productService.findById(checkoutItem.productId())
-                    .orElseThrow(() -> new IllegalArgumentException("Product not found: " + checkoutItem.productId()));
+                    .orElseThrow(() -> new ProductNotFoundException("Product not found: " + checkoutItem.productId()));
 
             int requestedQuantity = requestedQuantities.get(checkoutItem.productId());
             if (requestedQuantity > product.getStockQuantity()) {

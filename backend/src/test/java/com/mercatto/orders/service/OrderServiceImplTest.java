@@ -1,6 +1,7 @@
 package com.mercatto.orders.service;
 
 import com.mercatto.catalog.domain.Product;
+import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.catalog.service.ProductService;
 import com.mercatto.orders.domain.Order;
 import com.mercatto.orders.domain.OrderItem;
@@ -180,7 +181,7 @@ class OrderServiceImplTest {
         when(productService.findById(1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 1)), null))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(ProductNotFoundException.class);
 
         verifyNoInteractions(paymentGateway);
         verifyNoInteractions(orderReservationService);

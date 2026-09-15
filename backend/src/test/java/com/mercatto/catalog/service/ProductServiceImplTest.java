@@ -2,6 +2,7 @@ package com.mercatto.catalog.service;
 
 import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.repository.ProductRepository;
+import com.mercatto.catalog.service.ProductNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -122,7 +123,7 @@ class ProductServiceImplTest {
         when(productRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> productService.decreaseStock(1L, 1))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(ProductNotFoundException.class);
     }
 
     @Test
@@ -173,7 +174,7 @@ class ProductServiceImplTest {
         Product changes = Product.builder().name("New name").build();
 
         assertThatThrownBy(() -> productService.update(1L, changes))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(ProductNotFoundException.class);
     }
 
     @Test
@@ -190,7 +191,7 @@ class ProductServiceImplTest {
         when(productRepository.existsById(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> productService.delete(1L))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(ProductNotFoundException.class);
 
         verify(productRepository, never()).deleteById(any());
     }
