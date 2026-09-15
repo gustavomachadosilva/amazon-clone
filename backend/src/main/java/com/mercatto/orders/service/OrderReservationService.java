@@ -36,4 +36,16 @@ class OrderReservationService {
         order.setStatus(status);
         return orderRepository.save(order);
     }
+
+    /**
+     * Atomically claims a PENDING/FAILED order for charging by moving it to PROCESSING,
+     * committing immediately in its own transaction so the row isn't locked for the
+     * duration of the payment-gateway call that follows. Two concurrent retries of the
+     * same order (e.g. a double-submitted idempotency key) race on this update: only one
+     * can win, so only one ever proceeds to charge the payment gateway.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean claimForCharging(Long orderId) {
+        return orderRepository.claimForCharging(orderId) == 1;
+    }
 }
