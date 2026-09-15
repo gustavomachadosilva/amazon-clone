@@ -265,6 +265,51 @@ class OrderServiceImplTest {
     }
 
     @Test
+    void checkoutRetriesPaymentWhenExistingIdempotentOrderIsFailed() {
+        Order existingOrder = Order.builder().id(99L).buyerId(10L).status(OrderStatus.FAILED).totalAmount(BigDecimal.TEN).build();
+        when(orderRepository.findByBuyerIdAndIdempotencyKey(10L, "key-1")).thenReturn(Optional.of(existingOrder));
+        when(paymentGateway.charge(eq(99L), eq(BigDecimal.TEN), any()))
+                .thenReturn(new PaymentGateway.PaymentResult(true, "tx-2", "ok"));
+        when(orderReservationService.updateStatus(any(Order.class), any(OrderStatus.class)))
+                .thenAnswer(invocation -> {
+                    Order order = invocation.getArgument(0);
+                    order.setStatus(invocation.getArgument(1));
+                    return order;
+                });
+
+        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1");
+
+        assertThat(result).isSameAs(existingOrder);
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.PAID);
+        verify(paymentGateway).charge(eq(99L), eq(BigDecimal.TEN), any());
+        verify(orderReservationService, never()).reserve(any());
+        verify(orderReservationService).updateStatus(existingOrder, OrderStatus.PAID);
+        verify(eventPublisher).publishEvent(any(OrderPlacedEvent.class));
+        verifyNoInteractions(productService);
+    }
+
+    @Test
+    void checkoutRetriesPaymentWhenExistingIdempotentOrderIsPending() {
+        Order existingOrder = Order.builder().id(99L).buyerId(10L).status(OrderStatus.PENDING).totalAmount(BigDecimal.TEN).build();
+        when(orderRepository.findByBuyerIdAndIdempotencyKey(10L, "key-1")).thenReturn(Optional.of(existingOrder));
+        when(paymentGateway.charge(eq(99L), eq(BigDecimal.TEN), any()))
+                .thenReturn(new PaymentGateway.PaymentResult(false, null, "declined"));
+        when(orderReservationService.updateStatus(any(Order.class), any(OrderStatus.class)))
+                .thenAnswer(invocation -> {
+                    Order order = invocation.getArgument(0);
+                    order.setStatus(invocation.getArgument(1));
+                    return order;
+                });
+
+        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1");
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.FAILED);
+        verify(paymentGateway).charge(eq(99L), eq(BigDecimal.TEN), any());
+        verify(orderReservationService, never()).reserve(any());
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
     void checkoutReturnsExistingOrderWhenConcurrentRequestWinsTheIdempotencyKeyRace() {
         Product product = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(5).build();
         Order winningOrder = Order.builder().id(42L).buyerId(10L).status(OrderStatus.PAID).build();

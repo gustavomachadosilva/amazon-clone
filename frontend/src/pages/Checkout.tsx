@@ -55,6 +55,10 @@ export default function Checkout() {
         cart.items.map((line) => ({ productId: line.productId, quantity: line.qty })),
         idempotencyKey
       )
+      if (order.status !== 'PAID') {
+        setError('Your payment was declined. Please check your payment method and try again.')
+        return
+      }
       cart.clear()
       navigate(`/order/${order.id}`, {
         state: { shippingLabel: SHIPPING_OPTIONS[shipping], paymentLabel: PAYMENT_OPTIONS[payment] },
