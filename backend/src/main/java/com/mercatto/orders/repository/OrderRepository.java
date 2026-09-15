@@ -11,7 +11,8 @@ import java.util.Optional;
 public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByBuyerId(Long buyerId);
 
-    Optional<Order> findByBuyerIdAndIdempotencyKey(Long buyerId, String idempotencyKey);
+    @Query("select distinct o from Order o left join fetch o.items where o.buyerId = :buyerId and o.idempotencyKey = :idempotencyKey")
+    Optional<Order> findByBuyerIdAndIdempotencyKey(@Param("buyerId") Long buyerId, @Param("idempotencyKey") String idempotencyKey);
 
     @Query("select distinct o from Order o left join fetch o.items where o.id = :id")
     Optional<Order> findByIdWithItems(@Param("id") Long id);

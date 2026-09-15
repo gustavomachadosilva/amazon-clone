@@ -57,7 +57,13 @@ class OrderServiceImpl implements OrderService {
         if (normalizedKey != null) {
             Optional<Order> existingOrder = orderRepository.findByBuyerIdAndIdempotencyKey(buyerId, normalizedKey);
             if (existingOrder.isPresent()) {
-                return existingOrder.get();
+                // A PAID order is a true idempotent replay: return it without charging again.
+                // A PENDING/FAILED order means a previous attempt never completed (crash between
+                // reserve and charge, or a declined/erroring gateway call) — retry the charge on
+                // that same reserved order instead of leaving the buyer permanently stuck on this
+                // idempotency key.
+                Order existing = existingOrder.get();
+                return existing.getStatus() == OrderStatus.PAID ? existing : chargeAndFinalize(existing);
             }
         }
 
@@ -107,20 +113,25 @@ class OrderServiceImpl implements OrderService {
             if (normalizedKey == null) {
                 throw raceLost;
             }
-            return orderRepository.findByBuyerIdAndIdempotencyKey(buyerId, normalizedKey)
+            Order existing = orderRepository.findByBuyerIdAndIdempotencyKey(buyerId, normalizedKey)
                     .orElseThrow(() -> raceLost);
+            return existing.getStatus() == OrderStatus.PAID ? existing : chargeAndFinalize(existing);
         }
 
+        return chargeAndFinalize(reserved);
+    }
+
+    private Order chargeAndFinalize(Order order) {
         PaymentGateway.PaymentResult payment;
         try {
-            payment = paymentGateway.charge(reserved.getId(), total, "BRL");
+            payment = paymentGateway.charge(order.getId(), order.getTotalAmount(), "BRL");
         } catch (RuntimeException chargeFailure) {
             // The reservation already committed in its own transaction, so a hard
             // failure from the gateway (as opposed to a declined PaymentResult) must
             // still mark the order FAILED — otherwise it is stuck PENDING forever
             // and every retry with this idempotency key would keep returning that
             // dead order instead of surfacing the failure.
-            orderReservationService.updateStatus(reserved, OrderStatus.FAILED);
+            orderReservationService.updateStatus(order, OrderStatus.FAILED);
             throw chargeFailure;
         }
 
@@ -129,7 +140,7 @@ class OrderServiceImpl implements OrderService {
         // own transaction and leave a charged order stuck PENDING forever, same as
         // the gateway-exception case above.
         Order saved = orderReservationService.updateStatus(
-                reserved, payment.approved() ? OrderStatus.PAID : OrderStatus.FAILED);
+                order, payment.approved() ? OrderStatus.PAID : OrderStatus.FAILED);
 
         if (payment.approved()) {
             eventPublisher.publishEvent(OrderPlacedEvent.from(saved));
