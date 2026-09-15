@@ -26,12 +26,12 @@ export class ApiRequestError extends Error {
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = readStoredToken()
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
-    ...options,
   })
 
   if (!response.ok) {
@@ -54,8 +54,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   get: <T,>(path: string) => request<T>(path),
-  post: <T,>(path: string, body: unknown) =>
-    request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+  post: <T,>(path: string, body: unknown, headers?: HeadersInit) =>
+    request<T>(path, { method: 'POST', body: JSON.stringify(body), headers }),
   put: <T,>(path: string, body: unknown) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   delete: <T,>(path: string) => request<T>(path, { method: 'DELETE' }),
@@ -113,7 +113,7 @@ export const sellersApi = {
     api.get<Page<Product>>(`/api/sellers/${sellerId}/products?page=${page}&size=${size}`),
 }
 
-export type OrderStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED'
+export type OrderStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'FAILED' | 'CANCELLED'
 
 export interface OrderItem {
   id: number
@@ -137,7 +137,12 @@ export interface CheckoutItem {
 }
 
 export const ordersApi = {
-  checkout: (items: CheckoutItem[]) => api.post<Order>('/api/orders/checkout', { items }),
+  checkout: (items: CheckoutItem[], idempotencyKey?: string) =>
+    api.post<Order>(
+      '/api/orders/checkout',
+      { items },
+      idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    ),
   getById: (id: number) => api.get<Order>(`/api/orders/${id}`),
   listByBuyer: () => api.get<Order[]>('/api/orders'),
 }

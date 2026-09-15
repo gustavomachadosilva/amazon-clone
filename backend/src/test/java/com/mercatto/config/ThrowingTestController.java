@@ -1,5 +1,6 @@
 package com.mercatto.config;
 
+import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.orders.service.InsufficientStockException;
 import com.mercatto.users.service.EmailAlreadyExistsException;
 import com.mercatto.users.service.ForbiddenRoleException;
@@ -57,8 +58,28 @@ public class ThrowingTestController {
         throw new RuntimeException("boom - sensitive internal detail");
     }
 
+    @GetMapping("/product-not-found")
+    public String productNotFound() {
+        throw new ProductNotFoundException("Product not found: 1");
+    }
+
+    @GetMapping("/illegal-argument-no-message")
+    public String illegalArgumentNoMessage() {
+        throw new IllegalArgumentException();
+    }
+
+    @GetMapping("/illegal-state-no-message")
+    public String illegalStateNoMessage() {
+        throw new IllegalStateException();
+    }
+
     @PostMapping("/validated")
     public String validated(@Validated @RequestBody ValidatedPayload payload) {
+        return "ok";
+    }
+
+    @PostMapping("/validated-class-level")
+    public String validatedClassLevel(@Validated @RequestBody ClassLevelValidatedPayload payload) {
         return "ok";
     }
 

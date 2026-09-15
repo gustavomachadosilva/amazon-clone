@@ -14,7 +14,7 @@ public interface OrderService {
 
     record CheckoutItem(@NotNull @Positive Long productId, @Positive int quantity) {}
 
-    Order checkout(Long buyerId, List<CheckoutItem> items);
+    Order checkout(Long buyerId, List<CheckoutItem> items, String idempotencyKey);
 
     Optional<Order> findById(Long id);
 

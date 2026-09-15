@@ -3,6 +3,7 @@ package com.mercatto.cart.service;
 import com.mercatto.cart.domain.CartItem;
 import com.mercatto.cart.repository.CartItemRepository;
 import com.mercatto.catalog.domain.Product;
+import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.catalog.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,7 +39,7 @@ class CartServiceImpl implements CartService {
     @Transactional
     public CartView addItem(Long userId, Long productId, int quantity) {
         productService.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + productId));
+                .orElseThrow(() -> new ProductNotFoundException("Product not found: " + productId));
 
         CartItem item = cartItemRepository.findByUserIdAndProductId(userId, productId)
                 .orElseGet(() -> CartItem.builder()

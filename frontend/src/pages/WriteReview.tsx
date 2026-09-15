@@ -24,7 +24,7 @@ export default function WriteReview() {
     catalogApi.getById(productId).then(setProduct)
   }, [productId])
 
-  if (!product) return <div style={{ maxWidth: 760, margin: '0 auto', padding: 24 }}>Loading…</div>
+  if (!product) return <div className="mx-auto max-w-[760px] px-4 py-4 md:px-6 md:py-6">Loading…</div>
 
   function submit() {
     if (rating === 0) return
@@ -41,41 +41,36 @@ export default function WriteReview() {
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', padding: 24 }}>
+    <div className="mx-auto max-w-[760px] px-4 py-4 md:px-6 md:py-6">
       <h1>Create a review</h1>
 
-      <Blueprint style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-        <Placeholder label="Product" aspect="1/1" className="w-[82px]" src={product.imageUrl} />
-        <div>
-          <div className="h">{product.name}</div>
-          <div style={{ fontSize: 12.5, color: '#7a7a7d' }}>
+      <Blueprint className="mb-4 flex items-center gap-4 p-4">
+        <Placeholder label={product.name} aspect="1/1" className="w-[64px] flex-none sm:w-[82px]" src={product.imageUrl} />
+        <div className="min-w-0">
+          <div className="h truncate">{product.name}</div>
+          <div className="text-[12.5px] text-[#7a7a7d]">
             {deriveBrandLabel(product)} · {product.category}
           </div>
         </div>
       </Blueprint>
 
-      <Blueprint style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Blueprint className="flex flex-col gap-4 p-5">
         <div>
           <div className="kick">Overall rating</div>
-          <div style={{ display: 'flex', gap: 4, margin: '8px 0' }}>
+          <div className="my-2 flex gap-1">
             {[1, 2, 3, 4, 5].map((value) => (
               <button
                 key={value}
                 onClick={() => setRating(value)}
-                style={{
-                  background: 'none',
-                  border: 0,
-                  cursor: 'pointer',
-                  fontSize: 30,
-                  color: value <= rating ? 'var(--color-accent-700)' : '#b7b7ba',
-                }}
+                className="flex h-11 w-11 items-center justify-center border-0 bg-transparent text-3xl leading-none"
+                style={{ color: value <= rating ? 'var(--color-accent-700)' : '#b7b7ba' }}
                 aria-label={`${value} star`}
               >
                 ★
               </button>
             ))}
           </div>
-          <div style={{ fontSize: 13, color: '#5d5d60' }}>{RATING_WORD[rating]}</div>
+          <div className="text-[13px] text-[#5d5d60]">{RATING_WORD[rating]}</div>
         </div>
 
         <Input
@@ -90,11 +85,11 @@ export default function WriteReview() {
           onChange={(e) => setText(e.target.value)}
         />
 
-        <div className="ph" style={{ height: 96 }}>
+        <div className="ph h-24">
           <span>Add a photo or video</span>
         </div>
 
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div className="flex flex-col gap-3 sm:flex-row">
           <Button variant="primary" onClick={submit} disabled={rating === 0}>
             Submit review
           </Button>

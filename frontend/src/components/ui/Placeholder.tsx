@@ -4,14 +4,24 @@ interface PlaceholderProps {
   aspect?: string
   className?: string
   src?: string
+  priority?: boolean
 }
 
-export default function Placeholder({ label, duotone = true, aspect = '1/1', className = '', src }: PlaceholderProps) {
+export default function Placeholder({
+  label,
+  duotone = true,
+  aspect = '1/1',
+  className = '',
+  src,
+  priority = false,
+}: PlaceholderProps) {
   if (src) {
     return (
       <img
         src={src}
         alt={label}
+        loading={priority ? 'eager' : 'lazy'}
+        decoding="async"
         className={`ph-image ${className}`}
         style={{ aspectRatio: aspect, objectFit: 'contain', width: '100%', height: '100%' }}
       />

@@ -37,7 +37,7 @@ class ProductServiceImpl implements ProductService {
     @Transactional
     public Product update(Long id, Product changes) {
         Product existing = productRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + id));
+                .orElseThrow(() -> new ProductNotFoundException("Product not found: " + id));
         existing.setName(changes.getName());
         existing.setDescription(changes.getDescription());
         existing.setPrice(changes.getPrice());
@@ -51,7 +51,7 @@ class ProductServiceImpl implements ProductService {
     @Transactional
     public void delete(Long id) {
         if (!productRepository.existsById(id)) {
-            throw new IllegalArgumentException("Product not found: " + id);
+            throw new ProductNotFoundException("Product not found: " + id);
         }
         productRepository.deleteById(id);
     }
@@ -70,7 +70,7 @@ class ProductServiceImpl implements ProductService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void decreaseStock(Long productId, int quantity) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + productId));
+                .orElseThrow(() -> new ProductNotFoundException("Product not found: " + productId));
         int updated = product.getStockQuantity() - quantity;
         if (updated < 0) {
             throw new IllegalStateException("Insufficient stock for product " + productId);
