@@ -28,6 +28,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -56,6 +57,7 @@ class OrderServiceImplTest {
 
     private void stubReserveAndUpdateStatus() {
         when(orderReservationService.reserve(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(orderReservationService.claimForCharging(nullable(Long.class))).thenReturn(true);
         when(orderReservationService.updateStatus(any(Order.class), any(OrderStatus.class)))
                 .thenAnswer(invocation -> {
                     Order order = invocation.getArgument(0);
@@ -211,6 +213,7 @@ class OrderServiceImplTest {
         Product product = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(5).build();
         when(productService.findById(1L)).thenReturn(Optional.of(product));
         when(orderReservationService.reserve(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(orderReservationService.claimForCharging(nullable(Long.class))).thenReturn(true);
         when(paymentGateway.charge(any(), any(), any())).thenThrow(new IllegalStateException("gateway timeout"));
 
         assertThatThrownBy(() -> orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), null))
@@ -268,6 +271,7 @@ class OrderServiceImplTest {
     void checkoutRetriesPaymentWhenExistingIdempotentOrderIsFailed() {
         Order existingOrder = Order.builder().id(99L).buyerId(10L).status(OrderStatus.FAILED).totalAmount(BigDecimal.TEN).build();
         when(orderRepository.findByBuyerIdAndIdempotencyKey(10L, "key-1")).thenReturn(Optional.of(existingOrder));
+        when(orderReservationService.claimForCharging(99L)).thenReturn(true);
         when(paymentGateway.charge(eq(99L), eq(BigDecimal.TEN), any()))
                 .thenReturn(new PaymentGateway.PaymentResult(true, "tx-2", "ok"));
         when(orderReservationService.updateStatus(any(Order.class), any(OrderStatus.class)))
@@ -292,6 +296,7 @@ class OrderServiceImplTest {
     void checkoutRetriesPaymentWhenExistingIdempotentOrderIsPending() {
         Order existingOrder = Order.builder().id(99L).buyerId(10L).status(OrderStatus.PENDING).totalAmount(BigDecimal.TEN).build();
         when(orderRepository.findByBuyerIdAndIdempotencyKey(10L, "key-1")).thenReturn(Optional.of(existingOrder));
+        when(orderReservationService.claimForCharging(99L)).thenReturn(true);
         when(paymentGateway.charge(eq(99L), eq(BigDecimal.TEN), any()))
                 .thenReturn(new PaymentGateway.PaymentResult(false, null, "declined"));
         when(orderReservationService.updateStatus(any(Order.class), any(OrderStatus.class)))
@@ -307,6 +312,21 @@ class OrderServiceImplTest {
         verify(paymentGateway).charge(eq(99L), eq(BigDecimal.TEN), any());
         verify(orderReservationService, never()).reserve(any());
         verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void checkoutDoesNotChargeAgainWhenConcurrentRetryAlreadyClaimedTheOrder() {
+        Order existingOrder = Order.builder().id(99L).buyerId(10L).status(OrderStatus.PENDING).totalAmount(BigDecimal.TEN).build();
+        Order stillProcessing = Order.builder().id(99L).buyerId(10L).status(OrderStatus.PROCESSING).totalAmount(BigDecimal.TEN).build();
+        when(orderRepository.findByBuyerIdAndIdempotencyKey(10L, "key-1")).thenReturn(Optional.of(existingOrder));
+        when(orderReservationService.claimForCharging(99L)).thenReturn(false);
+        when(orderRepository.findByIdWithItems(99L)).thenReturn(Optional.of(stillProcessing));
+
+        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1");
+
+        assertThat(result).isSameAs(stillProcessing);
+        verifyNoInteractions(paymentGateway, eventPublisher);
+        verify(orderReservationService, never()).updateStatus(any(), any());
     }
 
     @Test

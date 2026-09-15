@@ -113,7 +113,7 @@ export const sellersApi = {
     api.get<Page<Product>>(`/api/sellers/${sellerId}/products?page=${page}&size=${size}`),
 }
 
-export type OrderStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED'
+export type OrderStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'FAILED' | 'CANCELLED'
 
 export interface OrderItem {
   id: number

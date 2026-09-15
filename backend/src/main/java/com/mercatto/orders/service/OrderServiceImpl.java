@@ -122,6 +122,15 @@ class OrderServiceImpl implements OrderService {
     }
 
     private Order chargeAndFinalize(Order order) {
+        // Atomically claim the order (PENDING/FAILED -> PROCESSING) before calling the
+        // payment gateway. This is a compare-and-swap: if another concurrent request
+        // (e.g. a double-submitted retry with the same idempotency key) already claimed
+        // it, we must not charge a second time — return the order's current state instead.
+        if (!orderReservationService.claimForCharging(order.getId())) {
+            return orderRepository.findByIdWithItems(order.getId())
+                    .orElseThrow(() -> new IllegalStateException("Order " + order.getId() + " not found during checkout"));
+        }
+
         PaymentGateway.PaymentResult payment;
         try {
             payment = paymentGateway.charge(order.getId(), order.getTotalAmount(), "BRL");
