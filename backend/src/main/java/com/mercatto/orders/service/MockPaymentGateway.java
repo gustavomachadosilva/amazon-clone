@@ -1,17 +1,15 @@
 package com.mercatto.orders.service;
 
-import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
  * Stand-in for a real gateway (Stripe, etc). Always approves the charge so
- * the checkout flow can be exercised end-to-end before a real provider is
- * plugged in — replace this bean with a real {@link PaymentGateway}
- * implementation when that integration is ready.
+ * the checkout flow can be exercised end-to-end when no real provider is
+ * configured. Instantiated directly by {@link PaymentGatewayConfig} — not a
+ * {@code @Service} itself, to avoid a second competing {@link PaymentGateway}
+ * bean alongside {@link StripePaymentGateway}.
  */
-@Service
 class MockPaymentGateway implements PaymentGateway {
 
     @Override

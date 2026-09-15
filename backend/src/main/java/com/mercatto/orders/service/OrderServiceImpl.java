@@ -98,7 +98,8 @@ class OrderServiceImpl implements OrderService {
         // transaction (see OrderReservationService): on a duplicate concurrent
         // request, the unique constraint on (buyer_id, idempotency_key) rejects the
         // loser here instead of after a second payment-gateway charge, and rolls
-        // back cleanly without aborting this method's own transaction.
+        // back cleanly without aborting this method's own transaction. This also
+        // gives the charge below a real, persisted order id instead of null.
         Order reserved;
         try {
             reserved = orderReservationService.reserve(order);
