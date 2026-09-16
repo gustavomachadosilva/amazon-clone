@@ -147,13 +147,11 @@ export default function ProductForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="border border-neutral-200 rounded-lg p-6 mb-6 bg-white">
-      <h2 className="text-lg font-semibold mb-4">
-        {isEditMode ? 'Edit product' : 'New product'}
-      </h2>
+    <form onSubmit={handleSubmit} className="card mb-6 p-6">
+      <h2 className="mb-4 text-lg">{isEditMode ? 'Edit product' : 'New product'}</h2>
 
       {formError && (
-        <div className="mb-4 rounded-md bg-accent-50 text-accent-800 text-sm px-3 py-2" role="alert">
+        <div className="callout-alert mb-4" role="alert">
           {formError}
         </div>
       )}

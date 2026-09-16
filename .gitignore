@@ -16,8 +16,12 @@ backend/target/
 *.iml
 .vscode/
 
-# Impeccable skill (local install artifacts, not shared)
-.claude/skills/impeccable/scripts/bin/
-.github/skills/impeccable/scripts/bin/
-.impeccable/hook.cache.json
-.impeccable/config.local.json
+# Impeccable skill (local install + run artifacts, not shared)
+.claude/skills/impeccable/scripts/
+.github/skills/impeccable/scripts/
+.impeccable/
+
+# Raw Kaggle Amazon dataset (359MB) — only the curated sample under
+# backend/src/main/resources/seed/ is committed
+/amazon_products.csv
+/amazon_categories.csv

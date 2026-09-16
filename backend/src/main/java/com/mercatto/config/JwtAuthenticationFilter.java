@@ -82,7 +82,8 @@ class JwtAuthenticationFilter extends OncePerRequestFilter {
         if ("GET".equals(method) && "/api/health".equals(path)) {
             return true;
         }
-        return "GET".equals(method) && path.startsWith("/api/catalog/products");
+        return "GET".equals(method)
+                && (path.startsWith("/api/catalog/products") || path.startsWith("/api/catalog/categories"));
     }
 
     private void writeUnauthorized(HttpServletRequest request, HttpServletResponse response, String message)

@@ -1,6 +1,6 @@
 package com.mercatto.config;
 
-import com.mercatto.catalog.service.DummyJsonSeeder;
+import com.mercatto.catalog.service.AmazonProductSeeder;
 import com.mercatto.users.domain.User;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.UserSeeder;
@@ -26,35 +26,36 @@ class DevDataSeederTest {
     private UserSeeder userSeeder;
 
     @Mock
-    private DummyJsonSeeder dummyJsonSeeder;
+    private AmazonProductSeeder amazonProductSeeder;
 
     private User userWith(Long id, String email, UserRole role) {
         return User.builder().id(id).name("Seed User").email(email).passwordHash("hashed").role(role).build();
     }
 
     @Test
-    void seedDevDataSeedsUsersBeforeProductsAndUsesTheDefaultSellerId() {
-        DevDataSeeder devDataSeeder = new DevDataSeeder(userSeeder, dummyJsonSeeder);
-        User seller = userWith(42L, UserSeeder.DEFAULT_SELLER_EMAIL, UserRole.SELLER);
+    void seedDevDataSeedsUsersBeforeProductsAndUsesEverySellerId() {
+        DevDataSeeder devDataSeeder = new DevDataSeeder(userSeeder, amazonProductSeeder);
+        User sellerA = userWith(42L, UserSeeder.DEFAULT_SELLER_EMAIL, UserRole.SELLER);
+        User sellerB = userWith(43L, "seller.silva@mercatto.dev", UserRole.SELLER);
         User buyer = userWith(1L, "buyer@mercatto.dev", UserRole.BUYER);
-        when(userSeeder.seed()).thenReturn(List.of(buyer, seller));
+        when(userSeeder.seed()).thenReturn(List.of(buyer, sellerA, sellerB));
 
         devDataSeeder.seedDevData();
 
-        InOrder inOrder = inOrder(userSeeder, dummyJsonSeeder);
+        InOrder inOrder = inOrder(userSeeder, amazonProductSeeder);
         inOrder.verify(userSeeder).seed();
-        inOrder.verify(dummyJsonSeeder).seedProducts(42L);
+        inOrder.verify(amazonProductSeeder).seedProducts(List.of(42L, 43L));
     }
 
     @Test
-    void seedDevDataThrowsIllegalStateExceptionWhenDefaultSellerIsMissing() {
-        DevDataSeeder devDataSeeder = new DevDataSeeder(userSeeder, dummyJsonSeeder);
+    void seedDevDataThrowsIllegalStateExceptionWhenNoSellerExists() {
+        DevDataSeeder devDataSeeder = new DevDataSeeder(userSeeder, amazonProductSeeder);
         User buyer = userWith(1L, "buyer@mercatto.dev", UserRole.BUYER);
         when(userSeeder.seed()).thenReturn(List.of(buyer));
 
         assertThatThrownBy(devDataSeeder::seedDevData)
                 .isInstanceOf(IllegalStateException.class);
 
-        verify(dummyJsonSeeder, never()).seedProducts(any());
+        verify(amazonProductSeeder, never()).seedProducts(any());
     }
 }

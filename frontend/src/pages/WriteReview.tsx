@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { Star } from 'lucide-react'
 import { Blueprint, Button, Input, Placeholder, Textarea } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { useReviews } from '../context/ReviewsContext'
@@ -24,7 +25,7 @@ export default function WriteReview() {
     catalogApi.getById(productId).then(setProduct)
   }, [productId])
 
-  if (!product) return <div className="mx-auto max-w-[760px] px-4 py-4 md:px-6 md:py-6">Loading…</div>
+  if (!product) return <div className="mx-auto max-w-[860px] px-4 py-4 md:px-6 md:py-6">Loading…</div>
 
   function submit() {
     if (rating === 0) return
@@ -41,14 +42,14 @@ export default function WriteReview() {
   }
 
   return (
-    <div className="mx-auto max-w-[760px] px-4 py-4 md:px-6 md:py-6">
+    <div className="mx-auto max-w-[860px] px-4 py-4 md:px-6 md:py-6">
       <h1>Create a review</h1>
 
       <Blueprint className="mb-4 flex items-center gap-4 p-4">
         <Placeholder label={product.name} aspect="1/1" className="w-[64px] flex-none sm:w-[82px]" src={product.imageUrl} />
         <div className="min-w-0">
           <div className="h truncate">{product.name}</div>
-          <div className="text-[12.5px] text-[#7a7a7d]">
+          <div className="text-[16px] text-paper-600">
             {deriveBrandLabel(product)} · {product.category}
           </div>
         </div>
@@ -56,21 +57,20 @@ export default function WriteReview() {
 
       <Blueprint className="flex flex-col gap-4 p-5">
         <div>
-          <div className="kick">Overall rating</div>
+          <h3 className="text-[22px]">Overall rating</h3>
           <div className="my-2 flex gap-1">
             {[1, 2, 3, 4, 5].map((value) => (
               <button
                 key={value}
                 onClick={() => setRating(value)}
-                className="flex h-11 w-11 items-center justify-center border-0 bg-transparent text-3xl leading-none"
-                style={{ color: value <= rating ? 'var(--color-accent-700)' : '#b7b7ba' }}
+                className="flex h-11 w-11 items-center justify-center border-0 bg-transparent text-accent-700"
                 aria-label={`${value} star`}
               >
-                ★
+                <Star size={26} strokeWidth={1.5} fill={value <= rating ? 'currentColor' : 'none'} />
               </button>
             ))}
           </div>
-          <div className="text-[13px] text-[#5d5d60]">{RATING_WORD[rating]}</div>
+          <div className="text-[16.5px] text-paper-700">{RATING_WORD[rating]}</div>
         </div>
 
         <Input

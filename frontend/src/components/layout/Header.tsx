@@ -4,7 +4,8 @@ import { Search, Menu, X, User, ShoppingCart } from 'lucide-react'
 import { Button } from '../ui'
 import { useAuth } from '../../context/AuthContext'
 import { useCart } from '../../context/CartContext'
-import { CATEGORIES, STORE_NAME } from '../../lib/constants'
+import { HEADER_HIGHLIGHT_CATEGORIES, STORE_NAME } from '../../lib/constants'
+import { useCategories } from '../../hooks/useCategories'
 import { onEnterKey } from '../../lib/a11y'
 
 export default function Header() {
@@ -14,6 +15,8 @@ export default function Header() {
   const { user } = useAuth()
   const { itemCount } = useCart()
   const [menuOpen, setMenuOpen] = useState(false)
+  const categories = useCategories()
+  const departmentLinks = categories.filter((name) => HEADER_HIGHLIGHT_CATEGORIES.includes(name))
 
   const onSearchScreen = location.pathname === '/search'
   const [query, setQuery] = useState(onSearchScreen ? (searchParams.get('q') ?? '') : '')
@@ -48,8 +51,8 @@ export default function Header() {
   }
 
   return (
-    <header className="relative bg-accent-900 text-[#f2f2f3]">
-      <div className="mx-auto flex max-w-[1280px] items-center gap-3 px-4 py-3 md:gap-5 md:px-6">
+    <header className="relative bg-accent-900 text-paper-50">
+      <div className="flex w-full items-center gap-4 px-4 py-3 md:gap-6 md:px-8 md:py-3">
         <button
           type="button"
           className="-ml-2 flex h-11 w-11 flex-none items-center justify-center md:hidden"
@@ -57,27 +60,38 @@ export default function Header() {
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((open) => !open)}
         >
-          {menuOpen ? <X size={22} strokeWidth={1.5} /> : <Menu size={22} strokeWidth={1.5} />}
+          {menuOpen ? <X size={26} strokeWidth={1.5} /> : <Menu size={26} strokeWidth={1.5} />}
         </button>
 
         <div
-          className="flex-none cursor-pointer"
+          className="flex flex-none cursor-pointer items-center gap-2"
           role="link"
           tabIndex={0}
           onClick={() => goTo('/')}
           onKeyDown={onEnterKey(() => goTo('/'))}
         >
-          <div className="h text-xl uppercase leading-none tracking-[.06em] md:text-[26px]">{STORE_NAME}</div>
-          <div className="hidden text-[10px] uppercase tracking-[.2em] text-accent-400 md:block">Marketplace</div>
+          <span className="stamp border-paper-50 text-paper-50" style={{ mixBlendMode: 'normal' }}>
+            MC
+          </span>
+          <div className="leading-none">
+            <div className="h text-2xl uppercase leading-none tracking-[.03em] md:text-[40px]">{STORE_NAME}</div>
+            <div className="hidden font-mono text-[15px] uppercase tracking-[.16em] text-accent-300 md:block">
+              General Merchandise Manifest
+            </div>
+          </div>
         </div>
 
-        <form onSubmit={onSubmit} className="hidden max-w-[720px] flex-1 border border-accent-700 bg-[#f2f2f3] md:flex">
+        <form onSubmit={onSubmit} className="hidden flex-1 border border-accent-600 bg-paper-50 md:flex">
+          <label className="sr-only" htmlFor="dept-select">
+            Department
+          </label>
           <select
+            id="dept-select"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="border-0 border-r border-divider bg-neutral-200 px-2 text-[12.5px] text-foreground"
+            className="border-0 border-r border-divider bg-paper-200 px-3 py-3 font-mono text-lg uppercase tracking-wide text-foreground"
           >
-            {CATEGORIES.map((name) => (
+            {categories.map((name) => (
               <option key={name} value={name}>
                 {name}
               </option>
@@ -86,11 +100,12 @@ export default function Header() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search products, brands and categories"
-            className="flex-1 border-0 px-2.5 text-sm text-foreground"
+            placeholder="Track a product, brand or SKU"
+            aria-label="Search products, brands and categories"
+            className="flex-1 border-0 bg-transparent px-4 py-3 text-lg text-foreground placeholder:text-paper-500"
           />
-          <Button type="submit" variant="primary" className="rounded-none border-0 px-[18px] text-sm tracking-[.08em] uppercase">
-            <Search size={16} strokeWidth={1.5} />
+          <Button type="submit" variant="primary" className="rounded-none border-0 px-6 text-lg">
+            <Search size={22} strokeWidth={1.5} />
           </Button>
         </form>
 
@@ -101,7 +116,7 @@ export default function Header() {
             aria-label={user ? 'Account' : 'Sign in'}
             onClick={() => goTo(user ? '/orders' : '/signin')}
           >
-            <User size={22} strokeWidth={1.5} />
+            <User size={26} strokeWidth={1.5} />
           </button>
           <button
             type="button"
@@ -109,16 +124,16 @@ export default function Header() {
             aria-label={`Cart, ${itemCount} item${itemCount === 1 ? '' : 's'}`}
             onClick={() => goTo('/cart')}
           >
-            <ShoppingCart size={22} strokeWidth={1.5} />
+            <ShoppingCart size={26} strokeWidth={1.5} />
             {itemCount > 0 && (
-              <span className="h absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center bg-accent-400 px-1 text-[10px] leading-none text-accent-900">
+              <span className="h absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center bg-accent-400 px-1 text-[13px] leading-none text-accent-900">
                 {itemCount}
               </span>
             )}
           </button>
         </div>
 
-        <div className="hidden flex-none items-center gap-3 text-xs md:flex">
+        <div className="hidden flex-none items-center gap-4 text-sm md:flex">
           <div
             className="cursor-pointer"
             role="link"
@@ -127,7 +142,7 @@ export default function Header() {
             onKeyDown={onEnterKey(() => goTo(user ? '/orders' : '/signin'))}
           >
             <div className="text-accent-400">{user ? `Hello, ${user.name}` : 'Hello, sign in'}</div>
-            <div className="h text-[13px]">Account &amp; Lists</div>
+            <div className="h text-[19px]">Account &amp; Lists</div>
           </div>
           <div
             className="cursor-pointer"
@@ -137,30 +152,34 @@ export default function Header() {
             onKeyDown={onEnterKey(() => goTo('/orders'))}
           >
             <div className="text-accent-400">Returns</div>
-            <div className="h text-[13px]">&amp; Orders</div>
+            <div className="h text-[19px]">&amp; Orders</div>
           </div>
           <div
-            className="flex cursor-pointer items-center gap-1.5 border border-accent-700 px-2.5 py-1.5"
+            className="relative flex cursor-pointer items-center gap-2 border border-accent-700 px-4 py-2.5"
             role="link"
             tabIndex={0}
             aria-label={`Cart, ${itemCount} item${itemCount === 1 ? '' : 's'}`}
             onClick={() => goTo('/cart')}
             onKeyDown={onEnterKey(() => goTo('/cart'))}
           >
-            <span className="text-[11px] uppercase tracking-[.08em]">Cart</span>
+            <ShoppingCart size={24} strokeWidth={1.5} />
             <span className="h text-xl text-accent-400">{itemCount}</span>
           </div>
         </div>
       </div>
 
       <div className="px-4 pb-3 md:hidden">
-        <form onSubmit={onSubmit} className="flex border border-accent-700 bg-[#f2f2f3]">
+        <form onSubmit={onSubmit} className="flex border border-accent-600 bg-paper-50">
+          <label className="sr-only" htmlFor="dept-select-mobile">
+            Department
+          </label>
           <select
+            id="dept-select-mobile"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="max-w-[38%] border-0 border-r border-divider bg-neutral-200 px-2 text-[12.5px] text-foreground"
+            className="max-w-[38%] border-0 border-r border-divider bg-paper-200 px-2 font-mono text-base uppercase text-foreground"
           >
-            {CATEGORIES.map((name) => (
+            {categories.map((name) => (
               <option key={name} value={name}>
                 {name}
               </option>
@@ -170,20 +189,20 @@ export default function Header() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search products"
-            className="min-h-11 flex-1 border-0 px-2.5 text-sm text-foreground"
+            className="min-h-12 flex-1 border-0 bg-transparent px-2.5 text-base text-foreground placeholder:text-paper-500"
           />
           <Button type="submit" variant="primary" className="min-h-11 rounded-none border-0 px-4">
-            <Search size={18} strokeWidth={1.5} />
+            <Search size={20} strokeWidth={1.5} />
           </Button>
         </form>
       </div>
 
       <div className="hidden border-t border-accent-700 bg-accent-800 md:block">
-        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center px-6">
+        <div className="flex w-full flex-wrap items-center px-8">
           <button className="navlink" onClick={() => goDepartment('All')}>
             All departments
           </button>
-          {CATEGORIES.slice(1).map((name) => (
+          {departmentLinks.map((name) => (
             <button key={name} className="navlink" onClick={() => goDepartment(name)}>
               {name}
             </button>
@@ -202,7 +221,7 @@ export default function Header() {
           <button className="navlink min-h-11 text-left" onClick={() => goDepartment('All')}>
             All departments
           </button>
-          {CATEGORIES.slice(1).map((name) => (
+          {departmentLinks.map((name) => (
             <button key={name} className="navlink min-h-11 text-left" onClick={() => goDepartment(name)}>
               {name}
             </button>
