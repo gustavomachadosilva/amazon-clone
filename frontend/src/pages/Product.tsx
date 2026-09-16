@@ -137,8 +137,8 @@ export default function Product() {
           className="cursor-pointer"
           role="link"
           tabIndex={0}
-          onClick={() => navigate(`/search?category=${product.category}`)}
-          onKeyDown={onEnterKey(() => navigate(`/search?category=${product.category}`))}
+          onClick={() => navigate(`/search?category=${encodeURIComponent(product.category)}`)}
+          onKeyDown={onEnterKey(() => navigate(`/search?category=${encodeURIComponent(product.category)}`))}
         >
           {product.category}
         </span>{' '}
