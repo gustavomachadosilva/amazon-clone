@@ -1,29 +1,18 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { SlidersHorizontal } from 'lucide-react'
-import { Blueprint, Button, Pagination, Placeholder, Select, StarRating } from '../components/ui'
-import { useAuth } from '../context/AuthContext'
-import { useCart } from '../context/CartContext'
+import { Blueprint, Button, Pagination, Select } from '../components/ui'
+import ProductGridCard from '../components/ProductGridCard'
 import { useReviews } from '../context/ReviewsContext'
 import { catalogApi, type Page, type Product } from '../services/api'
 import { useCategories } from '../hooks/useCategories'
 import { usd } from '../lib/format'
-import { installmentLine } from '../lib/pricing'
-import {
-  deriveDeliveryLabel,
-  deriveFastDelivery,
-  deriveListPrice,
-  deriveStockLabel,
-} from '../lib/mockProductMeta'
-import { onEnterKey } from '../lib/a11y'
+import { deriveFastDelivery } from '../lib/mockProductMeta'
 
 const RATING_OPTIONS = [4.5, 4, 3, 0]
 
 export default function Search() {
-  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { user } = useAuth()
-  const cart = useCart()
   const reviews = useReviews()
   const categories = useCategories()
 
@@ -210,72 +199,9 @@ export default function Search() {
             </Button>
           </Blueprint>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {filtered.map((product) => (
-              <Blueprint
-                key={product.id}
-                className="flex flex-col gap-4 p-4 md:grid md:grid-cols-[180px_1fr_210px]"
-              >
-                <div
-                  className="max-w-[160px] cursor-pointer md:max-w-none"
-                  role="link"
-                  tabIndex={0}
-                  onClick={() => navigate(`/product/${product.id}`)}
-                  onKeyDown={onEnterKey(() => navigate(`/product/${product.id}`))}
-                >
-                  <Placeholder label={product.name} aspect="1/1" src={product.imageUrl} />
-                </div>
-                <div>
-                  <div
-                    className="h cursor-pointer text-xl"
-                    role="link"
-                    tabIndex={0}
-                    onClick={() => navigate(`/product/${product.id}`)}
-                    onKeyDown={onEnterKey(() => navigate(`/product/${product.id}`))}
-                  >
-                    {product.name}
-                  </div>
-                  <div className="text-[16px] text-paper-600">Sold by Seller #{product.sellerId}</div>
-                  <div className="my-1 flex items-center gap-1.5 text-xs">
-                    <StarRating rating={ratingOf(product)} />
-                    <span>{ratingOf(product).toFixed(1)}</span>
-                    <span className="text-paper-600">({reviews.getReviews(product.id).length})</span>
-                  </div>
-                  <p className="max-w-[52ch] text-[16.5px] text-paper-700">{product.description}</p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="tag tag-outline">{product.category}</span>
-                    <span className="tag tag-accent">
-                      {deriveFastDelivery(product) ? 'Fast delivery' : 'Free shipping'}
-                    </span>
-                  </div>
-                </div>
-                <div className="border-t border-divider pt-3 md:border-l md:border-t-0 md:pl-4 md:pt-0">
-                  <div className="readout text-2xl font-semibold text-foreground">{usd(product.price)}</div>
-                  {deriveListPrice(product) > product.price && (
-                    <div className="readout text-xs text-paper-500 line-through">{usd(deriveListPrice(product))}</div>
-                  )}
-                  <div className="text-[15px] text-paper-700">{installmentLine(product.price)}</div>
-                  <div className="text-[15px] text-paper-700">{deriveDeliveryLabel(product)}</div>
-                  <div className="text-[16.5px] text-accent-700">{deriveStockLabel(product)}</div>
-                  <Button
-                    variant="primary"
-                    block
-                    onClick={() => {
-                      if (!user) {
-                        navigate('/signin')
-                        return
-                      }
-                      cart.addItem(product)
-                      navigate('/cart')
-                    }}
-                  >
-                    Add to cart
-                  </Button>
-                  <Button variant="secondary" block onClick={() => navigate(`/product/${product.id}`)}>
-                    View details
-                  </Button>
-                </div>
-              </Blueprint>
+              <ProductGridCard key={product.id} product={product} />
             ))}
           </div>
         )}

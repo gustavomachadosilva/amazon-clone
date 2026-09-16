@@ -3,7 +3,7 @@ import { Button, Blueprint, Placeholder, StarRating } from './ui'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useReviews } from '../context/ReviewsContext'
-import { usd } from '../lib/format'
+import { truncate, usd } from '../lib/format'
 import { deriveDeliveryLabel, deriveListPrice } from '../lib/mockProductMeta'
 import { onEnterKey } from '../lib/a11y'
 import type { Product } from '../services/api'
@@ -45,6 +45,7 @@ export default function ProductGridCard({ product, compact = false }: ProductGri
   const lowStock = inStock && product.stockQuantity <= 5
 
   const lineCode = `LN-${String(product.id).padStart(4, '0')}`
+  const displayName = truncate(product.name, compact ? 40 : 80)
 
   return (
     <Blueprint
@@ -68,7 +69,7 @@ export default function ProductGridCard({ product, compact = false }: ProductGri
       </div>
 
       <div className="border-t border-dashed border-divider px-3 pt-3">
-        <div className={`text-[18px] leading-[1.3] ${compact ? '' : 'min-h-[42px]'}`}>{product.name}</div>
+        <div className={`text-[18px] leading-[1.3] ${compact ? '' : 'line-clamp-2 min-h-[47px]'}`}>{displayName}</div>
         <div className="mt-1.5 flex items-center gap-1.5 text-sm">
           <StarRating rating={rating} size={17} />
           <span className="readout text-paper-600">{productReviews.length.toLocaleString('en-US')}</span>
