@@ -91,7 +91,7 @@ export default function Home() {
               key={name}
               type="button"
               className="tag tag-accent-2 cursor-pointer py-2 pl-6 pr-4 text-[15.5px] hover:bg-tag-200"
-              onClick={() => navigate(`/search?category=${name}`)}
+              onClick={() => navigate(`/search?category=${encodeURIComponent(name)}`)}
             >
               {name}
             </button>
