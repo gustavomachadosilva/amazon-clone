@@ -4,19 +4,19 @@
 
 @layer base {
   :root {
-    /* — Manifest / shipping-ledger world: kraft paper ground, ink text, stamp-ink accent — */
-    --color-bg: #f4ede0;
-    --color-surface: #ece1cd;
-    --color-card: #faf6ee;
+    /* — Manifest / shipping-ledger world: white paper ground, ink text, stamp-ink accent — */
+    --color-bg: #ffffff;
+    --color-surface: #f5f1e8;
+    --color-card: #ffffff;
     --color-text: #211d16;
     --color-accent: #3f5a82;
     --color-accent-2: #b9832f;
     --color-alert: #9c3527;
     --color-divider: color-mix(in srgb, #211d16 18%, transparent);
 
-    --color-paper-50: #faf6ee;
-    --color-paper-100: #f4ede0;
-    --color-paper-200: #ece1cd;
+    --color-paper-50: #ffffff;
+    --color-paper-100: #ffffff;
+    --color-paper-200: #f5f1e8;
     --color-paper-300: #dcccae;
     --color-paper-400: #c3ad86;
     --color-paper-500: #a68a63;

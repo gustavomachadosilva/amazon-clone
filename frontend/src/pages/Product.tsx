@@ -155,7 +155,7 @@ export default function Product() {
           </div>
         </Blueprint>
 
-        <div className="max-w-[760px]">
+        <div>
           <h1 className="text-[38px] leading-[1.15] md:text-[48px]">{product.name}</h1>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className="tag tag-accent-2">{product.category}</span>
@@ -328,22 +328,55 @@ export default function Product() {
           </p>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Blueprint className="p-4">
-              <div className="h mb-2 text-base">Frequently bought together</div>
-              <div className="mb-3 flex flex-wrap items-center gap-1">
+              <div className="h mb-3 text-base">Frequently bought together</div>
+
+              <div className="mb-4 flex flex-wrap items-start justify-center gap-x-2 gap-y-3 sm:gap-x-3">
                 {bundleItems.map((item, index) => (
-                  <div key={item.id} className="flex items-center gap-1">
-                    {index > 0 && <span>+</span>}
-                    <Placeholder label={item.name} aspect="1/1" className="w-[84px]" src={item.imageUrl} />
+                  <div key={item.id} className="flex items-center gap-2 sm:gap-3">
+                    {index > 0 && (
+                      <span className="h text-2xl leading-none text-paper-500" aria-hidden="true">
+                        +
+                      </span>
+                    )}
+                    <div
+                      className="w-[76px] cursor-pointer text-center sm:w-[88px]"
+                      role="link"
+                      tabIndex={0}
+                      onClick={() => navigate(`/product/${item.id}`)}
+                      onKeyDown={onEnterKey(() => navigate(`/product/${item.id}`))}
+                    >
+                      <Placeholder label={item.name} aspect="1/1" src={item.imageUrl} />
+                      <div className="readout mt-1 text-[13px] text-paper-700">{usd(item.price)}</div>
+                    </div>
                   </div>
                 ))}
               </div>
-              {bundleItems.map((item, index) => (
-                <label key={item.id} className="radio mb-1.5 flex">
-                  <input type="checkbox" checked={bundleChecked.has(item.id)} onChange={() => toggleBundle(item.id)} />
-                  <span className="box" />
-                  {index === 0 ? `This item: ${item.name}` : item.name}
-                </label>
-              ))}
+
+              <div className="hr" />
+
+              <div className="mb-3 flex flex-col gap-2.5">
+                {bundleItems.map((item, index) => (
+                  <label key={item.id} className="radio flex w-full items-center gap-2.5">
+                    <input type="checkbox" checked={bundleChecked.has(item.id)} onChange={() => toggleBundle(item.id)} />
+                    <span className="box" />
+                    <div className="h-9 w-9 shrink-0">
+                      <Placeholder label={item.name} aspect="1/1" src={item.imageUrl} />
+                    </div>
+                    <span className="min-w-0 flex-1 overflow-hidden">
+                      {index === 0 && (
+                        <span className="block font-mono text-[10.5px] uppercase tracking-[.09em] text-paper-500">
+                          This item
+                        </span>
+                      )}
+                      <span className="block truncate text-sm" title={item.name}>
+                        {item.name}
+                      </span>
+                    </span>
+                    <span className="readout shrink-0 text-sm font-semibold">{usd(item.price)}</span>
+                  </label>
+                ))}
+              </div>
+
               <div className="readout mt-2 text-2xl font-semibold text-accent-800">Total price: {usd(bundleTotal)}</div>
               <div className="mb-2 text-xs text-paper-600">
                 {bundleChecked.size} of {bundleItems.length} items selected
@@ -353,19 +386,17 @@ export default function Product() {
               </Button>
             </Blueprint>
 
-            <div className="flex flex-col gap-3">
-              {recommended.map((item, index) => (
-                <div key={item.id} className="grid grid-cols-[72px_1fr] gap-3 sm:grid-cols-[88px_1fr_150px]">
+            <div className="flex flex-col">
+              {recommended.map((item, index) => {
+                const itemReviews = reviews.getReviews(item.id)
+                const itemRating = itemReviews.length
+                  ? itemReviews.reduce((sum, r) => sum + r.stars, 0) / itemReviews.length
+                  : 0
+                return (
                   <div
-                    className="cursor-pointer"
-                    role="link"
-                    tabIndex={0}
-                    onClick={() => navigate(`/product/${item.id}`)}
-                    onKeyDown={onEnterKey(() => navigate(`/product/${item.id}`))}
+                    key={item.id}
+                    className="grid grid-cols-[64px_1fr] items-start gap-3 border-b border-divider py-3 first:pt-0 last:border-b-0 sm:grid-cols-[64px_1fr_auto]"
                   >
-                    <Placeholder label={item.name} aspect="1/1" src={item.imageUrl} />
-                  </div>
-                  <div>
                     <div
                       className="cursor-pointer"
                       role="link"
@@ -373,31 +404,49 @@ export default function Product() {
                       onClick={() => navigate(`/product/${item.id}`)}
                       onKeyDown={onEnterKey(() => navigate(`/product/${item.id}`))}
                     >
-                      {item.name}
+                      <Placeholder label={item.name} aspect="1/1" src={item.imageUrl} />
                     </div>
-                    <StarRating rating={rating} />
-                    <div className="text-xs text-accent-700">
-                      {RELATED_REASONS[index % RELATED_REASONS.length].replace('{category}', product.category)}
+                    <div className="min-w-0">
+                      <div
+                        className="line-clamp-2 min-h-[40px] cursor-pointer text-[15px] leading-[1.35]"
+                        role="link"
+                        tabIndex={0}
+                        title={item.name}
+                        onClick={() => navigate(`/product/${item.id}`)}
+                        onKeyDown={onEnterKey(() => navigate(`/product/${item.id}`))}
+                      >
+                        {item.name}
+                      </div>
+                      {itemReviews.length > 0 && (
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <StarRating rating={itemRating} size={14} />
+                          <span className="readout text-xs text-paper-600">{itemReviews.length}</span>
+                        </div>
+                      )}
+                      <div className="mt-1 truncate text-xs text-accent-700">
+                        {RELATED_REASONS[index % RELATED_REASONS.length].replace('{category}', product.category)}
+                      </div>
+                    </div>
+                    <div className="col-span-2 flex items-center justify-between gap-3 sm:col-span-1 sm:flex-col sm:items-end sm:justify-start sm:gap-1.5">
+                      <div className="readout text-lg font-semibold">{usd(item.price)}</div>
+                      <Button
+                        variant="secondary"
+                        className="whitespace-nowrap"
+                        onClick={() => {
+                          if (!user) {
+                            navigate('/signin')
+                            return
+                          }
+                          cart.addItem(item)
+                          navigate('/cart')
+                        }}
+                      >
+                        Add to cart
+                      </Button>
                     </div>
                   </div>
-                  <div className="col-span-2 sm:col-span-1">
-                    <div className="readout font-semibold">{usd(item.price)}</div>
-                    <Button
-                      variant="secondary"
-                      onClick={() => {
-                        if (!user) {
-                          navigate('/signin')
-                          return
-                        }
-                        cart.addItem(item)
-                        navigate('/cart')
-                      }}
-                    >
-                      Add to cart
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>
