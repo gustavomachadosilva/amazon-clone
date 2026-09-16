@@ -22,10 +22,10 @@ export default function Cart() {
   }
 
   return (
-    <div className="mx-auto grid max-w-[1280px] grid-cols-1 gap-6 px-4 py-4 md:grid-cols-[1fr_300px] md:gap-7 md:px-6 md:py-6">
+    <div className="grid w-full grid-cols-1 gap-6 px-4 py-4 md:grid-cols-[1fr_300px] md:gap-7 md:px-8 md:py-6 lg:px-10">
       <section>
         <h1>Shopping cart</h1>
-        <p className="text-[13px] text-[#5d5d60]">
+        <p className="text-[16.5px] text-paper-700">
           {cart.items.length} product(s) · prices and availability may change
         </p>
         <div className="hr" />
@@ -66,8 +66,8 @@ export default function Cart() {
                   </div>
                   {product && (
                     <>
-                      <div className="text-[13px] text-accent-700">{deriveStockLabel(product)}</div>
-                      <div className="text-[12.5px] text-[#5d5d60]">{deriveDeliveryLabel(product)}</div>
+                      <div className="text-[16.5px] text-accent-700">{deriveStockLabel(product)}</div>
+                      <div className="text-[16px] text-paper-700">{deriveDeliveryLabel(product)}</div>
                     </>
                   )}
                   <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -78,7 +78,7 @@ export default function Cart() {
                         aria-label="Decrease quantity"
                         onClick={() => cart.decrementQty(line.productId)}
                       >
-                        <Minus size={14} strokeWidth={1.5} />
+                        <Minus size={17} strokeWidth={1.5} />
                       </Button>
                       <span className="px-2.5">{line.qty}</span>
                       <Button
@@ -87,18 +87,18 @@ export default function Cart() {
                         aria-label="Increase quantity"
                         onClick={() => cart.incrementQty(line.productId)}
                       >
-                        <Plus size={14} strokeWidth={1.5} />
+                        <Plus size={17} strokeWidth={1.5} />
                       </Button>
                     </div>
                     <Button variant="ghost" onClick={() => cart.removeItem(line.productId)}>
-                      <Trash2 size={14} strokeWidth={1.5} /> Delete
+                      <Trash2 size={17} strokeWidth={1.5} /> Delete
                     </Button>
                     <Button variant="ghost" onClick={() => cart.saveForLater(line.productId)}>
                       Save for later
                     </Button>
                   </div>
                 </div>
-                <div className="h col-span-2 text-left text-xl sm:col-span-1 sm:text-right">
+                <div className="readout col-span-2 text-left text-xl font-semibold sm:col-span-1 sm:text-right">
                   {usd(line.price * line.qty)}
                 </div>
               </div>
@@ -107,7 +107,7 @@ export default function Cart() {
         )}
 
         {cart.items.length > 0 && (
-          <div className="h mt-4 text-right text-xl">
+          <div className="readout mt-4 text-right text-xl font-semibold">
             Subtotal ({cart.itemCount} items): {usd(cart.subtotal)}
           </div>
         )}
@@ -115,12 +115,12 @@ export default function Cart() {
         {cart.saved.length > 0 && (
           <div className="mt-10">
             <h2>Saved for later</h2>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {cart.saved.map((line) => (
                 <Blueprint key={line.productId} className="p-3">
                   <Placeholder label={line.name} aspect="1/1" src={products.get(line.productId)?.imageUrl} />
-                  <div className="mt-2 min-h-8 text-[13px]">{line.name}</div>
-                  <div className="h">{usd(line.price)}</div>
+                  <div className="mt-2 min-h-8 text-[16.5px]">{line.name}</div>
+                  <div className="readout font-semibold">{usd(line.price)}</div>
                   <Button variant="secondary" block onClick={() => cart.moveToCart(line.productId)}>
                     Move to cart
                   </Button>
@@ -132,9 +132,9 @@ export default function Cart() {
       </section>
 
       <Blueprint as="aside" className="h-fit p-4 md:sticky md:top-4 md:p-[18px]">
-        <div className="mb-2 text-[13px] text-accent-700">{freeShippingMessage(cart.subtotal)}</div>
-        <div className="text-[13px]">Subtotal ({cart.itemCount} items):</div>
-        <div className="h text-2xl">{usd(cart.subtotal)}</div>
+        <div className="mb-2 text-[16.5px] text-accent-700">{freeShippingMessage(cart.subtotal)}</div>
+        <div className="text-[16.5px]">Subtotal ({cart.itemCount} items):</div>
+        <div className="readout text-2xl font-semibold">{usd(cart.subtotal)}</div>
         <label className="radio my-3 flex">
           <input type="checkbox" />
           <span className="box" />
