@@ -2,7 +2,16 @@ import type { Review } from '../types/domain'
 
 export const STORE_NAME = 'Mercatto'
 
-export const CATEGORIES = ['All', 'Electronics', 'Home', 'Tools', 'Sports', 'Apparel', 'Books'] as const
+// Curated subset of the real catalog categories shown as quick links in the header nav bar —
+// the full department list only fits there for a handful of picks, so this narrows it to a
+// diverse sample rather than dumping all of them in one row.
+export const HEADER_HIGHLIGHT_CATEGORIES = [
+  'Beauty & Personal Care',
+  'Computers & Tablets',
+  "Men's Clothing",
+  "Women's Clothing",
+  'Toys & Games',
+]
 
 export const RATING_WORD = ['Select a rating', 'I hate it', "I don't like it", "It's OK", 'I like it', 'I love it']
 

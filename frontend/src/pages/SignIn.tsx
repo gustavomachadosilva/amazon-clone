@@ -32,10 +32,10 @@ export default function SignIn() {
   }
 
   return (
-    <div className="mx-auto max-w-[400px] px-4 py-6 md:py-10">
+    <div className="mx-auto max-w-[460px] px-4 py-6 md:py-10">
       <Blueprint className="p-5 md:p-6">
         <h1 className="text-2xl">{mode === 'signin' ? 'Sign in' : 'Create account'}</h1>
-        <p className="text-[13px] text-[#5d5d60]">
+        <p className="text-[16.5px] text-paper-700">
           {mode === 'signin' ? 'Use your email and password to continue.' : 'One account for orders, lists and reviews.'}
         </p>
 
@@ -72,7 +72,7 @@ export default function SignIn() {
           )}
 
           {error && (
-            <div style={{ fontSize: 12.5, color: 'var(--color-accent-800)', borderLeft: '2px solid var(--color-accent-800)', paddingLeft: 8 }}>
+            <div role="alert" className="callout-alert">
               {error}
             </div>
           )}
@@ -82,7 +82,7 @@ export default function SignIn() {
           </Button>
         </form>
 
-        <p style={{ fontSize: 11.5, color: '#7a7a7d', marginTop: 12 }}>
+        <p style={{ fontSize: 11.5, color: 'var(--color-paper-600)', marginTop: 12 }}>
           By continuing you agree to the terms of this academic prototype.
         </p>
         <div className="hr" />

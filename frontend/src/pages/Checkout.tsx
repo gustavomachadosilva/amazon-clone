@@ -75,12 +75,15 @@ export default function Checkout() {
   }
 
   return (
-    <div className="mx-auto grid max-w-[1080px] grid-cols-1 gap-6 px-4 py-4 md:grid-cols-[1fr_300px] md:gap-7 md:px-6 md:py-6">
+    <div className="mx-auto grid max-w-[1320px] grid-cols-1 gap-6 px-4 py-4 md:grid-cols-[1fr_300px] md:gap-7 md:px-6 md:py-6">
       <section className="flex flex-col gap-5">
         <h1>Checkout</h1>
 
         <Blueprint className="p-4 md:p-5">
-          <div className="kick">1 · Shipping address</div>
+          <div className="mb-1 flex items-center gap-3">
+            <span className="stamp shrink-0 !rotate-0">01</span>
+            <h2 className="text-[24px]">Shipping address</h2>
+          </div>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input
               label="Full name"
@@ -112,7 +115,10 @@ export default function Checkout() {
         </Blueprint>
 
         <Blueprint className="p-4 md:p-5">
-          <div className="kick">2 · Delivery option</div>
+          <div className="mb-1 flex items-center gap-3">
+            <span className="stamp shrink-0 !rotate-0">02</span>
+            <h2 className="text-[24px]">Delivery option</h2>
+          </div>
           <div className="mt-3 flex flex-col gap-2">
             {(Object.keys(SHIPPING_OPTIONS) as ShippingMethod[]).map((key) => (
               <label key={key} className="radio flex justify-between">
@@ -121,14 +127,17 @@ export default function Checkout() {
                   <span className="dot" />
                   {SHIPPING_OPTIONS[key]}
                 </span>
-                <span>{key === 'express' ? usd(9.99) : 'FREE'}</span>
+                <span className="readout">{key === 'express' ? usd(9.99) : 'FREE'}</span>
               </label>
             ))}
           </div>
         </Blueprint>
 
         <Blueprint className="p-4 md:p-5">
-          <div className="kick">3 · Payment method</div>
+          <div className="mb-1 flex items-center gap-3">
+            <span className="stamp shrink-0 !rotate-0">03</span>
+            <h2 className="text-[24px]">Payment method</h2>
+          </div>
           <div className="mt-3 flex flex-col gap-2">
             {(Object.keys(PAYMENT_OPTIONS) as PaymentMethod[]).map((key) => (
               <label key={key} className="radio flex">
@@ -141,16 +150,19 @@ export default function Checkout() {
         </Blueprint>
 
         <Blueprint className="p-4 md:p-5">
-          <div className="kick">4 · Review items</div>
+          <div className="mb-1 flex items-center gap-3">
+            <span className="stamp shrink-0 !rotate-0">04</span>
+            <h2 className="text-[24px]">Review items</h2>
+          </div>
           <div className="mt-3 flex flex-col gap-3">
             {cart.items.map((line) => (
               <div key={line.productId} className="flex items-center gap-3">
                 <Placeholder label={line.name} aspect="1/1" className="w-[56px] flex-none" src={products.get(line.productId)?.imageUrl} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate">{line.name}</div>
-                  <div className="text-xs text-[#7a7a7d]">Qty {line.qty}</div>
+                  <div className="text-xs text-paper-600">Qty {line.qty}</div>
                 </div>
-                <div className="h flex-none">{usd(line.price * line.qty)}</div>
+                <div className="readout flex-none font-semibold">{usd(line.price * line.qty)}</div>
               </div>
             ))}
           </div>
@@ -158,43 +170,30 @@ export default function Checkout() {
       </section>
 
       <Blueprint as="aside" className="h-fit p-4 md:sticky md:top-4 md:p-[18px]">
-        <div className="h" style={{ fontSize: 16, marginBottom: 8 }}>
-          Order summary
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+        <h2 className="mb-2 text-[19px]">Order summary</h2>
+        <div className="flex justify-between text-[16.5px]">
           <span>Items ({cart.itemCount})</span>
-          <span>{usd(cart.subtotal)}</span>
+          <span className="readout">{usd(cart.subtotal)}</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+        <div className="flex justify-between text-[16.5px]">
           <span>Shipping</span>
-          <span>{usd(totals.shipping)}</span>
+          <span className="readout">{usd(totals.shipping)}</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+        <div className="flex justify-between text-[16.5px]">
           <span>Estimated tax</span>
-          <span>{usd(totals.tax)}</span>
+          <span className="readout">{usd(totals.tax)}</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+        <div className="flex justify-between text-[16.5px]">
           <span>Promotion</span>
-          <span>-{usd(totals.discount)}</span>
+          <span className="readout">-{usd(totals.discount)}</span>
         </div>
         <div className="hr" />
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <div className="perf-top flex justify-between">
           <span className="h">Order total</span>
-          <span className="h" style={{ fontSize: 26, color: 'var(--color-accent-800)' }}>
-            {usd(totals.total)}
-          </span>
+          <span className="readout text-[33px] font-semibold text-accent-800">{usd(totals.total)}</span>
         </div>
         {error && (
-          <div
-            role="alert"
-            style={{
-              fontSize: 12.5,
-              color: 'var(--color-accent-800)',
-              borderLeft: '2px solid var(--color-accent-800)',
-              paddingLeft: 8,
-              marginTop: 12,
-            }}
-          >
+          <div role="alert" className="callout-alert mt-3">
             {error} Your cart is unchanged — try again when you're ready.
           </div>
         )}
@@ -203,11 +202,11 @@ export default function Checkout() {
           block
           onClick={placeOrder}
           disabled={placing || cart.items.length === 0}
-          style={{ marginTop: error ? 8 : 12 }}
+          className={error ? 'mt-2' : 'mt-3'}
         >
           {placing ? 'Placing order…' : error ? 'Try again' : 'Place your order'}
         </Button>
-        <p style={{ fontSize: 11.5, color: '#7a7a7d', marginTop: 8 }}>
+        <p className="mt-2 text-[15px] text-paper-600">
           By placing your order you agree to the terms of this academic prototype.
         </p>
       </Blueprint>

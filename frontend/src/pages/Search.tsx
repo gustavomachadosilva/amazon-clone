@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useReviews } from '../context/ReviewsContext'
 import { catalogApi, type Page, type Product } from '../services/api'
-import { CATEGORIES } from '../lib/constants'
+import { useCategories } from '../hooks/useCategories'
 import { usd } from '../lib/format'
 import { installmentLine } from '../lib/pricing'
 import {
@@ -25,6 +25,7 @@ export default function Search() {
   const { user } = useAuth()
   const cart = useCart()
   const reviews = useReviews()
+  const categories = useCategories()
 
   const q = searchParams.get('q') ?? ''
   const category = searchParams.get('category') ?? 'All'
@@ -95,7 +96,7 @@ export default function Search() {
   }
 
   return (
-    <div className="mx-auto grid max-w-[1280px] grid-cols-1 gap-5 px-4 py-4 md:grid-cols-[236px_1fr] md:gap-7 md:px-6 md:py-6">
+    <div className="grid w-full grid-cols-1 gap-5 px-4 py-4 md:grid-cols-[236px_1fr] md:gap-7 md:px-8 md:py-6 lg:px-10">
       <button
         type="button"
         className="btn btn-secondary flex min-h-11 w-full items-center justify-between md:hidden"
@@ -103,14 +104,14 @@ export default function Search() {
         onClick={() => setFiltersOpen((open) => !open)}
       >
         <span>Filters</span>
-        <SlidersHorizontal size={16} strokeWidth={1.5} />
+        <SlidersHorizontal size={18} strokeWidth={1.5} />
       </button>
 
       <aside className={filtersOpen ? 'block' : 'hidden md:block'}>
-        <div className="kick hidden md:block">Filters</div>
+        <h2 className="hidden text-[24px] md:block">Filters</h2>
         <div className="mt-3 md:mt-3">
-          <div className="mb-1.5 text-xs text-[#5d5d60]">Department</div>
-          {CATEGORIES.map((name) => (
+          <div className="field-label mb-1.5">Department</div>
+          {categories.map((name) => (
             <label className="radio mb-1.5 flex" key={name}>
               <input
                 type="radio"
@@ -125,7 +126,7 @@ export default function Search() {
         </div>
 
         <div className="mt-5">
-          <div className="mb-1.5 text-xs text-[#5d5d60]">Price up to</div>
+          <div className="field-label mb-1.5">Price up to</div>
           <input
             type="range"
             min={20}
@@ -135,11 +136,11 @@ export default function Search() {
             onChange={(e) => setParam('maxPrice', e.target.value)}
             className="w-full accent-accent"
           />
-          <div className="text-[12.5px]">{usd(maxPrice)}</div>
+          <div className="text-[16px]">{usd(maxPrice)}</div>
         </div>
 
         <div className="mt-5">
-          <div className="mb-1.5 text-xs text-[#5d5d60]">Customer rating</div>
+          <div className="field-label mb-1.5">Customer rating</div>
           {RATING_OPTIONS.map((value) => (
             <label className="radio mb-1.5 flex" key={value}>
               <input
@@ -165,7 +166,7 @@ export default function Search() {
 
       <section>
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-[13px] text-[#5d5d60]">
+          <div className="text-[16.5px] text-paper-700">
             {loading
               ? 'Loading…'
               : loadError
@@ -190,12 +191,12 @@ export default function Search() {
 
         {loading ? (
           <Blueprint className="p-8 text-center">
-            <p className="text-[#5d5d60]">Loading…</p>
+            <p className="text-paper-700">Loading…</p>
           </Blueprint>
         ) : loadError ? (
           <Blueprint className="p-8 text-center">
             <h3>Something went wrong</h3>
-            <p className="text-[#5d5d60]">We couldn&apos;t load these results. Please try again.</p>
+            <p className="text-paper-700">We couldn&apos;t load these results. Please try again.</p>
             <Button variant="secondary" onClick={() => setRetryTick((tick) => tick + 1)}>
               Retry
             </Button>
@@ -203,7 +204,7 @@ export default function Search() {
         ) : filtered.length === 0 ? (
           <Blueprint className="p-8 text-center">
             <h3>No results</h3>
-            <p className="text-[#5d5d60]">Try another keyword or clear the filters.</p>
+            <p className="text-paper-700">Try another keyword or clear the filters.</p>
             <Button variant="secondary" onClick={() => setSearchParams({})}>
               Clear filters
             </Button>
@@ -234,13 +235,13 @@ export default function Search() {
                   >
                     {product.name}
                   </div>
-                  <div className="text-[12.5px] text-[#7a7a7d]">Sold by Seller #{product.sellerId}</div>
+                  <div className="text-[16px] text-paper-600">Sold by Seller #{product.sellerId}</div>
                   <div className="my-1 flex items-center gap-1.5 text-xs">
                     <StarRating rating={ratingOf(product)} />
                     <span>{ratingOf(product).toFixed(1)}</span>
-                    <span className="text-[#7a7a7d]">({reviews.getReviews(product.id).length})</span>
+                    <span className="text-paper-600">({reviews.getReviews(product.id).length})</span>
                   </div>
-                  <p className="max-w-[52ch] text-[13px] text-[#5d5d60]">{product.description}</p>
+                  <p className="max-w-[52ch] text-[16.5px] text-paper-700">{product.description}</p>
                   <div className="flex flex-wrap gap-2">
                     <span className="tag tag-outline">{product.category}</span>
                     <span className="tag tag-accent">
@@ -249,13 +250,13 @@ export default function Search() {
                   </div>
                 </div>
                 <div className="border-t border-divider pt-3 md:border-l md:border-t-0 md:pl-4 md:pt-0">
-                  <div className="h text-2xl">{usd(product.price)}</div>
+                  <div className="readout text-2xl font-semibold text-foreground">{usd(product.price)}</div>
                   {deriveListPrice(product) > product.price && (
-                    <div className="text-xs text-[#98989b] line-through">{usd(deriveListPrice(product))}</div>
+                    <div className="readout text-xs text-paper-500 line-through">{usd(deriveListPrice(product))}</div>
                   )}
-                  <div className="text-[11.5px] text-[#5d5d60]">{installmentLine(product.price)}</div>
-                  <div className="text-[11.5px] text-[#5d5d60]">{deriveDeliveryLabel(product)}</div>
-                  <div className="text-[13px] text-accent-700">{deriveStockLabel(product)}</div>
+                  <div className="text-[15px] text-paper-700">{installmentLine(product.price)}</div>
+                  <div className="text-[15px] text-paper-700">{deriveDeliveryLabel(product)}</div>
+                  <div className="text-[16.5px] text-accent-700">{deriveStockLabel(product)}</div>
                   <Button
                     variant="primary"
                     block

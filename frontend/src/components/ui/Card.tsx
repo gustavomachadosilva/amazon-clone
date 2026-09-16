@@ -38,14 +38,6 @@ export function Card({
   )
 }
 
-export function CardKicker({ className = '', children, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div className={`card-kicker ${className}`.trim()} {...props}>
-      {children}
-    </div>
-  )
-}
-
 export function CardTitle({
   as: Component = 'h3',
   className = '',

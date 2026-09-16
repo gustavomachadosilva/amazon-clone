@@ -46,28 +46,34 @@ export default function Lists() {
   }
 
   return (
-    <div className="mx-auto grid max-w-[1280px] grid-cols-1 gap-6 px-4 py-4 md:grid-cols-[250px_1fr] md:gap-7 md:px-6 md:py-6">
+    <div className="grid w-full grid-cols-1 gap-6 px-4 py-4 md:grid-cols-[250px_1fr] md:gap-7 md:px-8 md:py-6 lg:px-10">
       <aside>
-        <div className="kick">Your lists</div>
+        <h2 className="text-[24px]">Your lists</h2>
         <div className="mt-3 flex gap-2 overflow-x-auto md:flex-col md:gap-1 md:overflow-visible">
-          {lists.lists.map((list) => (
-            <div
-              key={list.id}
-              role="button"
-              tabIndex={0}
-              aria-pressed={list.id === activeListId}
-              onClick={() => setActiveListId(list.id)}
-              onKeyDown={onEnterOrSpaceKey(() => setActiveListId(list.id))}
-              className="flex-none cursor-pointer border-l-2 px-3 py-2.5"
-              style={{
-                borderLeftColor: list.id === activeListId ? 'var(--color-accent)' : 'transparent',
-                background: list.id === activeListId ? 'var(--color-surface)' : 'transparent',
-              }}
-            >
-              <div>{list.name}</div>
-              <div className="text-[11.5px] text-[#7a7a7d]">{list.items.length} items</div>
-            </div>
-          ))}
+          {lists.lists.map((list) => {
+            const active = list.id === activeListId
+            return (
+              <div
+                key={list.id}
+                role="button"
+                tabIndex={0}
+                aria-pressed={active}
+                onClick={() => setActiveListId(list.id)}
+                onKeyDown={onEnterOrSpaceKey(() => setActiveListId(list.id))}
+                className={`flex flex-none cursor-pointer items-center gap-2 border border-divider px-3 py-2.5 ${active ? 'bg-surface' : 'bg-transparent'}`}
+              >
+                <span
+                  className="h-2 w-2 flex-none rounded-full"
+                  style={{ background: active ? 'var(--color-accent)' : 'transparent', boxShadow: active ? 'none' : 'inset 0 0 0 1.5px var(--color-divider)' }}
+                  aria-hidden="true"
+                />
+                <div>
+                  <div className={active ? 'font-medium text-accent-800' : ''}>{list.name}</div>
+                  <div className="text-[15px] text-paper-600">{list.items.length} items</div>
+                </div>
+              </div>
+            )
+          })}
         </div>
         <div className="mt-4 flex gap-2">
           <Input
@@ -86,7 +92,7 @@ export default function Lists() {
         {!activeList ? (
           <Blueprint className="p-8 text-center">
             <h3>This list is empty</h3>
-            <p className="text-[#5d5d60]">Open a product and use &ldquo;Add to list&rdquo; to save it here.</p>
+            <p className="text-paper-700">Open a product and use &ldquo;Add to list&rdquo; to save it here.</p>
             <Button variant="primary" onClick={() => navigate('/')}>
               Browse products
             </Button>
@@ -96,7 +102,7 @@ export default function Lists() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h1>{activeList.name}</h1>
-                <p className="text-[13px] text-[#5d5d60]">{activeList.items.length} item(s) · private list</p>
+                <p className="text-[16.5px] text-paper-700">{activeList.items.length} item(s) · private list</p>
               </div>
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={addAllToCart}>
@@ -111,7 +117,7 @@ export default function Lists() {
             {activeList.items.length === 0 ? (
               <Blueprint className="mt-4 p-8 text-center">
                 <h3>This list is empty</h3>
-                <p className="text-[#5d5d60]">Open a product and use &ldquo;Add to list&rdquo; to save it here.</p>
+                <p className="text-paper-700">Open a product and use &ldquo;Add to list&rdquo; to save it here.</p>
                 <Button variant="primary" onClick={() => navigate('/')}>
                   Browse products
                 </Button>
@@ -149,14 +155,14 @@ export default function Lists() {
                         </div>
                         <div className="flex items-center gap-1.5 text-xs">
                           <StarRating rating={rating} />
-                          <span className="text-[#7a7a7d]">({productReviews.length})</span>
+                          <span className="text-paper-600">({productReviews.length})</span>
                         </div>
-                        <div className="text-xs text-[#5d5d60]">
+                        <div className="text-xs text-paper-700">
                           {deriveDeliveryLabel(product)} · {deriveStockLabel(product)}
                         </div>
                       </div>
                       <div className="col-span-2 sm:col-span-1">
-                        <div className="h text-[21px]">{usd(product.price)}</div>
+                        <div className="readout text-[26px] font-semibold">{usd(product.price)}</div>
                         <Button
                           variant="primary"
                           block
