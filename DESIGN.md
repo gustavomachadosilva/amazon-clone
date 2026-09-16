@@ -2,9 +2,9 @@
 name: Mercatto
 description: A cargo-manifest / shipping-ledger marketplace — kraft paper, ink stamps, and tabular readouts standing in for glossy retail chrome.
 colors:
-  kraft-paper-50: "#faf6ee"
-  kraft-paper-100: "#f4ede0"
-  kraft-paper-200: "#ece1cd"
+  kraft-paper-50: "#ffffff"
+  kraft-paper-100: "#ffffff"
+  kraft-paper-200: "#f5f1e8"
   kraft-paper-300: "#dcccae"
   kraft-paper-400: "#c3ad86"
   kraft-paper-500: "#a68a63"
@@ -125,12 +125,12 @@ components:
 
 **Creative North Star: "The Cargo Manifest"**
 
-Mercatto reads as a shipping ledger, not a storefront window: every product is a line item that has been received, weighed, priced, and stamped, not styled for a hero carousel. The world is built from kraft-manifest paper (warm off-white, never pure white), ink-black body text, a deep indigo-slate "manifest ink" that stands in for a conventional brand blue, and a mustard "consignment tag" accent reserved for small routing labels. A carbon-copy red exists solely for alerts and destructive actions — it is never used decoratively.
+Mercatto reads as a shipping ledger, not a storefront window: every product is a line item that has been received, weighed, priced, and stamped, not styled for a hero carousel. The ground is a clean white manifest sheet — chosen so photographed cargo (product imagery, which ships on a white background) sits flush against the page with no visible mat — with ink-black body text, a deep indigo-slate "manifest ink" that stands in for a conventional brand blue, and a mustard "consignment tag" accent reserved for small routing labels. A warm kraft-paper scale (`paper-200`→`paper-900`) still carries every border, divider, secondary surface, and ink tone, so the manifest character lives in structure and accent rather than in a tinted ground. A carbon-copy red exists solely for alerts and destructive actions — it is never used decoratively.
 
 The build confirms the thesis holds end to end: registration-corner frames (`<Blueprint>`), rotated ink-stamp badges, dashed consignment tags with a punched grommet dot, and tabular-mono "readout" numerals for every price/SKU/quantity appear consistently across Home, Search, Product, Cart, Checkout, Orders, and the Seller Dashboard, not just on the flagship surface. Corners are sharp to near-square everywhere (1–3px); nothing in the shipped code rounds a surface into a conventional soft-UI pill or card, aside from the circular radio dot and the stamp badge's own oval, which are the system's confirmed exceptions.
 
 **Key Characteristics:**
-- Kraft-paper ground with ink-black text; no pure white, no pure black.
+- White page/card ground (matches white-background product photography) with ink-black text; kraft-paper tones carry borders, secondary surfaces, and mid-tone ink instead of the ground itself.
 - Sharp/near-square corners (1–3px) everywhere except radio inputs and stamp badges.
 - Tabular-mono "readout" styling reserved for price, quantity, and SKU values.
 - Status (stock, order state) is always named in text plus a stamp/tag treatment — never color alone.
@@ -151,7 +151,7 @@ The palette reads as ledger paper and ink: warm neutral kraft tones carry the gr
 - **Carbon-Copy Red** (`#9c3527`, scale 100–900): alerts and destructive actions only — low-stock stamps (`.stamp-alert`), alert tags (`.tag-alert`), and error callouts (`.callout-alert`). Never used for emphasis or decoration.
 
 ### Neutral
-- **Kraft Paper** (`#faf6ee` → `#211d16`, 9-step scale): the entire ground plane. `paper-50` (`#faf6ee`) is card/input background, `paper-100` (`#f4ede0`) is page background, `paper-200` (`#ece1cd`) is the surface/secondary-input tone, `paper-900` (`#211d16`) is body text and the darkest ink. Divider lines use `rgba(33,29,22,0.18)` (ink at 18% opacity), not a separate gray.
+- **Kraft Paper** (`#ffffff` → `#211d16`, 9-step scale): `paper-50`/`paper-100` (`#ffffff`) are the page and card ground — pure white, chosen to match the white-background product photography and avoid a visible mat around every image. `paper-200` (`#f5f1e8`) is the surface/secondary-input tone (the product-card code strip, active list rows, info panels) — the first step of visible warmth above white. `paper-300`–`paper-800` carry borders, hover/active feedback, and secondary text; `paper-900` (`#211d16`) is body text and the darkest ink. Divider lines use `rgba(33,29,22,0.18)` (ink at 18% opacity), not a separate gray.
 
 ### Named Rules
 **The Named-Not-Colored Rule.** Stock and order status are always expressed as text plus a stamp/tag shape (`In stock`, `Low stock`, `Sold out`); color (including the alert red) is a reinforcement, never the sole signal.
@@ -212,7 +212,7 @@ Corners are sharp to near-square everywhere: the radius scale is 1px/2px/3px (`d
 
 ### Cards / Containers
 - **Corner Style:** 1px radius (near-square).
-- **Background:** kraft-paper-50 (`--color-card`).
+- **Background:** white (`paper-50` / `--color-card`).
 - **Shadow Strategy:** `ds-sm` at rest is used sparingly (product-card default has none beyond the divider border; `.prod:hover` promotes to `ds-md` with a 1px lift).
 - **Border:** 1px solid divider (ink at 18% opacity).
 - **Internal Padding:** 12–14px (`space-3` / `p-3.5` on the flagship product card).

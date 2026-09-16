@@ -4,16 +4,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Kraft manifest paper — warm neutral scale, lightest to ink
-        background: '#f4ede0',
-        surface: '#ece1cd',
-        card: '#faf6ee',
+        // Kraft manifest paper — warm neutral scale, white ground, lightest to ink
+        background: '#ffffff',
+        surface: '#f5f1e8',
+        card: '#ffffff',
         foreground: '#211d16',
         divider: 'rgba(33,29,22,0.18)',
         paper: {
-          50: '#faf6ee',
-          100: '#f4ede0',
-          200: '#ece1cd',
+          50: '#ffffff',
+          100: '#ffffff',
+          200: '#f5f1e8',
           300: '#dcccae',
           400: '#c3ad86',
           500: '#a68a63',
@@ -71,8 +71,8 @@ export default {
           900: '#34110d',
         },
         neutral: {
-          100: '#faf6ee',
-          200: '#ece1cd',
+          100: '#ffffff',
+          200: '#f5f1e8',
           300: '#dcccae',
           400: '#c3ad86',
           500: '#a68a63',
