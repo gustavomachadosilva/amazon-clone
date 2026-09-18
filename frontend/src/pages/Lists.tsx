@@ -4,7 +4,6 @@ import { Blueprint, Button, Input, Placeholder, StarRating } from '../components
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useLists } from '../context/ListsContext'
-import { useReviews } from '../context/ReviewsContext'
 import { useProductsByIds } from '../hooks/useProductsByIds'
 import { usd } from '../lib/format'
 import { deriveDeliveryLabel, deriveStockLabel } from '../lib/mockProductMeta'
@@ -15,7 +14,6 @@ export default function Lists() {
   const { user } = useAuth()
   const lists = useLists()
   const cart = useCart()
-  const reviews = useReviews()
   const [activeListId, setActiveListId] = useState<string>(lists.lists[0]?.id ?? '')
   const [newListName, setNewListName] = useState('')
 
@@ -127,8 +125,6 @@ export default function Lists() {
                 {activeList.items.map((productId) => {
                   const product = products.get(productId)
                   if (!product) return null
-                  const productReviews = reviews.getReviews(product.id)
-                  const rating = productReviews.reduce((sum, r) => sum + r.stars, 0) / productReviews.length
                   return (
                     <Blueprint
                       key={productId}
@@ -154,8 +150,8 @@ export default function Lists() {
                           {product.name}
                         </div>
                         <div className="flex items-center gap-1.5 text-xs">
-                          <StarRating rating={rating} />
-                          <span className="text-paper-600">({productReviews.length})</span>
+                          <StarRating rating={product.averageRating} />
+                          <span className="text-paper-600">({product.reviewCount})</span>
                         </div>
                         <div className="text-xs text-paper-700">
                           {deriveDeliveryLabel(product)} · {deriveStockLabel(product)}

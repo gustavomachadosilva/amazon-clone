@@ -19,6 +19,12 @@ import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+
+import java.time.Instant;
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -26,6 +32,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -59,6 +66,40 @@ class ProductControllerTest {
     private static ProductController.UpdateProductRequest validUpdateRequest() {
         return new ProductController.UpdateProductRequest(
                 "Widget v2", "An updated widget", BigDecimal.valueOf(20), 5, "tools", "http://example.com/img2.png");
+    }
+
+    private static ProductService.ProductView productView(long id) {
+        return new ProductService.ProductView(id, "Widget", "A useful widget", BigDecimal.TEN, 10, "tools",
+                "http://example.com/img.png", 1L, Instant.parse("2026-01-01T00:00:00Z"), 4.5, 3L);
+    }
+
+    @Test
+    void search_returns200WithRatingEnrichedProducts() throws Exception {
+        Page<ProductService.ProductView> page = new PageImpl<>(List.of(productView(1L)));
+        when(productService.searchWithRating(any(), any(), any())).thenReturn(page);
+
+        mockMvc.perform(get("/api/catalog/products"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].averageRating").value(4.5))
+                .andExpect(jsonPath("$.content[0].reviewCount").value(3));
+    }
+
+    @Test
+    void getById_returns200WithRatingEnrichedProduct() throws Exception {
+        when(productService.findByIdWithRating(1L)).thenReturn(Optional.of(productView(1L)));
+
+        mockMvc.perform(get("/api/catalog/products/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.averageRating").value(4.5))
+                .andExpect(jsonPath("$.reviewCount").value(3));
+    }
+
+    @Test
+    void getByIdNonExistentProduct_returns404() throws Exception {
+        when(productService.findByIdWithRating(1L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/catalog/products/1"))
+                .andExpect(status().isNotFound());
     }
 
     @Test

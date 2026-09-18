@@ -4,6 +4,8 @@ import com.mercatto.catalog.domain.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,4 +29,17 @@ public interface ProductService {
     void decreaseStock(Long productId, int quantity);
 
     List<String> listCategories();
+
+    /**
+     * A {@link Product} enriched with its aggregate rating, resolved read-only from the
+     * Reviews module. Additive read model: existing {@link #search}/{@link #findById}
+     * callers (cart, sellers, orders) keep returning the plain {@link Product} untouched.
+     */
+    record ProductView(Long id, String name, String description, BigDecimal price, Integer stockQuantity,
+                        String category, String imageUrl, Long sellerId, Instant createdAt,
+                        double averageRating, long reviewCount) {}
+
+    Page<ProductView> searchWithRating(String query, String category, Pageable pageable);
+
+    Optional<ProductView> findByIdWithRating(Long id);
 }

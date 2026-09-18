@@ -36,16 +36,16 @@ public class ProductController {
     private final ProductService productService;
 
     @GetMapping
-    public Page<Product> search(
+    public Page<ProductService.ProductView> search(
             @RequestParam(required = false) String query,
             @RequestParam(required = false) String category,
             Pageable pageable) {
-        return productService.search(query, category, pageable);
+        return productService.searchWithRating(query, category, pageable);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Product> getById(@PathVariable Long id) {
-        return productService.findById(id)
+    public ResponseEntity<ProductService.ProductView> getById(@PathVariable Long id) {
+        return productService.findByIdWithRating(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

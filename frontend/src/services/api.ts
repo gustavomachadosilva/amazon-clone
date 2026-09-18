@@ -70,6 +70,8 @@ export interface Product {
   category: string
   sellerId: number
   imageUrl?: string
+  averageRating: number
+  reviewCount: number
 }
 
 export interface Page<T> {
@@ -244,4 +246,29 @@ export const cartApi = {
   moveToCart: (userId: number, productId: number) =>
     api.post<CartView>(`/api/cart/${userId}/items/${productId}/move-to-cart`, undefined),
   clear: (userId: number) => api.delete<CartView>(`/api/cart/${userId}`),
+}
+
+export interface ReviewView {
+  id: number
+  productId: number
+  authorId: number
+  authorName: string
+  stars: number
+  title: string
+  text: string
+  helpfulCount: number
+  createdAt: string
+}
+
+export interface CreateReviewPayload {
+  stars: number
+  title: string
+  text: string
+}
+
+export const reviewsApi = {
+  listByProduct: (productId: number) => api.get<ReviewView[]>(`/api/reviews/products/${productId}`),
+  create: (productId: number, payload: CreateReviewPayload) =>
+    api.post<ReviewView>(`/api/reviews/products/${productId}`, payload),
+  markHelpful: (reviewId: number) => api.post<ReviewView>(`/api/reviews/${reviewId}/helpful`, undefined),
 }

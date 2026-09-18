@@ -3,6 +3,7 @@ package com.mercatto.catalog.service;
 import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.repository.ProductRepository;
 import com.mercatto.catalog.service.ProductNotFoundException;
+import com.mercatto.reviews.service.ReviewService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,6 +31,9 @@ class ProductServiceImplTest {
 
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private ReviewService reviewService;
 
     @InjectMocks
     private ProductServiceImpl productService;
@@ -194,5 +199,54 @@ class ProductServiceImplTest {
                 .isInstanceOf(ProductNotFoundException.class);
 
         verify(productRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void searchWithRatingEnrichesEachProductUsingBatchAggregates() {
+        Pageable pageable = Pageable.unpaged();
+        Product product1 = Product.builder().id(1L).name("Widget").price(BigDecimal.TEN).stockQuantity(5)
+                .category("tools").build();
+        Product product2 = Product.builder().id(2L).name("Gadget").price(BigDecimal.ONE).stockQuantity(3)
+                .category("tools").build();
+        Page<Product> page = new PageImpl<>(List.of(product1, product2));
+        when(productRepository.search("query", "category", pageable)).thenReturn(page);
+        when(reviewService.getAggregates(List.of(1L, 2L))).thenReturn(Map.of(
+                1L, new ReviewService.RatingAggregate(1L, 4.5, 2L),
+                2L, ReviewService.RatingAggregate.empty(2L)));
+
+        Page<ProductService.ProductView> result = productService.searchWithRating("query", "category", pageable);
+
+        assertThat(result.getContent()).hasSize(2);
+        ProductService.ProductView view1 = result.getContent().get(0);
+        assertThat(view1.id()).isEqualTo(1L);
+        assertThat(view1.averageRating()).isEqualTo(4.5);
+        assertThat(view1.reviewCount()).isEqualTo(2L);
+
+        ProductService.ProductView view2 = result.getContent().get(1);
+        assertThat(view2.averageRating()).isEqualTo(0.0);
+        assertThat(view2.reviewCount()).isEqualTo(0L);
+
+        verify(reviewService).getAggregates(List.of(1L, 2L));
+    }
+
+    @Test
+    void findByIdWithRatingReturnsEmptyWhenProductNotFound() {
+        when(productRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThat(productService.findByIdWithRating(1L)).isEmpty();
+    }
+
+    @Test
+    void findByIdWithRatingUsesSingleAggregateCall() {
+        Product product = Product.builder().id(1L).name("Widget").price(BigDecimal.TEN).stockQuantity(5)
+                .category("tools").build();
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(reviewService.getAggregate(1L)).thenReturn(new ReviewService.RatingAggregate(1L, 3.0, 4L));
+
+        Optional<ProductService.ProductView> result = productService.findByIdWithRating(1L);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().averageRating()).isEqualTo(3.0);
+        assertThat(result.get().reviewCount()).isEqualTo(4L);
     }
 }
