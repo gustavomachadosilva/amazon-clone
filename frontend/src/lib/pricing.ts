@@ -11,9 +11,9 @@ export interface CheckoutTotals {
 
 export function computeCheckoutTotals(
   subtotal: number,
-  shippingMethod: 'standard' | 'express' | 'pickup',
+  shippingMethod: 'STANDARD' | 'EXPRESS' | 'PICKUP',
 ): CheckoutTotals {
-  const shipping = shippingMethod === 'express' ? 9.99 : 0
+  const shipping = shippingMethod === 'EXPRESS' ? 9.99 : 0
   const discount = subtotal > 150 ? subtotal * 0.05 : 0
   const tax = (subtotal - discount) * 0.089
   const total = subtotal + shipping + tax - discount

@@ -3,6 +3,9 @@ package com.mercatto.orders.api;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mercatto.orders.domain.Order;
 import com.mercatto.orders.domain.OrderStatus;
+import com.mercatto.orders.domain.PaymentMethod;
+import com.mercatto.orders.domain.ShippingAddress;
+import com.mercatto.orders.domain.ShippingMethod;
 import com.mercatto.orders.service.OrderService;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.AuthenticatedUser;
@@ -10,6 +13,7 @@ import com.mercatto.users.service.TokenService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -21,9 +25,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -52,28 +58,60 @@ class OrderControllerTest {
     @MockBean
     private TokenService tokenService;
 
+    private static ShippingAddress testAddress() {
+        return ShippingAddress.builder()
+                .fullName("Ada Lovelace")
+                .street("1578 Union Street, Apt 92")
+                .city("Seattle")
+                .state("WA")
+                .zip("98104")
+                .build();
+    }
+
     @Test
     void checkoutWithValidRequest_returns200() throws Exception {
-        Order order = Order.builder().id(1L).buyerId(10L).status(OrderStatus.PAID).totalAmount(BigDecimal.TEN).build();
-        when(orderService.checkout(anyLong(), anyList(), any())).thenReturn(order);
+        Order order = Order.builder()
+                .id(1L)
+                .buyerId(10L)
+                .status(OrderStatus.PAID)
+                .totalAmount(BigDecimal.TEN)
+                .address(testAddress())
+                .shippingMethod(ShippingMethod.STANDARD)
+                .paymentMethod(PaymentMethod.CARD)
+                .build();
+        when(orderService.checkout(anyLong(), anyList(), any(), any(), any(), any())).thenReturn(order);
 
         OrderController.CheckoutRequest request = new OrderController.CheckoutRequest(
-                List.of(new OrderService.CheckoutItem(1L, 2)));
+                List.of(new OrderService.CheckoutItem(1L, 2)), testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD);
 
         mockMvc.perform(post("/api/orders/checkout")
                         .contentType("application/json")
                         .principal(BUYER)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1));
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.address.fullName").value("Ada Lovelace"))
+                .andExpect(jsonPath("$.address.street").value("1578 Union Street, Apt 92"))
+                .andExpect(jsonPath("$.address.city").value("Seattle"))
+                .andExpect(jsonPath("$.address.state").value("WA"))
+                .andExpect(jsonPath("$.address.zip").value("98104"))
+                .andExpect(jsonPath("$.shippingMethod").value("STANDARD"))
+                .andExpect(jsonPath("$.paymentMethod").value("CARD"));
 
-        verify(orderService).checkout(anyLong(), anyList(), any());
+        ArgumentCaptor<ShippingAddress> addressCaptor = ArgumentCaptor.forClass(ShippingAddress.class);
+        verify(orderService).checkout(
+                eq(10L), anyList(), any(), addressCaptor.capture(), eq(ShippingMethod.STANDARD), eq(PaymentMethod.CARD));
+        assertThat(addressCaptor.getValue().getFullName()).isEqualTo("Ada Lovelace");
+        assertThat(addressCaptor.getValue().getStreet()).isEqualTo("1578 Union Street, Apt 92");
+        assertThat(addressCaptor.getValue().getCity()).isEqualTo("Seattle");
+        assertThat(addressCaptor.getValue().getState()).isEqualTo("WA");
+        assertThat(addressCaptor.getValue().getZip()).isEqualTo("98104");
     }
 
     @Test
     void checkoutAsSeller_returns403() throws Exception {
         OrderController.CheckoutRequest request = new OrderController.CheckoutRequest(
-                List.of(new OrderService.CheckoutItem(1L, 2)));
+                List.of(new OrderService.CheckoutItem(1L, 2)), testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD);
 
         mockMvc.perform(post("/api/orders/checkout")
                         .contentType("application/json")
@@ -87,11 +125,28 @@ class OrderControllerTest {
     static Stream<OrderController.CheckoutRequest> invalidRequests() {
         return Stream.of(
                 // items empty
-                new OrderController.CheckoutRequest(List.of()),
+                new OrderController.CheckoutRequest(List.of(), testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD),
                 // item quantity <= 0
-                new OrderController.CheckoutRequest(List.of(new OrderService.CheckoutItem(1L, 0))),
+                new OrderController.CheckoutRequest(
+                        List.of(new OrderService.CheckoutItem(1L, 0)), testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD),
                 // item productId null
-                new OrderController.CheckoutRequest(List.of(new OrderService.CheckoutItem(null, 2)))
+                new OrderController.CheckoutRequest(
+                        List.of(new OrderService.CheckoutItem(null, 2)), testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD),
+                // address missing entirely
+                new OrderController.CheckoutRequest(
+                        List.of(new OrderService.CheckoutItem(1L, 2)), null, ShippingMethod.STANDARD, PaymentMethod.CARD),
+                // address field blank
+                new OrderController.CheckoutRequest(
+                        List.of(new OrderService.CheckoutItem(1L, 2)),
+                        ShippingAddress.builder().fullName("").street("Street").city("City").state("ST").zip("00000").build(),
+                        ShippingMethod.STANDARD,
+                        PaymentMethod.CARD),
+                // shippingMethod missing
+                new OrderController.CheckoutRequest(
+                        List.of(new OrderService.CheckoutItem(1L, 2)), testAddress(), null, PaymentMethod.CARD),
+                // paymentMethod missing
+                new OrderController.CheckoutRequest(
+                        List.of(new OrderService.CheckoutItem(1L, 2)), testAddress(), ShippingMethod.STANDARD, null)
         );
     }
 

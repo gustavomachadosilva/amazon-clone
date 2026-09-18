@@ -33,15 +33,15 @@ export const DEFAULT_ADDRESS = {
 }
 
 export const SHIPPING_OPTIONS = {
-  standard: 'Standard — 3 to 5 business days',
-  express: 'Express — arrives tomorrow',
-  pickup: 'Pick up at a partner locker',
+  STANDARD: 'Standard — 3 to 5 business days',
+  EXPRESS: 'Express — arrives tomorrow',
+  PICKUP: 'Pick up at a partner locker',
 } as const
 
 export const PAYMENT_OPTIONS = {
-  card: 'Credit card ending in 4417',
-  store: 'Store card — 5% back',
-  gift: 'Gift card balance',
+  CARD: 'Credit card ending in 4417',
+  STORE: 'Store card — 5% back',
+  GIFT: 'Gift card balance',
 } as const
 
 export const RELATED_REASONS = [

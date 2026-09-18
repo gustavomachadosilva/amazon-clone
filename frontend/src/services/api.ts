@@ -144,12 +144,26 @@ export interface OrderItem {
   unitPrice: number
 }
 
+export interface OrderAddress {
+  fullName: string
+  street: string
+  city: string
+  state: string
+  zip: string
+}
+
+export type ShippingMethod = 'STANDARD' | 'EXPRESS' | 'PICKUP'
+export type PaymentMethod = 'CARD' | 'STORE' | 'GIFT'
+
 export interface Order {
   id: number
   buyerId: number
   status: OrderStatus
   totalAmount: number
   items: OrderItem[]
+  address: OrderAddress
+  shippingMethod: ShippingMethod
+  paymentMethod: PaymentMethod
   createdAt: string
 }
 
@@ -158,11 +172,18 @@ export interface CheckoutItem {
   quantity: number
 }
 
+export interface CheckoutPayload {
+  items: CheckoutItem[]
+  address: OrderAddress
+  shippingMethod: ShippingMethod
+  paymentMethod: PaymentMethod
+}
+
 export const ordersApi = {
-  checkout: (items: CheckoutItem[], idempotencyKey?: string) =>
+  checkout: (payload: CheckoutPayload, idempotencyKey?: string) =>
     api.post<Order>(
       '/api/orders/checkout',
-      { items },
+      payload,
       idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
     ),
   getById: (id: number) => api.get<Order>(`/api/orders/${id}`),
