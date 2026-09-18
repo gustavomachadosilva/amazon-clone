@@ -135,7 +135,7 @@ export const sellersApi = {
   getMetrics: (sellerId: number) => api.get<SellerMetrics>(`/api/sellers/${sellerId}/metrics`),
 }
 
-export type OrderStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED'
+export type OrderStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'FAILED' | 'CANCELLED'
 
 export interface OrderItem {
   id: number

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { X } from 'lucide-react'
 import {
   catalogApi,
   Product,
@@ -22,6 +23,7 @@ type Tab = 'products' | 'orders'
 const STATUS_STYLES: Record<SellerOrder['status'], string> = {
   PAID: 'bg-accent2-100 text-accent2-800',
   PENDING: 'bg-neutral-100 text-neutral-700',
+  PROCESSING: 'bg-neutral-100 text-neutral-700',
   FAILED: 'bg-accent-100 text-accent-800',
   CANCELLED: 'bg-accent-100 text-accent-800',
 }
@@ -104,7 +106,7 @@ export default function SellerDashboard() {
   return (
     <div className="p-4 md:p-6">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold">Seller Dashboard</h1>
+        <h1>Seller Dashboard</h1>
         {activeTab === 'products' && (
           <Button variant="primary" onClick={openNewProductForm}>
             New product
@@ -131,20 +133,10 @@ export default function SellerDashboard() {
       )}
 
       {feedback && (
-        <div
-          className={`mb-4 rounded-md text-sm px-3 py-2 flex items-center justify-between ${
-            feedback.type === 'success' ? 'bg-accent2-100 text-accent2-800' : 'bg-accent-100 text-accent-800'
-          }`}
-          role="status"
-        >
+        <div className={`mb-4 ${feedback.type === 'success' ? 'callout-ok' : 'callout-alert'}`} role="status">
           <span>{feedback.message}</span>
-          <button
-            type="button"
-            onClick={() => setFeedback(null)}
-            aria-label="Dismiss"
-            className="ml-4 text-inherit"
-          >
-            ×
+          <button type="button" onClick={() => setFeedback(null)} aria-label="Dismiss" className="text-inherit">
+            <X size={18} strokeWidth={1.5} />
           </button>
         </div>
       )}
@@ -199,8 +191,8 @@ export default function SellerDashboard() {
               {products.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>{product.name}</TableCell>
-                  <TableCell>{product.stockQuantity}</TableCell>
-                  <TableCell>{usd(product.price)}</TableCell>
+                  <TableCell className="readout">{product.stockQuantity}</TableCell>
+                  <TableCell className="readout font-semibold">{usd(product.price)}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button variant="secondary" onClick={() => openEditForm(product)}>

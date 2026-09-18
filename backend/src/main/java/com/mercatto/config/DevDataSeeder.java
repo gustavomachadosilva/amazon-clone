@@ -1,7 +1,8 @@
 package com.mercatto.config;
 
-import com.mercatto.catalog.service.DummyJsonSeeder;
+import com.mercatto.catalog.service.AmazonProductSeeder;
 import com.mercatto.users.domain.User;
+import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.UserSeeder;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Profile;
@@ -12,7 +13,7 @@ import java.util.List;
 
 /**
  * Orchestrates local-development seeding across modules: users first, then catalog products
- * attached to the seed seller. Only active on the {@code dev} profile — never runs in
+ * distributed across the seed sellers. Only active on the {@code dev} profile — never runs in
  * production.
  *
  * <p>Lives outside the {@code users}/{@code catalog} module packages (rather than inside either
@@ -21,7 +22,7 @@ import java.util.List;
  * violate the "no transaction spans two modules" rule: {@link #seedDevData()} itself is not
  * {@code @Transactional} — each call it makes ({@code userSeeder.seed()}, which registers users
  * one at a time within {@code users}' own transactions, and
- * {@code dummyJsonSeeder.seedProducts(..)}, transactional within {@code catalog}) opens and
+ * {@code amazonProductSeeder.seedProducts(..)}, transactional within {@code catalog}) opens and
  * commits its own transaction, sequentially.
  */
 @Component
@@ -29,21 +30,23 @@ import java.util.List;
 public class DevDataSeeder {
 
     private final UserSeeder userSeeder;
-    private final DummyJsonSeeder dummyJsonSeeder;
+    private final AmazonProductSeeder amazonProductSeeder;
 
-    public DevDataSeeder(UserSeeder userSeeder, DummyJsonSeeder dummyJsonSeeder) {
+    public DevDataSeeder(UserSeeder userSeeder, AmazonProductSeeder amazonProductSeeder) {
         this.userSeeder = userSeeder;
-        this.dummyJsonSeeder = dummyJsonSeeder;
+        this.amazonProductSeeder = amazonProductSeeder;
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void seedDevData() {
         List<User> users = userSeeder.seed();
-        Long sellerId = users.stream()
-                .filter(u -> u.getEmail().equals(UserSeeder.DEFAULT_SELLER_EMAIL))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Seller de seed padrão não encontrado após seedDevData"))
-                .getId();
-        dummyJsonSeeder.seedProducts(sellerId);
+        List<Long> sellerIds = users.stream()
+                .filter(u -> u.getRole() == UserRole.SELLER)
+                .map(User::getId)
+                .toList();
+        if (sellerIds.isEmpty()) {
+            throw new IllegalStateException("Nenhum seller de seed encontrado após seedDevData");
+        }
+        amazonProductSeeder.seedProducts(sellerIds);
     }
 }

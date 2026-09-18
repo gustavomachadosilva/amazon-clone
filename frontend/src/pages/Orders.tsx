@@ -25,7 +25,7 @@ export default function Orders() {
 
   if (!user) {
     return (
-      <div className="mx-auto max-w-[1080px] px-4 py-4 text-center md:px-6 md:py-6">
+      <div className="mx-auto max-w-[1320px] px-4 py-4 text-center md:px-6 md:py-6">
         <h1>Sign in to see your orders</h1>
         <Button variant="primary" onClick={() => navigate('/signin')}>
           Sign in
@@ -35,9 +35,9 @@ export default function Orders() {
   }
 
   return (
-    <div className="mx-auto max-w-[1080px] px-4 py-4 md:px-6 md:py-6">
+    <div className="mx-auto max-w-[1320px] px-4 py-4 md:px-6 md:py-6">
       <h1>Your orders</h1>
-      <p className="text-[13px] text-[#5d5d60]">{orders.length} order(s) placed in the last 6 months</p>
+      <p className="text-[16.5px] text-paper-700">{orders.length} order(s) placed in the last 6 months</p>
 
       {orders.length === 0 ? (
         <div className="p-10 text-center">
@@ -57,21 +57,21 @@ export default function Orders() {
               <Blueprint key={order.id} className="p-0">
                 <div className="grid grid-cols-2 gap-3 bg-surface p-4 text-xs sm:grid-cols-[1fr_1fr_1fr_auto] sm:gap-4">
                   <div>
-                    <div className="uppercase tracking-[.1em] text-[#7a7a7d]">Order placed</div>
+                    <div className="uppercase tracking-[.1em] text-paper-600">Order placed</div>
                     <div>{new Date(order.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
                   </div>
                   <div>
-                    <div className="uppercase tracking-[.1em] text-[#7a7a7d]">Total</div>
-                    <div>{usd(order.totalAmount)}</div>
+                    <div className="uppercase tracking-[.1em] text-paper-600">Total</div>
+                    <div className="readout font-semibold">{usd(order.totalAmount)}</div>
                   </div>
                   <div>
-                    <div className="uppercase tracking-[.1em] text-[#7a7a7d]">Ship to</div>
+                    <div className="uppercase tracking-[.1em] text-paper-600">Ship to</div>
                     <div>{user.name}</div>
                   </div>
                   <div className="sm:text-right">Order #{order.id}</div>
                 </div>
                 <div className="p-4">
-                  <div className="h mb-3 text-[19px] text-accent-700">
+                  <div className="h mb-3 text-[24px] text-accent-700">
                     {anyFast ? 'Arriving tomorrow' : `Arriving ${DELIVERY_DATE_LABEL}`}
                   </div>
                   {order.items.map((item) => {
@@ -97,8 +97,8 @@ export default function Orders() {
                           >
                             {product?.name ?? `Product #${item.productId}`}
                           </div>
-                          <div className="text-xs text-[#7a7a7d]">
-                            Qty {item.quantity} · {usd(item.unitPrice)}
+                          <div className="text-xs text-paper-600">
+                            Qty {item.quantity} · <span className="readout">{usd(item.unitPrice)}</span>
                           </div>
                         </div>
                         <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1">

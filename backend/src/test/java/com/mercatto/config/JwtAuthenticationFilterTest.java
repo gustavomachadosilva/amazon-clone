@@ -40,6 +40,18 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void publicPath_categories_withoutHeader_callsChain() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/catalog/categories");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(chain.getRequest()).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(200);
+    }
+
+    @Test
     void protectedPath_withoutHeader_returns401AndDoesNotCallChain() throws ServletException, IOException {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/orders");
         MockHttpServletResponse response = new MockHttpServletResponse();

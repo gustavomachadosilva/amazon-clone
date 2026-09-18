@@ -22,7 +22,7 @@ export default function OrderConfirmation() {
     ordersApi.getById(Number(id)).then(setOrder)
   }, [id])
 
-  if (!order) return <div className="mx-auto max-w-[820px] px-4 py-4 md:px-6 md:py-6">Loading…</div>
+  if (!order) return <div className="mx-auto max-w-[900px] px-4 py-4 md:px-6 md:py-6">Loading…</div>
 
   const state = (location.state as LocationState) ?? {}
   const shippingLabel = state.shippingLabel ?? SHIPPING_OPTIONS.standard
@@ -30,11 +30,14 @@ export default function OrderConfirmation() {
   const address = `${DEFAULT_ADDRESS.street}, ${DEFAULT_ADDRESS.city} ${DEFAULT_ADDRESS.state} ${DEFAULT_ADDRESS.zip}`
 
   return (
-    <div className="mx-auto max-w-[820px] px-4 py-4 md:px-6 md:py-6">
+    <div className="mx-auto max-w-[900px] px-4 py-4 md:px-6 md:py-6">
       <Blueprint className="p-5 md:p-[34px]">
-        <div className="kick">Order {order.id}</div>
-        <h1 className="text-[28px] md:text-[40px]">Order placed, thanks.</h1>
-        <p className="text-[#5d5d60]">
+        <h1 className="text-[38px] md:text-[54px]">Order placed, thanks.</h1>
+        <div className="mb-2 flex flex-wrap items-center gap-2.5">
+          <span className="stamp">Manifest #{order.id}</span>
+          <span className="tag tag-accent-2">Logged for dispatch</span>
+        </div>
+        <p className="text-paper-700">
           A confirmation was sent to {user?.email ?? 'you'}. Arriving Thursday, August 13.
         </p>
 
@@ -43,7 +46,7 @@ export default function OrderConfirmation() {
             <TableBody>
               <TableRow>
                 <TableCell>Order total</TableCell>
-                <TableCell>{usd(order.totalAmount)}</TableCell>
+                <TableCell className="readout font-semibold">{usd(order.totalAmount)}</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell>Payment</TableCell>
