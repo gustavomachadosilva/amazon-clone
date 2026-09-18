@@ -70,6 +70,10 @@ export interface Product {
   category: string
   sellerId: number
   imageUrl?: string
+  brand: string | null
+  warrantyMonths: number | null
+  modelNumber: string | null
+  listPrice: number | null
   averageRating: number
   reviewCount: number
 }
@@ -92,6 +96,10 @@ export interface ProductInput {
   stockQuantity: number
   category: string
   imageUrl?: string
+  brand?: string
+  warrantyMonths?: number
+  modelNumber?: string
+  listPrice?: number
 }
 
 export const catalogApi = {

@@ -3,7 +3,7 @@ import { Button, Blueprint, Placeholder, StarRating } from './ui'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { truncate, usd } from '../lib/format'
-import { deriveDeliveryLabel, deriveListPrice } from '../lib/mockProductMeta'
+import { deriveDeliveryLabel } from '../lib/mockProductMeta'
 import { onEnterKey } from '../lib/a11y'
 import type { Product } from '../services/api'
 
@@ -17,7 +17,7 @@ export default function ProductGridCard({ product, compact = false }: ProductGri
   const { user } = useAuth()
   const cart = useCart()
 
-  const listPrice = deriveListPrice(product)
+  const hasDiscount = product.listPrice !== null && product.listPrice > product.price
 
   function open() {
     navigate(`/product/${product.id}`)
@@ -78,8 +78,8 @@ export default function ProductGridCard({ product, compact = false }: ProductGri
             <span className={`readout font-semibold text-foreground ${compact ? 'text-[25px]' : 'text-[29px]'}`}>
               {usd(product.price)}
             </span>
-            {listPrice > product.price && (
-              <span className="readout text-[15px] text-paper-500 line-through">{usd(listPrice)}</span>
+            {hasDiscount && (
+              <span className="readout text-[15px] text-paper-500 line-through">{usd(product.listPrice as number)}</span>
             )}
           </div>
           <span className={`stamp ${lowStock ? 'stamp-alert' : ''}`}>

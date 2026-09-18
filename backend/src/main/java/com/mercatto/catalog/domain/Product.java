@@ -48,6 +48,23 @@ public class Product {
     @Column(name = "image_url", length = 1000)
     private String imageUrl;
 
+    // Nullable: not every product has a known brand, model, list price or warranty term.
+    // Editable per-product by the owning seller (see ProductServiceImpl#create/update).
+    @Column(length = 255)
+    private String brand;
+
+    @Column(name = "warranty_months")
+    private Integer warrantyMonths;
+
+    @Column(name = "model_number", length = 255)
+    private String modelNumber;
+
+    // Reference "was" price used to compute a strikethrough discount. Only meaningful when
+    // greater than price — enforced in ProductServiceImpl, not at the column level, so an
+    // in-flight edit that clears/adjusts price doesn't get rejected by a DB constraint.
+    @Column(name = "list_price")
+    private BigDecimal listPrice;
+
     // Reference by id only, never a JPA relationship: the Users module owns
     // the Seller aggregate and this module must not join across schemas.
     @Column(name = "seller_id", nullable = false)

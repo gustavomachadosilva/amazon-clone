@@ -82,13 +82,54 @@ class ProductServiceImplTest {
 
     @Test
     void createSavesProduct() {
-        Product product = Product.builder().name("Widget").build();
+        Product product = Product.builder().name("Widget").price(BigDecimal.TEN).warrantyMonths(24).build();
         Product saved = Product.builder().id(1L).name("Widget").build();
         when(productRepository.save(product)).thenReturn(saved);
 
         Product result = productService.create(product);
 
         assertThat(result).isEqualTo(saved);
+    }
+
+    @Test
+    void createDefaultsWarrantyMonthsTo12WhenOmitted() {
+        Product product = Product.builder().name("Widget").price(BigDecimal.TEN).build();
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Product result = productService.create(product);
+
+        assertThat(result.getWarrantyMonths()).isEqualTo(12);
+    }
+
+    @Test
+    void createKeepsExplicitWarrantyMonths() {
+        Product product = Product.builder().name("Widget").price(BigDecimal.TEN).warrantyMonths(36).build();
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Product result = productService.create(product);
+
+        assertThat(result.getWarrantyMonths()).isEqualTo(36);
+    }
+
+    @Test
+    void createThrowsWhenListPriceIsNotGreaterThanPrice() {
+        Product product = Product.builder().name("Widget").price(BigDecimal.TEN).listPrice(BigDecimal.TEN).build();
+
+        assertThatThrownBy(() -> productService.create(product))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    void createAllowsListPriceGreaterThanPrice() {
+        Product product = Product.builder().name("Widget").price(BigDecimal.TEN)
+                .listPrice(BigDecimal.valueOf(15)).build();
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Product result = productService.create(product);
+
+        assertThat(result.getListPrice()).isEqualByComparingTo(BigDecimal.valueOf(15));
     }
 
     @Test
@@ -155,6 +196,10 @@ class ProductServiceImplTest {
                 .stockQuantity(5)
                 .category("new-category")
                 .imageUrl("http://new")
+                .brand("NewBrand")
+                .warrantyMonths(24)
+                .modelNumber("MDL-2")
+                .listPrice(BigDecimal.valueOf(15))
                 .build();
 
         Product result = productService.update(1L, changes);
@@ -165,6 +210,10 @@ class ProductServiceImplTest {
         assertThat(result.getStockQuantity()).isEqualTo(5);
         assertThat(result.getCategory()).isEqualTo("new-category");
         assertThat(result.getImageUrl()).isEqualTo("http://new");
+        assertThat(result.getBrand()).isEqualTo("NewBrand");
+        assertThat(result.getWarrantyMonths()).isEqualTo(24);
+        assertThat(result.getModelNumber()).isEqualTo("MDL-2");
+        assertThat(result.getListPrice()).isEqualByComparingTo(BigDecimal.valueOf(15));
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getSellerId()).isEqualTo(10L);
         assertThat(result.getCreatedAt()).isEqualTo(createdAt);
@@ -180,6 +229,17 @@ class ProductServiceImplTest {
 
         assertThatThrownBy(() -> productService.update(1L, changes))
                 .isInstanceOf(ProductNotFoundException.class);
+    }
+
+    @Test
+    void updateThrowsWhenListPriceIsNotGreaterThanPrice() {
+        Product changes = Product.builder().name("New name").price(BigDecimal.TEN)
+                .listPrice(BigDecimal.valueOf(9)).build();
+
+        assertThatThrownBy(() -> productService.update(1L, changes))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(productRepository, never()).save(any());
     }
 
     @Test

@@ -9,15 +9,7 @@ import { catalogApi, reviewsApi, type Product as ProductType, type ReviewView } 
 import { usd } from '../lib/format'
 import { installmentLine } from '../lib/pricing'
 import { RATING_DISTRIBUTION, RELATED_REASONS, ALSO_VIEWED_SHARES, STORE_NAME } from '../lib/constants'
-import {
-  deriveBrandLabel,
-  deriveDeliveryLabel,
-  deriveDiscountPct,
-  deriveListPrice,
-  deriveModelNumber,
-  deriveStockLabel,
-  WARRANTY_LABEL,
-} from '../lib/mockProductMeta'
+import { deriveDeliveryLabel, deriveStockLabel } from '../lib/mockProductMeta'
 import { onEnterKey } from '../lib/a11y'
 
 export default function Product() {
@@ -94,14 +86,16 @@ export default function Product() {
   if (!product) return <div className="w-full px-4 py-4 md:px-8 md:py-6 lg:px-10">Loading…</div>
 
   const rating = product.averageRating
-  const listPrice = deriveListPrice(product)
-  const discountPct = deriveDiscountPct(product)
+  const hasDiscount = product.listPrice !== null && product.listPrice > product.price
+  const discountPct = hasDiscount
+    ? Math.round((1 - product.price / (product.listPrice as number)) * 100)
+    : 0
   const bullets = [
     product.description,
-    '12-month manufacturer warranty included.',
-    `Compatible with the main accessories in the ${deriveBrandLabel(product)} line.`,
+    product.warrantyMonths != null ? `${product.warrantyMonths}-month manufacturer warranty included.` : null,
+    product.brand ? `Compatible with the main accessories in the ${product.brand} line.` : null,
     'Ships in recyclable, single-box packaging.',
-  ]
+  ].filter((bullet): bullet is string => Boolean(bullet))
 
   const alsoViewed = related.slice(0, 6)
   const recommended = related.slice(0, 4)
@@ -196,7 +190,9 @@ export default function Product() {
           <h1 className="text-[38px] leading-[1.15] md:text-[48px]">{product.name}</h1>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className="tag tag-accent-2">{product.category}</span>
-            <span className="text-[16.5px] text-accent-700">Visit the {deriveBrandLabel(product)} store</span>
+            {product.brand && (
+              <span className="text-[16.5px] text-accent-700">Visit the {product.brand} store</span>
+            )}
           </div>
 
           <div className="mb-3 flex items-center gap-2">
@@ -209,12 +205,12 @@ export default function Product() {
           <div className="hr" />
 
           <div className="my-3 flex flex-wrap items-baseline gap-2.5">
-            {discountPct > 0 && (
+            {hasDiscount && discountPct > 0 && (
               <span className="h text-2xl text-accent-800">-{discountPct}%</span>
             )}
             <span className="readout text-4xl font-semibold">{usd(product.price)}</span>
-            {listPrice > product.price && (
-              <span className="text-sm text-paper-500 line-through">Typical price: {usd(listPrice)}</span>
+            {hasDiscount && (
+              <span className="text-sm text-paper-500 line-through">Typical price: {usd(product.listPrice as number)}</span>
             )}
           </div>
           <div className="text-[16px] text-paper-700">{installmentLine(product.price)}</div>
@@ -231,24 +227,30 @@ export default function Product() {
             <h3 className="text-[22px]">Technical specifications</h3>
             <Table>
               <TableBody>
+                {product.brand && (
+                  <TableRow>
+                    <TableCell className="w-[140px]">Brand</TableCell>
+                    <TableCell>{product.brand}</TableCell>
+                  </TableRow>
+                )}
+                {product.modelNumber && (
+                  <TableRow>
+                    <TableCell className="w-[140px]">Model</TableCell>
+                    <TableCell>{product.modelNumber}</TableCell>
+                  </TableRow>
+                )}
                 <TableRow>
-                  <TableCell className="w-[140px]">Brand</TableCell>
-                  <TableCell>{deriveBrandLabel(product)}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Model</TableCell>
-                  <TableCell>{deriveModelNumber(product)}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Category</TableCell>
+                  <TableCell className="w-[140px]">Category</TableCell>
                   <TableCell>{product.category}</TableCell>
                 </TableRow>
+                {product.warrantyMonths != null && (
+                  <TableRow>
+                    <TableCell className="w-[140px]">Warranty</TableCell>
+                    <TableCell>{product.warrantyMonths}-month limited warranty</TableCell>
+                  </TableRow>
+                )}
                 <TableRow>
-                  <TableCell>Warranty</TableCell>
-                  <TableCell>{WARRANTY_LABEL}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Sold by</TableCell>
+                  <TableCell className="w-[140px]">Sold by</TableCell>
                   <TableCell>{STORE_NAME}</TableCell>
                 </TableRow>
               </TableBody>
@@ -335,7 +337,8 @@ export default function Product() {
 
           <div className="hr" />
           <div className="text-xs leading-relaxed text-paper-700">
-            Free returns within 30 days · Secure payment · 12-month warranty
+            Free returns within 30 days · Secure payment
+            {product.warrantyMonths != null ? ` · ${product.warrantyMonths}-month warranty` : ''}
           </div>
         </Blueprint>
       </div>

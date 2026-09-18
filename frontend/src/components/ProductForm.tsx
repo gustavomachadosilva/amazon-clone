@@ -17,6 +17,10 @@ interface FormState {
   stockQuantity: string
   category: string
   imageUrl: string
+  brand: string
+  modelNumber: string
+  listPrice: string
+  warrantyMonths: string
 }
 
 interface FormErrors {
@@ -26,6 +30,10 @@ interface FormErrors {
   stockQuantity?: string
   category?: string
   imageUrl?: string
+  brand?: string
+  modelNumber?: string
+  listPrice?: string
+  warrantyMonths?: string
 }
 
 function buildInitialState(product?: Product): FormState {
@@ -36,6 +44,10 @@ function buildInitialState(product?: Product): FormState {
     stockQuantity: product?.stockQuantity !== undefined ? String(product.stockQuantity) : '',
     category: product?.category ?? '',
     imageUrl: product?.imageUrl ?? '',
+    brand: product?.brand ?? '',
+    modelNumber: product?.modelNumber ?? '',
+    listPrice: product?.listPrice != null ? String(product.listPrice) : '',
+    warrantyMonths: product?.warrantyMonths != null ? String(product.warrantyMonths) : '',
   }
 }
 
@@ -69,6 +81,8 @@ export default function ProductForm({
     const description = form.description.trim()
     const category = form.category.trim()
     const imageUrl = form.imageUrl.trim()
+    const brand = form.brand.trim()
+    const modelNumber = form.modelNumber.trim()
 
     if (!name) {
       nextErrors.name = 'Name is required.'
@@ -102,6 +116,34 @@ export default function ProductForm({
       nextErrors.imageUrl = 'Image URL must be at most 1000 characters.'
     }
 
+    if (brand.length > 255) {
+      nextErrors.brand = 'Brand must be at most 255 characters.'
+    }
+
+    if (modelNumber.length > 255) {
+      nextErrors.modelNumber = 'Model number must be at most 255 characters.'
+    }
+
+    let listPrice: number | undefined
+    if (form.listPrice.trim() !== '') {
+      listPrice = Number(form.listPrice)
+      if (Number.isNaN(listPrice)) {
+        nextErrors.listPrice = 'List price must be a number.'
+      } else if (listPrice <= 0) {
+        nextErrors.listPrice = 'List price must be greater than zero.'
+      } else if (!Number.isNaN(price) && listPrice <= price) {
+        nextErrors.listPrice = 'List price must be greater than the price.'
+      }
+    }
+
+    let warrantyMonths: number | undefined
+    if (form.warrantyMonths.trim() !== '') {
+      warrantyMonths = Number(form.warrantyMonths)
+      if (!Number.isInteger(warrantyMonths) || warrantyMonths < 0) {
+        nextErrors.warrantyMonths = 'Warranty must be a whole number of months, zero or more.'
+      }
+    }
+
     if (Object.keys(nextErrors).length > 0) {
       return { errors: nextErrors, input: null }
     }
@@ -115,6 +157,10 @@ export default function ProductForm({
         stockQuantity,
         category,
         imageUrl: imageUrl || undefined,
+        brand: brand || undefined,
+        modelNumber: modelNumber || undefined,
+        listPrice,
+        warrantyMonths,
       },
     }
   }
@@ -197,6 +243,42 @@ export default function ProductForm({
           value={form.stockQuantity}
           onChange={(e) => setForm((f) => ({ ...f, stockQuantity: e.target.value }))}
           error={errors.stockQuantity}
+        />
+
+        <Input
+          label="Brand (optional)"
+          value={form.brand}
+          onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
+          error={errors.brand}
+          maxLength={255}
+        />
+
+        <Input
+          label="Model number (optional)"
+          value={form.modelNumber}
+          onChange={(e) => setForm((f) => ({ ...f, modelNumber: e.target.value }))}
+          error={errors.modelNumber}
+          maxLength={255}
+        />
+
+        <Input
+          label="List price (optional, must exceed price)"
+          type="number"
+          step="0.01"
+          min="0"
+          value={form.listPrice}
+          onChange={(e) => setForm((f) => ({ ...f, listPrice: e.target.value }))}
+          error={errors.listPrice}
+        />
+
+        <Input
+          label="Warranty (months, optional)"
+          type="number"
+          step="1"
+          min="0"
+          value={form.warrantyMonths}
+          onChange={(e) => setForm((f) => ({ ...f, warrantyMonths: e.target.value }))}
+          error={errors.warrantyMonths}
         />
 
         <Input

@@ -60,17 +60,20 @@ class ProductControllerTest {
 
     private static ProductController.CreateProductRequest validRequest() {
         return new ProductController.CreateProductRequest(
-                "Widget", "A useful widget", BigDecimal.TEN, 10, "tools", "http://example.com/img.png");
+                "Widget", "A useful widget", BigDecimal.TEN, 10, "tools", "http://example.com/img.png",
+                "Acme", 12, "MDL-1", BigDecimal.valueOf(15));
     }
 
     private static ProductController.UpdateProductRequest validUpdateRequest() {
         return new ProductController.UpdateProductRequest(
-                "Widget v2", "An updated widget", BigDecimal.valueOf(20), 5, "tools", "http://example.com/img2.png");
+                "Widget v2", "An updated widget", BigDecimal.valueOf(20), 5, "tools", "http://example.com/img2.png",
+                "Acme", 24, "MDL-2", BigDecimal.valueOf(25));
     }
 
     private static ProductService.ProductView productView(long id) {
         return new ProductService.ProductView(id, "Widget", "A useful widget", BigDecimal.TEN, 10, "tools",
-                "http://example.com/img.png", 1L, Instant.parse("2026-01-01T00:00:00Z"), 4.5, 3L);
+                "http://example.com/img.png", "Acme", 12, "MDL-1", BigDecimal.valueOf(15),
+                1L, Instant.parse("2026-01-01T00:00:00Z"), 4.5, 3L);
     }
 
     @Test
@@ -133,22 +136,25 @@ class ProductControllerTest {
         return Stream.of(
                 // name blank
                 new ProductController.CreateProductRequest(
-                        "", "desc", BigDecimal.TEN, 10, "tools", "http://x"),
+                        "", "desc", BigDecimal.TEN, 10, "tools", "http://x", null, null, null, null),
                 // price null
                 new ProductController.CreateProductRequest(
-                        "Widget", "desc", null, 10, "tools", "http://x"),
+                        "Widget", "desc", null, 10, "tools", "http://x", null, null, null, null),
                 // price <= 0
                 new ProductController.CreateProductRequest(
-                        "Widget", "desc", BigDecimal.ZERO, 10, "tools", "http://x"),
+                        "Widget", "desc", BigDecimal.ZERO, 10, "tools", "http://x", null, null, null, null),
                 // stockQuantity null
                 new ProductController.CreateProductRequest(
-                        "Widget", "desc", BigDecimal.TEN, null, "tools", "http://x"),
+                        "Widget", "desc", BigDecimal.TEN, null, "tools", "http://x", null, null, null, null),
                 // stockQuantity negative
                 new ProductController.CreateProductRequest(
-                        "Widget", "desc", BigDecimal.TEN, -1, "tools", "http://x"),
+                        "Widget", "desc", BigDecimal.TEN, -1, "tools", "http://x", null, null, null, null),
                 // category blank
                 new ProductController.CreateProductRequest(
-                        "Widget", "desc", BigDecimal.TEN, 10, "", "http://x")
+                        "Widget", "desc", BigDecimal.TEN, 10, "", "http://x", null, null, null, null),
+                // listPrice <= 0
+                new ProductController.CreateProductRequest(
+                        "Widget", "desc", BigDecimal.TEN, 10, "tools", "http://x", null, null, null, BigDecimal.ZERO)
         );
     }
 
@@ -216,7 +222,9 @@ class ProductControllerTest {
     void updateWithInvalidRequest_returns400(ProductController.CreateProductRequest invalidCreateRequest) throws Exception {
         ProductController.UpdateProductRequest request = new ProductController.UpdateProductRequest(
                 invalidCreateRequest.name(), invalidCreateRequest.description(), invalidCreateRequest.price(),
-                invalidCreateRequest.stockQuantity(), invalidCreateRequest.category(), invalidCreateRequest.imageUrl());
+                invalidCreateRequest.stockQuantity(), invalidCreateRequest.category(), invalidCreateRequest.imageUrl(),
+                invalidCreateRequest.brand(), invalidCreateRequest.warrantyMonths(),
+                invalidCreateRequest.modelNumber(), invalidCreateRequest.listPrice());
 
         mockMvc.perform(put("/api/catalog/products/1")
                         .contentType("application/json")

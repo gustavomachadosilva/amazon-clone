@@ -61,6 +61,10 @@ public class ProductController {
                 .stockQuantity(request.stockQuantity())
                 .category(request.category())
                 .imageUrl(request.imageUrl())
+                .brand(request.brand())
+                .warrantyMonths(request.warrantyMonths())
+                .modelNumber(request.modelNumber())
+                .listPrice(request.listPrice())
                 .sellerId(authenticatedUser.userId())
                 .build();
         return ResponseEntity.ok(productService.create(product));
@@ -72,7 +76,11 @@ public class ProductController {
             @NotNull @Positive BigDecimal price,
             @NotNull @PositiveOrZero Integer stockQuantity,
             @NotBlank @Size(max = 255) String category,
-            @Size(max = 1000) String imageUrl) {}
+            @Size(max = 1000) String imageUrl,
+            @Size(max = 255) String brand,
+            @PositiveOrZero Integer warrantyMonths,
+            @Size(max = 255) String modelNumber,
+            @Positive BigDecimal listPrice) {}
 
     @PutMapping("/{id}")
     public ResponseEntity<Product> update(@PathVariable Long id,
@@ -93,6 +101,10 @@ public class ProductController {
                 .stockQuantity(request.stockQuantity())
                 .category(request.category())
                 .imageUrl(request.imageUrl())
+                .brand(request.brand())
+                .warrantyMonths(request.warrantyMonths())
+                .modelNumber(request.modelNumber())
+                .listPrice(request.listPrice())
                 .build();
         return ResponseEntity.ok(productService.update(id, changes));
     }
@@ -117,5 +129,9 @@ public class ProductController {
             @NotNull @Positive BigDecimal price,
             @NotNull @PositiveOrZero Integer stockQuantity,
             @NotBlank @Size(max = 255) String category,
-            @Size(max = 1000) String imageUrl) {}
+            @Size(max = 1000) String imageUrl,
+            @Size(max = 255) String brand,
+            @PositiveOrZero Integer warrantyMonths,
+            @Size(max = 255) String modelNumber,
+            @Positive BigDecimal listPrice) {}
 }
