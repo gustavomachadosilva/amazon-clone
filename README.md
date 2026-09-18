@@ -67,8 +67,9 @@ semeia dados automaticamente ao subir:
 - **Usuários** (`users.service.UserSeeder`): uma lista fixa de contas variadas — 3 sellers (o
   seller âncora `seller.demo@mercatto.dev` / `Seller123!`, dono dos produtos semeados, mais 2
   sellers extras) e 6 buyers, cada um com nome e e-mail próprios.
-- **Produtos** (`catalog.service.DummyJsonSeeder`): ~50 produtos importados da API pública
-  [DummyJSON](https://dummyjson.com/), associados ao seller âncora acima.
+- **Produtos** (`catalog.service.AmazonProductSeeder`): 500 produtos de uma amostra curada do
+  dataset Kaggle "Amazon Products 2023" (arquivo `backend/src/main/resources/seed/amazon-products-sample.csv`),
+  distribuídos round-robin entre os sellers semeados.
 
 Esse seed só roda quando `SPRING_PROFILES_ACTIVE=dev` (o padrão em `.env.example` e no
 `docker-compose.yml`) — **nunca em produção**. Ele também é idempotente: em toda subida verifica

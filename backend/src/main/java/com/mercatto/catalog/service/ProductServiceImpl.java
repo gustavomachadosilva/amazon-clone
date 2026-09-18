@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,6 +24,10 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 class ProductServiceImpl implements ProductService {
+
+    // Sensible default so seller-created products without an explicit warranty behave the same
+    // as seeded ones (see AmazonProductSeeder), rather than silently defaulting to "no warranty".
+    private static final int DEFAULT_WARRANTY_MONTHS = 12;
 
     private final ProductRepository productRepository;
     private final ReviewService reviewService;
@@ -39,12 +44,17 @@ class ProductServiceImpl implements ProductService {
 
     @Override
     public Product create(Product product) {
+        validateListPrice(product.getListPrice(), product.getPrice());
+        if (product.getWarrantyMonths() == null) {
+            product.setWarrantyMonths(DEFAULT_WARRANTY_MONTHS);
+        }
         return productRepository.save(product);
     }
 
     @Override
     @Transactional
     public Product update(Long id, Product changes) {
+        validateListPrice(changes.getListPrice(), changes.getPrice());
         Product existing = productRepository.findById(id)
                 .orElseThrow(() -> new ProductNotFoundException("Product not found: " + id));
         existing.setName(changes.getName());
@@ -53,7 +63,20 @@ class ProductServiceImpl implements ProductService {
         existing.setStockQuantity(changes.getStockQuantity());
         existing.setCategory(changes.getCategory());
         existing.setImageUrl(changes.getImageUrl());
+        existing.setBrand(changes.getBrand());
+        existing.setWarrantyMonths(changes.getWarrantyMonths());
+        existing.setModelNumber(changes.getModelNumber());
+        existing.setListPrice(changes.getListPrice());
         return productRepository.save(existing);
+    }
+
+    // listPrice is a "was" price used to render a strikethrough discount; one that isn't
+    // actually higher than the selling price would be a misleading discount, so it's rejected
+    // outright rather than silently ignored.
+    private void validateListPrice(BigDecimal listPrice, BigDecimal price) {
+        if (listPrice != null && price != null && listPrice.compareTo(price) <= 0) {
+            throw new IllegalArgumentException("listPrice must be greater than price");
+        }
     }
 
     @Override
@@ -117,6 +140,10 @@ class ProductServiceImpl implements ProductService {
                 product.getStockQuantity(),
                 product.getCategory(),
                 product.getImageUrl(),
+                product.getBrand(),
+                product.getWarrantyMonths(),
+                product.getModelNumber(),
+                product.getListPrice(),
                 product.getSellerId(),
                 product.getCreatedAt(),
                 aggregate.averageRating(),

@@ -41,10 +41,11 @@ is explicitly not a clone of any existing retailer.
 - Local dev via Docker Compose (`docker compose up --build`): frontend on `:5173`, backend API on
   `:8080`, Postgres on `:5432`.
 - `SPRING_PROFILES_ACTIVE=dev` seeds data automatically and idempotently so `Home.tsx` and
-  `SellerDashboard.tsx` never render empty in a fresh environment: ~50 products imported from the
-  public DummyJSON API (`catalog.service.DummyJsonSeeder`) assigned to an anchor seller account
-  (`seller.demo@mercatto.dev`), plus a fixed list of seller and buyer accounts
-  (`users.service.UserSeeder`). This seed never runs in production.
+  `SellerDashboard.tsx` never render empty in a fresh environment: 500 products from a curated
+  sample of the Kaggle "Amazon Products 2023" dataset (`catalog.service.AmazonProductSeeder`,
+  reading `backend/src/main/resources/seed/amazon-products-sample.csv`) distributed round-robin
+  across a fixed list of seller and buyer accounts (`users.service.UserSeeder`). This seed never
+  runs in production.
 - GitHub-based workflow: `dev` is the integration/default branch (no `main`); all work lands via
   PR from a feature branch into `dev`, gated by `mvn test` (backend) and `npm run lint` / `npm run
   build` (frontend) before opening a PR.
@@ -68,9 +69,10 @@ is explicitly not a clone of any existing retailer.
   search, product, lists, cart, sign-in, checkout, orders, review), plus the "Industry" design
   system/token set (`_ds/`) the reference visuals are built on. Desktop-first (1280px content
   column); responsive behavior was not designed in the reference.
-- Catalogue content is real (imported from DummyJSON) but the branding, storefront copy, and
-  seller/buyer accounts are original fixtures created for this coursework, not real business
-  data. No real testimonials, press, or case studies exist and none should be fabricated.
+- Catalogue content is real (imported from a curated sample of the Kaggle "Amazon Products 2023"
+  dataset) but the branding, storefront copy, and seller/buyer accounts are original fixtures
+  created for this coursework, not real business data. No real testimonials, press, or case
+  studies exist and none should be fabricated.
 
 ## Product Principles
 

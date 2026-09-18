@@ -60,7 +60,27 @@ class AmazonProductSeederTest {
             assertThat(p.getCategory()).isNotBlank();
             assertThat(p.getImageUrl()).isNotBlank();
             assertThat(p.getSellerId()).isIn(10L, 20L);
+            assertThat(p.getBrand()).isNotBlank();
+            assertThat(p.getWarrantyMonths()).isEqualTo(12);
+            // Not populated from the CSV sample: no SKU/model or "was" price column exists.
+            assertThat(p.getModelNumber()).isNull();
+            assertThat(p.getListPrice()).isNull();
         });
         assertThat(products).extracting(Product::getSellerId).contains(10L, 20L);
+    }
+
+    @Test
+    void seedProductsDerivesBrandFromFirstWordOfProductName() {
+        AmazonProductSeeder seeder = new AmazonProductSeeder(productRepository);
+        when(productRepository.count()).thenReturn(0L);
+
+        seeder.seedProducts(List.of(1L));
+
+        ArgumentCaptor<List<Product>> captor = ArgumentCaptor.forClass(List.class);
+        verify(productRepository).saveAll(captor.capture());
+        List<Product> products = captor.getValue();
+
+        assertThat(products).allSatisfy(p ->
+                assertThat(p.getName()).startsWith(p.getBrand()));
     }
 }

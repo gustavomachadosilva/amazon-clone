@@ -5,7 +5,6 @@ import { Blueprint, Button, Input, Placeholder, Textarea } from '../components/u
 import { useAuth } from '../context/AuthContext'
 import { ApiRequestError, catalogApi, reviewsApi, type Product } from '../services/api'
 import { RATING_WORD } from '../lib/constants'
-import { deriveBrandLabel } from '../lib/mockProductMeta'
 
 export default function WriteReview() {
   const { id } = useParams<{ id: string }>()
@@ -55,7 +54,8 @@ export default function WriteReview() {
         <div className="min-w-0">
           <div className="h truncate">{product.name}</div>
           <div className="text-[16px] text-paper-600">
-            {deriveBrandLabel(product)} · {product.category}
+            {product.brand ? `${product.brand} · ` : ''}
+            {product.category}
           </div>
         </div>
       </Blueprint>

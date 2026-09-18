@@ -36,7 +36,8 @@ public interface ProductService {
      * callers (cart, sellers, orders) keep returning the plain {@link Product} untouched.
      */
     record ProductView(Long id, String name, String description, BigDecimal price, Integer stockQuantity,
-                        String category, String imageUrl, Long sellerId, Instant createdAt,
+                        String category, String imageUrl, String brand, Integer warrantyMonths,
+                        String modelNumber, BigDecimal listPrice, Long sellerId, Instant createdAt,
                         double averageRating, long reviewCount) {}
 
     Page<ProductView> searchWithRating(String query, String category, Pageable pageable);

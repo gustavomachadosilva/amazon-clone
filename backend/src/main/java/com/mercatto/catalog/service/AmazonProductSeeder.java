@@ -30,6 +30,11 @@ public class AmazonProductSeeder {
     private static final Logger log = LoggerFactory.getLogger(AmazonProductSeeder.class);
     private static final String SAMPLE_CSV_PATH = "seed/amazon-products-sample.csv";
 
+    // Default warranty term applied to every seeded product, matching the default used by
+    // ProductServiceImpl#create when a seller doesn't specify one. Editable per-product
+    // afterwards — this is only the seed-time starting point, not a global constant.
+    private static final int DEFAULT_WARRANTY_MONTHS = 12;
+
     private final ProductRepository productRepository;
 
     public AmazonProductSeeder(ProductRepository productRepository) {
@@ -72,6 +77,11 @@ public class AmazonProductSeeder {
                         .stockQuantity(Integer.valueOf(fields[2]))
                         .category(fields[3])
                         .imageUrl(fields[4])
+                        .brand(guessBrand(fields[0]))
+                        .warrantyMonths(DEFAULT_WARRANTY_MONTHS)
+                        // modelNumber/listPrice stay null: the CSV sample has no SKU/model
+                        // number or "was" price column, so there's no real data to seed them
+                        // from. They're left for a seller to fill in via edit.
                         .sellerId(sellerId)
                         .build());
                 index++;
@@ -114,5 +124,21 @@ public class AmazonProductSeeder {
         }
         fields.add(current.toString());
         return fields.toArray(new String[0]);
+    }
+
+    /**
+     * Best-effort brand heuristic: the CSV sample has no dedicated brand column, so this takes
+     * the first word of the product name as a stand-in — e.g. "Samsung 65-Inch TV" -> "Samsung".
+     * This is deliberately naive and will misfire on generic/descriptive names that don't start
+     * with a brand (e.g. "Wireless Mouse" -> "Wireless", "3-Pack Cotton Socks" -> "3-Pack"). It's
+     * an acceptable seed-time approximation, not a claim of accuracy; sellers can correct it per
+     * product via edit.
+     */
+    private String guessBrand(String productName) {
+        if (productName == null || productName.isBlank()) {
+            return null;
+        }
+        String firstWord = productName.trim().split("\\s+", 2)[0];
+        return firstWord.isBlank() ? null : firstWord;
     }
 }
