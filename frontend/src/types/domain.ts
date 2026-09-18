@@ -5,12 +5,6 @@ export interface CartLine {
   qty: number
 }
 
-export interface WishList {
-  id: number
-  name: string
-  items: number[]
-}
-
 export type UserRole = 'BUYER' | 'SELLER'
 
 export interface AuthUser {

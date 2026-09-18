@@ -16,6 +16,7 @@ export default function Lists() {
   const cart = useCart()
   const [activeListId, setActiveListId] = useState<number | null>(lists.lists[0]?.id ?? null)
   const [newListName, setNewListName] = useState('')
+  const [actionError, setActionError] = useState('')
 
   useEffect(() => {
     if (!lists.lists.find((l) => l.id === activeListId)) {
@@ -29,9 +30,27 @@ export default function Lists() {
 
   async function createList() {
     if (!newListName.trim()) return
-    const list = await lists.createList(newListName)
-    setActiveListId(list.id)
-    setNewListName('')
+    try {
+      const list = await lists.createList(newListName)
+      setActiveListId(list.id)
+      setNewListName('')
+    } catch {
+      setActionError('Could not create the list. Please try again.')
+    }
+  }
+
+  function deleteActiveList() {
+    if (!activeList) return
+    lists.deleteList(activeList.id).catch(() => {
+      setActionError('Could not delete the list. Please try again.')
+    })
+  }
+
+  function removeFromActiveList(productId: number) {
+    if (!activeList) return
+    lists.removeFromList(activeList.id, productId).catch(() => {
+      setActionError('Could not remove the item. Please try again.')
+    })
   }
 
   function addAllToCart() {
@@ -106,11 +125,17 @@ export default function Lists() {
                 <Button variant="secondary" onClick={addAllToCart}>
                   Add all to cart
                 </Button>
-                <Button variant="ghost" onClick={() => lists.deleteList(activeList.id)}>
+                <Button variant="ghost" onClick={deleteActiveList}>
                   Delete list
                 </Button>
               </div>
             </div>
+
+            {actionError && (
+              <div role="alert" className="callout-alert mt-2">
+                {actionError}
+              </div>
+            )}
 
             {activeList.productIds.length === 0 ? (
               <Blueprint className="mt-4 p-8 text-center">
@@ -176,9 +201,7 @@ export default function Lists() {
                         <Button
                           variant="ghost"
                           block
-                          onClick={() => {
-                            void lists.removeFromList(activeList.id, productId)
-                          }}
+                          onClick={() => removeFromActiveList(productId)}
                         >
                           Remove from list
                         </Button>

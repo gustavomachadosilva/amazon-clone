@@ -37,6 +37,9 @@ class WishListServiceImplTest {
     @Mock
     private ProductService productService;
 
+    @Mock
+    private WishListItemInserter wishListItemInserter;
+
     @InjectMocks
     private WishListServiceImpl wishListService;
 
@@ -87,13 +90,16 @@ class WishListServiceImplTest {
     @Test
     void listByBuyerReturnsViewsWithProductIds() {
         WishList l1 = list(1L, 10L, "Birthday");
-        when(wishListRepository.findByBuyerIdOrderByCreatedAtDesc(10L)).thenReturn(List.of(l1));
-        when(wishListItemRepository.findByWishListId(1L)).thenReturn(List.of(item(100L, 1L, 5L), item(101L, 1L, 6L)));
+        WishList l2 = list(2L, 10L, "Gifts");
+        when(wishListRepository.findByBuyerIdOrderByCreatedAtDesc(10L)).thenReturn(List.of(l1, l2));
+        when(wishListItemRepository.findByWishListIdIn(List.of(1L, 2L)))
+                .thenReturn(List.of(item(100L, 1L, 5L), item(101L, 1L, 6L)));
 
         List<WishListService.WishListView> views = wishListService.listByBuyer(10L);
 
-        assertThat(views).hasSize(1);
+        assertThat(views).hasSize(2);
         assertThat(views.get(0).productIds()).containsExactly(5L, 6L);
+        assertThat(views.get(1).productIds()).isEmpty();
     }
 
     @Test
@@ -130,17 +136,29 @@ class WishListServiceImplTest {
         when(wishListRepository.findById(1L)).thenReturn(Optional.of(l1));
         when(productService.findById(5L)).thenReturn(Optional.of(product(5L)));
         when(wishListItemRepository.findByWishListIdAndProductId(1L, 5L)).thenReturn(Optional.empty());
+        when(wishListItemInserter.insertIfAbsent(1L, 5L)).thenReturn(true);
         when(wishListItemRepository.findByWishListId(1L)).thenReturn(List.of(item(100L, 1L, 5L)));
 
         WishListService.AddItemResult result = wishListService.addItem(1L, 10L, 5L);
 
         assertThat(result.alreadyPresent()).isFalse();
         assertThat(result.list().productIds()).containsExactly(5L);
+        verify(wishListItemInserter).insertIfAbsent(1L, 5L);
+    }
 
-        ArgumentCaptor<WishListItem> captor = ArgumentCaptor.forClass(WishListItem.class);
-        verify(wishListItemRepository).save(captor.capture());
-        assertThat(captor.getValue().getWishListId()).isEqualTo(1L);
-        assertThat(captor.getValue().getProductId()).isEqualTo(5L);
+    @Test
+    void addItemIsIdempotentWhenConcurrentInsertLosesRace() {
+        WishList l1 = list(1L, 10L, "Birthday");
+        when(wishListRepository.findById(1L)).thenReturn(Optional.of(l1));
+        when(productService.findById(5L)).thenReturn(Optional.of(product(5L)));
+        when(wishListItemRepository.findByWishListIdAndProductId(1L, 5L)).thenReturn(Optional.empty());
+        when(wishListItemInserter.insertIfAbsent(1L, 5L)).thenReturn(false);
+        when(wishListItemRepository.findByWishListId(1L)).thenReturn(List.of(item(100L, 1L, 5L)));
+
+        WishListService.AddItemResult result = wishListService.addItem(1L, 10L, 5L);
+
+        assertThat(result.alreadyPresent()).isTrue();
+        assertThat(result.list().productIds()).containsExactly(5L);
     }
 
     @Test

@@ -34,7 +34,9 @@ public class ArchitectureBoundaryTest {
 
     @Test
     void business_modules_should_not_depend_on_config() {
-        noClasses().that().resideInAnyPackage("..users..", "..catalog..", "..orders..", "..sellers..", "..cart..")
+        noClasses().that().resideInAnyPackage(BUSINESS_MODULES.stream()
+                    .map("..%s.."::formatted)
+                    .toArray(String[]::new))
             .should().dependOnClassesThat().resideInAPackage("..config..")
             .check(classes);
     }
