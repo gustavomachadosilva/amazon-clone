@@ -27,6 +27,7 @@ export default function Product() {
   const [creatingList, setCreatingList] = useState(false)
   const [newListName, setNewListName] = useState('')
   const [listFeedback, setListFeedback] = useState('')
+  const [helpfulError, setHelpfulError] = useState('')
   const [bundleChecked, setBundleChecked] = useState<Set<number>>(new Set())
 
   // Independent from the product-loading state above: a failed reviews fetch must not block
@@ -122,6 +123,10 @@ export default function Product() {
 
   async function addToList() {
     if (!product) return
+    if (!user) {
+      navigate('/signin')
+      return
+    }
     try {
       let target = listTarget
       if (target === null) {
@@ -139,13 +144,27 @@ export default function Product() {
   }
 
   function markReviewHelpful(reviewId: number) {
-    reviewsApi.markHelpful(reviewId).then((updated) => {
-      setProductReviews((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
-    })
+    if (!user) {
+      navigate('/signin')
+      return
+    }
+    reviewsApi
+      .markHelpful(reviewId)
+      .then((updated) => {
+        setProductReviews((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
+      })
+      .catch(() => {
+        setHelpfulError('Could not mark review as helpful. Please try again.')
+        setTimeout(() => setHelpfulError(''), 3000)
+      })
   }
 
   async function saveNewList() {
     if (!newListName.trim() || !product) return
+    if (!user) {
+      navigate('/signin')
+      return
+    }
     try {
       const created = await lists.createList(newListName.trim())
       await lists.addToList(created.id, product.id)
@@ -536,6 +555,7 @@ export default function Product() {
             <div className="text-[16.5px] text-paper-700">No reviews yet. Be the first to write one.</div>
           ) : (
             <div className="flex flex-col gap-5">
+              {helpfulError && <div className="text-xs text-accent-700">{helpfulError}</div>}
               {productReviews.map((review) => (
                 <div key={review.id}>
                   <StarRating rating={review.stars} />
