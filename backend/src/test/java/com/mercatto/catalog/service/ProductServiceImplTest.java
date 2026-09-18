@@ -222,6 +222,19 @@ class ProductServiceImplTest {
     }
 
     @Test
+    void updateDefaultsWarrantyMonthsWhenChangesOmitIt() {
+        Product existing = Product.builder().id(1L).name("Old name").price(BigDecimal.ONE).warrantyMonths(24).build();
+        when(productRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Product changes = Product.builder().name("New name").price(BigDecimal.TEN).build();
+
+        Product result = productService.update(1L, changes);
+
+        assertThat(result.getWarrantyMonths()).isEqualTo(12);
+    }
+
+    @Test
     void updateThrowsWhenProductNotFound() {
         when(productRepository.findById(1L)).thenReturn(Optional.empty());
 

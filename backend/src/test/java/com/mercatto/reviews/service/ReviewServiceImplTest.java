@@ -115,25 +115,23 @@ class ReviewServiceImplTest {
 
     @Test
     void markHelpfulIncrementsCount() {
-        Review r = review(1L, 5L, 10L, 5, 2);
+        Review r = review(1L, 5L, 10L, 5, 3);
+        when(reviewRepository.incrementHelpfulCount(1L)).thenReturn(1);
         when(reviewRepository.findById(1L)).thenReturn(Optional.of(r));
-        when(reviewRepository.save(any(Review.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(userService.findById(10L)).thenReturn(Optional.of(user(10L, "Ana")));
 
         ReviewService.ReviewView view = reviewService.markHelpful(1L);
 
         assertThat(view.helpfulCount()).isEqualTo(3);
-        verify(reviewRepository).save(r);
+        verify(reviewRepository).incrementHelpfulCount(1L);
     }
 
     @Test
     void markHelpfulThrowsForUnknownId() {
-        when(reviewRepository.findById(99L)).thenReturn(Optional.empty());
+        when(reviewRepository.incrementHelpfulCount(99L)).thenReturn(0);
 
         assertThatThrownBy(() -> reviewService.markHelpful(99L))
                 .isInstanceOf(ReviewNotFoundException.class);
-
-        verify(reviewRepository, never()).save(any());
     }
 
     @Test

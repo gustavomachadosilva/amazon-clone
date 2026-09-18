@@ -64,7 +64,7 @@ class ProductServiceImpl implements ProductService {
         existing.setCategory(changes.getCategory());
         existing.setImageUrl(changes.getImageUrl());
         existing.setBrand(changes.getBrand());
-        existing.setWarrantyMonths(changes.getWarrantyMonths());
+        existing.setWarrantyMonths(changes.getWarrantyMonths() != null ? changes.getWarrantyMonths() : DEFAULT_WARRANTY_MONTHS);
         existing.setModelNumber(changes.getModelNumber());
         existing.setListPrice(changes.getListPrice());
         return productRepository.save(existing);
