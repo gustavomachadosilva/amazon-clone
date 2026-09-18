@@ -19,7 +19,7 @@ Two primary audiences, both central to the product:
 
 Mercatto is a fictional general-merchandise marketplace (Amazon-like) built as coursework. It
 exists to demonstrate a correctly built full-stack application — a Java/Spring Boot modular
-monolith (`users`, `catalog`, `orders`, `sellers` modules, one Postgres schema each, see
+monolith (`users`, `catalog`, `orders`, `cart`, `sellers` modules, one Postgres schema each, see
 `README.md`'s "Contrato de Modularidade") paired with a React/Vite/TypeScript/Tailwind frontend —
 through a complete, working shopping journey end to end.
 
@@ -52,12 +52,12 @@ is explicitly not a clone of any existing retailer.
 ## Capabilities and Constraints
 
 - Backend: Java 21 + Spring Boot 3 (Maven), packages-by-module (`users`, `catalog`, `orders`,
-  `sellers`). Cross-module communication only through a module's public `service` interface or
+  `cart`, `sellers`). Cross-module communication only through a module's public `service` interface or
   `ApplicationEvent`s — never direct repository/entity access or a shared transaction (full rules
   in `README.md`).
 - Third-party integrations are ports with mock implementations until real integration exists
   (e.g. `orders.service.PaymentGateway` / `MockPaymentGateway`) — no real payments today.
-- Database: one PostgreSQL instance, one schema per module (`users`, `catalog`, `orders`).
+- Database: one PostgreSQL instance, one schema per module (`users`, `catalog`, `orders`, `cart`).
   Cross-module entity references are bare foreign-key ids, never JPA `@ManyToOne`.
 - Frontend: React + Vite + TypeScript + Tailwind CSS.
 
