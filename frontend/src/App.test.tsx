@@ -13,6 +13,9 @@ vi.mock('./services/api', () => ({
   },
   usersApi: {
     getMe: vi.fn(() => Promise.resolve({ id: 1, name: 'Test', role: 'BUYER' })),
+  },
+  listsApi: {
+    listMine: vi.fn(() => Promise.resolve([])),
   }
 }))
 import { AuthProvider } from './context/AuthContext'

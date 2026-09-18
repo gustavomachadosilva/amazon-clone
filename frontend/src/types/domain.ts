@@ -6,7 +6,7 @@ export interface CartLine {
 }
 
 export interface WishList {
-  id: string
+  id: number
   name: string
   items: number[]
 }
