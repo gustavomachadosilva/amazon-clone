@@ -1,11 +1,15 @@
 package com.mercatto.orders.api;
 
 import com.mercatto.orders.domain.Order;
+import com.mercatto.orders.domain.PaymentMethod;
+import com.mercatto.orders.domain.ShippingAddress;
+import com.mercatto.orders.domain.ShippingMethod;
 import com.mercatto.orders.service.OrderService;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.AuthenticatedUser;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,7 +37,13 @@ public class OrderController {
             Principal principal) {
         AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
         authenticatedUser.requireRole(UserRole.BUYER);
-        Order order = orderService.checkout(authenticatedUser.userId(), request.items(), idempotencyKey);
+        Order order = orderService.checkout(
+                authenticatedUser.userId(),
+                request.items(),
+                idempotencyKey,
+                request.address(),
+                request.shippingMethod(),
+                request.paymentMethod());
         return ResponseEntity.ok(order);
     }
 
@@ -54,5 +64,9 @@ public class OrderController {
         return orderService.findByBuyer(authenticatedUser.userId());
     }
 
-    public record CheckoutRequest(@NotEmpty @Valid List<OrderService.CheckoutItem> items) {}
+    public record CheckoutRequest(
+            @NotEmpty @Valid List<OrderService.CheckoutItem> items,
+            @NotNull @Valid ShippingAddress address,
+            @NotNull ShippingMethod shippingMethod,
+            @NotNull PaymentMethod paymentMethod) {}
 }

@@ -1,7 +1,10 @@
 package com.mercatto.orders.domain;
 
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -52,6 +55,27 @@ public class Order {
 
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
+
+    // Snapshot of the buyer's shipping address at checkout time (same principle as
+    // OrderItem.sellerId — denormalized so it survives later changes elsewhere).
+    // Nullable: pre-existing rows created before this field was added won't have it set.
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "fullName", column = @Column(name = "address_full_name")),
+            @AttributeOverride(name = "street", column = @Column(name = "address_street")),
+            @AttributeOverride(name = "city", column = @Column(name = "address_city")),
+            @AttributeOverride(name = "state", column = @Column(name = "address_state")),
+            @AttributeOverride(name = "zip", column = @Column(name = "address_zip"))
+    })
+    private ShippingAddress address;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "shipping_method")
+    private ShippingMethod shippingMethod;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method")
+    private PaymentMethod paymentMethod;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

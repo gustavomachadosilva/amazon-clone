@@ -33,8 +33,8 @@ export default function Checkout() {
     city: DEFAULT_ADDRESS.city,
     state: DEFAULT_ADDRESS.state,
   })
-  const [shipping, setShipping] = useState<ShippingMethod>('standard')
-  const [payment, setPayment] = useState<PaymentMethod>('card')
+  const [shipping, setShipping] = useState<ShippingMethod>('STANDARD')
+  const [payment, setPayment] = useState<PaymentMethod>('CARD')
   const [placing, setPlacing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [idempotencyKey] = useState(() => crypto.randomUUID?.() ?? generateFallbackKey())
@@ -52,7 +52,12 @@ export default function Checkout() {
     setError(null)
     try {
       const order = await ordersApi.checkout(
-        cart.items.map((line) => ({ productId: line.productId, quantity: line.qty })),
+        {
+          items: cart.items.map((line) => ({ productId: line.productId, quantity: line.qty })),
+          address,
+          shippingMethod: shipping,
+          paymentMethod: payment,
+        },
         idempotencyKey
       )
       if (order.status !== 'PAID') {
@@ -60,9 +65,7 @@ export default function Checkout() {
         return
       }
       cart.clear()
-      navigate(`/order/${order.id}`, {
-        state: { shippingLabel: SHIPPING_OPTIONS[shipping], paymentLabel: PAYMENT_OPTIONS[payment] },
-      })
+      navigate(`/order/${order.id}`)
     } catch (err) {
       setError(
         err instanceof ApiRequestError && err.apiMessage
@@ -127,7 +130,7 @@ export default function Checkout() {
                   <span className="dot" />
                   {SHIPPING_OPTIONS[key]}
                 </span>
-                <span className="readout">{key === 'express' ? usd(9.99) : 'FREE'}</span>
+                <span className="readout">{key === 'EXPRESS' ? usd(9.99) : 'FREE'}</span>
               </label>
             ))}
           </div>
