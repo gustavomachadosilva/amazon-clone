@@ -280,3 +280,26 @@ export const reviewsApi = {
     api.post<ReviewView>(`/api/reviews/products/${productId}`, payload),
   markHelpful: (reviewId: number) => api.post<ReviewView>(`/api/reviews/${reviewId}/helpful`, undefined),
 }
+
+export interface WishListView {
+  id: number
+  buyerId: number
+  name: string
+  productIds: number[]
+  createdAt: string
+}
+
+export interface AddItemResult {
+  list: WishListView
+  alreadyPresent: boolean
+}
+
+export const listsApi = {
+  listMine: () => api.get<WishListView[]>('/api/lists'),
+  create: (name: string) => api.post<WishListView>('/api/lists', { name }),
+  addItem: (listId: number, productId: number) =>
+    api.post<AddItemResult>(`/api/lists/${listId}/items`, { productId }),
+  removeItem: (listId: number, productId: number) =>
+    api.delete<WishListView>(`/api/lists/${listId}/items/${productId}`),
+  remove: (listId: number) => api.delete<void>(`/api/lists/${listId}`),
+}

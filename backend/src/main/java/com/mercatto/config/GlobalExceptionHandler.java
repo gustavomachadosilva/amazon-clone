@@ -1,6 +1,7 @@
 package com.mercatto.config;
 
 import com.mercatto.catalog.service.ProductNotFoundException;
+import com.mercatto.lists.service.WishListNotFoundException;
 import com.mercatto.orders.service.InsufficientStockException;
 import com.mercatto.reviews.service.ReviewNotFoundException;
 import com.mercatto.users.service.EmailAlreadyExistsException;
@@ -59,6 +60,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(ReviewNotFoundException.class)
     public ResponseEntity<ApiError> handleReviewNotFound(ReviewNotFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(WishListNotFoundException.class)
+    public ResponseEntity<ApiError> handleWishListNotFound(WishListNotFoundException ex, HttpServletRequest request) {
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 

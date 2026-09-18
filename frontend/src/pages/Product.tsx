@@ -23,7 +23,7 @@ export default function Product() {
   const [product, setProduct] = useState<ProductType | null>(null)
   const [related, setRelated] = useState<ProductType[]>([])
   const [qty, setQty] = useState(1)
-  const [listTarget, setListTarget] = useState<string>('')
+  const [listTarget, setListTarget] = useState<number | null>(null)
   const [creatingList, setCreatingList] = useState(false)
   const [newListName, setNewListName] = useState('')
   const [listFeedback, setListFeedback] = useState('')
@@ -58,7 +58,7 @@ export default function Product() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- inicializa lista alvo default; refatorar para estado derivado é fora do escopo deste card
-    if (lists.lists.length > 0 && !listTarget) setListTarget(lists.lists[0].id)
+    if (lists.lists.length > 0 && listTarget === null) setListTarget(lists.lists[0].id)
   }, [lists.lists, listTarget])
 
   useEffect(() => {
@@ -120,17 +120,17 @@ export default function Product() {
     navigate('/cart')
   }
 
-  function addToList() {
+  async function addToList() {
     if (!product) return
     let target = listTarget
-    if (lists.lists.length === 0) {
-      const created = lists.createList('Shopping List')
+    if (target === null) {
+      const created = await lists.createList('Shopping List')
       target = created.id
       setListTarget(created.id)
     }
     const list = lists.lists.find((l) => l.id === target)
-    const result = lists.addToList(target, product.id)
-    setListFeedback(result ?? `Saved to ${list?.name ?? 'your list'}`)
+    const result = await lists.addToList(target, product.id)
+    setListFeedback(result === 'exists' ? 'Already in this list' : `Saved to ${list?.name ?? 'your list'}`)
     setTimeout(() => setListFeedback(''), 3000)
   }
 
@@ -140,10 +140,10 @@ export default function Product() {
     })
   }
 
-  function saveNewList() {
+  async function saveNewList() {
     if (!newListName.trim() || !product) return
-    const created = lists.createList(newListName.trim())
-    lists.addToList(created.id, product.id)
+    const created = await lists.createList(newListName.trim())
+    await lists.addToList(created.id, product.id)
     setListTarget(created.id)
     setCreatingList(false)
     setNewListName('')
@@ -306,10 +306,13 @@ export default function Product() {
             <h3 className="text-[18px]">Add to a list</h3>
             {!creatingList ? (
               <>
-                <Select value={listTarget} onChange={(e) => setListTarget(e.target.value)}>
+                <Select
+                  value={listTarget !== null ? String(listTarget) : ''}
+                  onChange={(e) => setListTarget(Number(e.target.value))}
+                >
                   {lists.lists.map((list) => (
                     <option key={list.id} value={list.id}>
-                      {list.name} ({list.items.length})
+                      {list.name} ({list.productIds.length})
                     </option>
                   ))}
                 </Select>
