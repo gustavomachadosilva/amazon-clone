@@ -122,15 +122,19 @@ export default function Product() {
 
   async function addToList() {
     if (!product) return
-    let target = listTarget
-    if (target === null) {
-      const created = await lists.createList('Shopping List')
-      target = created.id
-      setListTarget(created.id)
+    try {
+      let target = listTarget
+      if (target === null) {
+        const created = await lists.createList('Shopping List')
+        target = created.id
+        setListTarget(created.id)
+      }
+      const list = lists.lists.find((l) => l.id === target)
+      const result = await lists.addToList(target, product.id)
+      setListFeedback(result === 'exists' ? 'Already in this list' : `Saved to ${list?.name ?? 'your list'}`)
+    } catch {
+      setListFeedback('Could not save to list. Please try again.')
     }
-    const list = lists.lists.find((l) => l.id === target)
-    const result = await lists.addToList(target, product.id)
-    setListFeedback(result === 'exists' ? 'Already in this list' : `Saved to ${list?.name ?? 'your list'}`)
     setTimeout(() => setListFeedback(''), 3000)
   }
 
@@ -142,12 +146,16 @@ export default function Product() {
 
   async function saveNewList() {
     if (!newListName.trim() || !product) return
-    const created = await lists.createList(newListName.trim())
-    await lists.addToList(created.id, product.id)
-    setListTarget(created.id)
-    setCreatingList(false)
-    setNewListName('')
-    setListFeedback(`Saved to ${created.name}`)
+    try {
+      const created = await lists.createList(newListName.trim())
+      await lists.addToList(created.id, product.id)
+      setListTarget(created.id)
+      setCreatingList(false)
+      setNewListName('')
+      setListFeedback(`Saved to ${created.name}`)
+    } catch {
+      setListFeedback('Could not save to list. Please try again.')
+    }
     setTimeout(() => setListFeedback(''), 3000)
   }
 

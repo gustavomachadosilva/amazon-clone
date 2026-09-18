@@ -11,7 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Lists calls Catalog synchronously through {@link ProductService} (its public API) to
@@ -26,6 +28,7 @@ class WishListServiceImpl implements WishListService {
     private final WishListRepository wishListRepository;
     private final WishListItemRepository wishListItemRepository;
     private final ProductService productService;
+    private final WishListItemInserter wishListItemInserter;
 
     @Override
     @Transactional
@@ -40,8 +43,14 @@ class WishListServiceImpl implements WishListService {
 
     @Override
     public List<WishListView> listByBuyer(Long buyerId) {
-        return wishListRepository.findByBuyerIdOrderByCreatedAtDesc(buyerId).stream()
-                .map(list -> toView(list, productIdsOf(list.getId())))
+        List<WishList> lists = wishListRepository.findByBuyerIdOrderByCreatedAtDesc(buyerId);
+        List<Long> listIds = lists.stream().map(WishList::getId).toList();
+        Map<Long, List<Long>> productIdsByListId = wishListItemRepository.findByWishListIdIn(listIds).stream()
+                .collect(Collectors.groupingBy(WishListItem::getWishListId,
+                        Collectors.mapping(WishListItem::getProductId, Collectors.toList())));
+
+        return lists.stream()
+                .map(list -> toView(list, productIdsByListId.getOrDefault(list.getId(), List.of())))
                 .toList();
     }
 
@@ -58,13 +67,12 @@ class WishListServiceImpl implements WishListService {
             return new AddItemResult(toView(list, productIdsOf(listId)), true);
         }
 
-        WishListItem item = WishListItem.builder()
-                .wishListId(listId)
-                .productId(productId)
-                .build();
-        wishListItemRepository.save(item);
+        // The check above is only a fast path: two concurrent adds can both pass it, so
+        // the actual idempotency guarantee comes from the unique constraint on
+        // (wish_list_id, product_id), enforced by this insert.
+        boolean inserted = wishListItemInserter.insertIfAbsent(listId, productId);
 
-        return new AddItemResult(toView(list, productIdsOf(listId)), false);
+        return new AddItemResult(toView(list, productIdsOf(listId)), !inserted);
     }
 
     @Override
