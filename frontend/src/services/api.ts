@@ -108,9 +108,31 @@ export const catalogApi = {
   remove: (id: number) => api.delete<void>(`/api/catalog/products/${id}`),
 }
 
+export interface SellerOrderItem {
+  productId: number
+  quantity: number
+  unitPrice: number
+}
+
+export interface SellerOrder {
+  orderId: number
+  buyerId: number
+  status: OrderStatus
+  createdAt: string
+  items: SellerOrderItem[]
+  subtotal: number
+}
+
+export interface SellerMetrics {
+  totalRevenue: number
+  lowStockProducts: Product[]
+}
+
 export const sellersApi = {
   getInventory: (sellerId: number, page: number = 0, size: number = 10) =>
     api.get<Page<Product>>(`/api/sellers/${sellerId}/products?page=${page}&size=${size}`),
+  getOrders: (sellerId: number) => api.get<SellerOrder[]>(`/api/sellers/${sellerId}/orders`),
+  getMetrics: (sellerId: number) => api.get<SellerMetrics>(`/api/sellers/${sellerId}/metrics`),
 }
 
 export type OrderStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'FAILED' | 'CANCELLED'
