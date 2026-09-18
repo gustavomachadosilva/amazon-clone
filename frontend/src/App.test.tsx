@@ -18,7 +18,6 @@ vi.mock('./services/api', () => ({
 import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
 import { ListsProvider } from './context/ListsContext'
-import { ReviewsProvider } from './context/ReviewsContext'
 import App from './App'
 
 describe('App Component', () => {
@@ -29,9 +28,7 @@ describe('App Component', () => {
         <AuthProvider>
           <CartProvider>
             <ListsProvider>
-              <ReviewsProvider>
-                <App />
-              </ReviewsProvider>
+              <App />
             </ListsProvider>
           </CartProvider>
         </AuthProvider>

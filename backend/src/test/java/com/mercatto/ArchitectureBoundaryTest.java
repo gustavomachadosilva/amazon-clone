@@ -14,7 +14,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 public class ArchitectureBoundaryTest {
 
     private static final List<String> BUSINESS_MODULES =
-        List.of("users", "catalog", "orders", "sellers", "cart");
+        List.of("users", "catalog", "orders", "sellers", "cart", "reviews");
 
     private final JavaClasses classes = new ClassFileImporter().importPackages("com.mercatto");
 

@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router-dom'
 import { SlidersHorizontal } from 'lucide-react'
 import { Blueprint, Button, Pagination, Select } from '../components/ui'
 import ProductGridCard from '../components/ProductGridCard'
-import { useReviews } from '../context/ReviewsContext'
 import { catalogApi, type Page, type Product } from '../services/api'
 import { useCategories } from '../hooks/useCategories'
 import { usd } from '../lib/format'
@@ -13,7 +12,6 @@ const RATING_OPTIONS = [4.5, 4, 3, 0]
 
 export default function Search() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const reviews = useReviews()
   const categories = useCategories()
 
   const q = searchParams.get('q') ?? ''
@@ -53,11 +51,6 @@ export default function Search() {
     }
   }, [q, category, pageParam, attemptKey])
 
-  function ratingOf(product: Product): number {
-    const list = reviews.getReviews(product.id)
-    return list.reduce((sum, r) => sum + r.stars, 0) / list.length
-  }
-
   const [filtersOpen, setFiltersOpen] = useState(false)
 
   const results = pageData?.content ?? []
@@ -65,14 +58,14 @@ export default function Search() {
 
   let filtered = results.filter((product) => {
     if (product.price > maxPrice) return false
-    if (minRating > 0 && ratingOf(product) < minRating) return false
+    if (minRating > 0 && product.averageRating < minRating) return false
     if (fastOnly && !deriveFastDelivery(product)) return false
     return true
   })
 
   if (sort === 'low') filtered = [...filtered].sort((a, b) => a.price - b.price)
   else if (sort === 'high') filtered = [...filtered].sort((a, b) => b.price - a.price)
-  else if (sort === 'rating') filtered = [...filtered].sort((a, b) => ratingOf(b) - ratingOf(a))
+  else if (sort === 'rating') filtered = [...filtered].sort((a, b) => b.averageRating - a.averageRating)
 
   function setParam(key: string, value: string | null) {
     const next = new URLSearchParams(searchParams)

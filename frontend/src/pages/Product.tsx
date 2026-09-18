@@ -5,8 +5,7 @@ import ProductGridCard from '../components/ProductGridCard'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useLists } from '../context/ListsContext'
-import { useReviews } from '../context/ReviewsContext'
-import { catalogApi, type Product as ProductType } from '../services/api'
+import { catalogApi, reviewsApi, type Product as ProductType, type ReviewView } from '../services/api'
 import { usd } from '../lib/format'
 import { installmentLine } from '../lib/pricing'
 import { RATING_DISTRIBUTION, RELATED_REASONS, ALSO_VIEWED_SHARES, STORE_NAME } from '../lib/constants'
@@ -28,7 +27,6 @@ export default function Product() {
   const { user } = useAuth()
   const cart = useCart()
   const lists = useLists()
-  const reviews = useReviews()
 
   const [product, setProduct] = useState<ProductType | null>(null)
   const [related, setRelated] = useState<ProductType[]>([])
@@ -38,6 +36,18 @@ export default function Product() {
   const [newListName, setNewListName] = useState('')
   const [listFeedback, setListFeedback] = useState('')
   const [bundleChecked, setBundleChecked] = useState<Set<number>>(new Set())
+
+  // Independent from the product-loading state above: a failed reviews fetch must not block
+  // the rest of the page (price, add to cart, specs, etc.) from rendering. Mirrors the
+  // request-key/resolved-key pattern used for the results fetch in Search.tsx, so loading/error
+  // are derived rather than set synchronously inside the effect body.
+  const [productReviews, setProductReviews] = useState<ReviewView[]>([])
+  const [reviewsRetryTick, setReviewsRetryTick] = useState(0)
+  const reviewsRequestKey = product ? `${product.id}#${reviewsRetryTick}` : null
+  const [resolvedReviewsKey, setResolvedReviewsKey] = useState<string | null>(null)
+  const [reviewsResolvedOk, setReviewsResolvedOk] = useState(true)
+  const reviewsLoading = reviewsRequestKey !== null && resolvedReviewsKey !== reviewsRequestKey
+  const reviewsLoadError = !reviewsLoading && !reviewsResolvedOk
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reseta quantidade ao trocar de produto; refatorar é fora do escopo deste card
@@ -59,10 +69,31 @@ export default function Product() {
     if (lists.lists.length > 0 && !listTarget) setListTarget(lists.lists[0].id)
   }, [lists.lists, listTarget])
 
+  useEffect(() => {
+    if (!product || !reviewsRequestKey) return
+    let cancelled = false
+    const key = reviewsRequestKey
+    reviewsApi
+      .listByProduct(product.id)
+      .then((data) => {
+        if (cancelled) return
+        setProductReviews(data)
+        setReviewsResolvedOk(true)
+        setResolvedReviewsKey(key)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setReviewsResolvedOk(false)
+        setResolvedReviewsKey(key)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [product, reviewsRequestKey])
+
   if (!product) return <div className="w-full px-4 py-4 md:px-8 md:py-6 lg:px-10">Loading…</div>
 
-  const productReviews = reviews.getReviews(product.id)
-  const rating = productReviews.reduce((sum, r) => sum + r.stars, 0) / productReviews.length
+  const rating = product.averageRating
   const listPrice = deriveListPrice(product)
   const discountPct = deriveDiscountPct(product)
   const bullets = [
@@ -107,6 +138,12 @@ export default function Product() {
     const result = lists.addToList(target, product.id)
     setListFeedback(result ?? `Saved to ${list?.name ?? 'your list'}`)
     setTimeout(() => setListFeedback(''), 3000)
+  }
+
+  function markReviewHelpful(reviewId: number) {
+    reviewsApi.markHelpful(reviewId).then((updated) => {
+      setProductReviews((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
+    })
   }
 
   function saveNewList() {
@@ -165,7 +202,7 @@ export default function Product() {
           <div className="mb-3 flex items-center gap-2">
             <StarRating rating={rating} />
             <span className="text-accent-700">
-              {rating.toFixed(1)} ({productReviews.length.toLocaleString('en-US')} ratings)
+              {rating.toFixed(1)} ({product.reviewCount.toLocaleString('en-US')} ratings)
             </span>
           </div>
 
@@ -388,10 +425,6 @@ export default function Product() {
 
             <div className="flex flex-col">
               {recommended.map((item, index) => {
-                const itemReviews = reviews.getReviews(item.id)
-                const itemRating = itemReviews.length
-                  ? itemReviews.reduce((sum, r) => sum + r.stars, 0) / itemReviews.length
-                  : 0
                 return (
                   <div
                     key={item.id}
@@ -417,10 +450,10 @@ export default function Product() {
                       >
                         {item.name}
                       </div>
-                      {itemReviews.length > 0 && (
+                      {item.reviewCount > 0 && (
                         <div className="mt-1 flex items-center gap-1.5">
-                          <StarRating rating={itemRating} size={14} />
-                          <span className="readout text-xs text-paper-600">{itemReviews.length}</span>
+                          <StarRating rating={item.averageRating} size={14} />
+                          <span className="readout text-xs text-paper-600">{item.reviewCount}</span>
                         </div>
                       )}
                       <div className="mt-1 truncate text-xs text-accent-700">
@@ -464,7 +497,7 @@ export default function Product() {
             <div className="h text-[54px]">{rating.toFixed(1)}</div>
             <StarRating rating={rating} />
             <div className="mb-3 text-[16px] text-paper-600">
-              {productReviews.length.toLocaleString('en-US')} global ratings
+              {product.reviewCount.toLocaleString('en-US')} global ratings
             </div>
             {RATING_DISTRIBUTION.map((row) => (
               <div key={row.label} className="mb-1 flex items-center gap-2">
@@ -476,21 +509,40 @@ export default function Product() {
               </div>
             ))}
           </div>
-          <div className="flex flex-col gap-5">
-            {productReviews.map((review, index) => (
-              <div key={`${review.author}-${index}`}>
-                <StarRating rating={review.stars} />
-                <div className="h text-[18px]">{review.title}</div>
-                <div className="mb-1.5 text-[16px] text-paper-600">
-                  {review.author} · {review.date} · Verified purchase
+          {reviewsLoading ? (
+            <div className="text-[16.5px] text-paper-700">Loading reviews…</div>
+          ) : reviewsLoadError ? (
+            <Blueprint className="p-6 text-center">
+              <p className="text-paper-700">We couldn&apos;t load the reviews for this product.</p>
+              <Button variant="secondary" onClick={() => setReviewsRetryTick((tick) => tick + 1)}>
+                Retry
+              </Button>
+            </Blueprint>
+          ) : productReviews.length === 0 ? (
+            <div className="text-[16.5px] text-paper-700">No reviews yet. Be the first to write one.</div>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {productReviews.map((review) => (
+                <div key={review.id}>
+                  <StarRating rating={review.stars} />
+                  <div className="h text-[18px]">{review.title}</div>
+                  <div className="mb-1.5 text-[16px] text-paper-600">
+                    {review.authorName} ·{' '}
+                    {new Date(review.createdAt).toLocaleDateString('en-US', {
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}{' '}
+                    · Verified purchase
+                  </div>
+                  <p className="max-w-[70ch] text-[17px] text-paper-800">{review.text}</p>
+                  <Button variant="ghost" onClick={() => markReviewHelpful(review.id)}>
+                    Helpful ({review.helpfulCount})
+                  </Button>
                 </div>
-                <p className="max-w-[70ch] text-[17px] text-paper-800">{review.text}</p>
-                <Button variant="ghost" onClick={() => reviews.markHelpful(product.id, index)}>
-                  Helpful ({review.helpful})
-                </Button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

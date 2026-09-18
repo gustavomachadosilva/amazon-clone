@@ -2,6 +2,7 @@ package com.mercatto.catalog.service;
 
 import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.repository.ProductRepository;
+import com.mercatto.reviews.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -10,13 +11,21 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Catalog calls Reviews synchronously through {@link ReviewService} (its public API) to resolve
+ * each product's aggregate rating at read time, mirroring how {@code CartServiceImpl} resolves
+ * product name/price through Catalog's own public API. This is a read-only, never-mutating call,
+ * so it is safe inside this module's own transactions.
+ */
 @Service
 @RequiredArgsConstructor
 class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
+    private final ReviewService reviewService;
 
     @Override
     public Page<Product> search(String query, String category, Pageable pageable) {
@@ -82,5 +91,35 @@ class ProductServiceImpl implements ProductService {
     @Override
     public List<String> listCategories() {
         return productRepository.findDistinctCategories();
+    }
+
+    @Override
+    public Page<ProductView> searchWithRating(String query, String category, Pageable pageable) {
+        Page<Product> page = productRepository.search(query, category, pageable);
+        List<Long> productIds = page.getContent().stream().map(Product::getId).toList();
+        Map<Long, ReviewService.RatingAggregate> aggregates = reviewService.getAggregates(productIds);
+        return page.map(product -> toView(product,
+                aggregates.getOrDefault(product.getId(), ReviewService.RatingAggregate.empty(product.getId()))));
+    }
+
+    @Override
+    public Optional<ProductView> findByIdWithRating(Long id) {
+        return productRepository.findById(id)
+                .map(product -> toView(product, reviewService.getAggregate(id)));
+    }
+
+    private ProductView toView(Product product, ReviewService.RatingAggregate aggregate) {
+        return new ProductView(
+                product.getId(),
+                product.getName(),
+                product.getDescription(),
+                product.getPrice(),
+                product.getStockQuantity(),
+                product.getCategory(),
+                product.getImageUrl(),
+                product.getSellerId(),
+                product.getCreatedAt(),
+                aggregate.averageRating(),
+                aggregate.reviewCount());
     }
 }

@@ -52,6 +52,30 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void publicPath_reviewsByProduct_withoutHeader_callsChain() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/reviews/products/1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(chain.getRequest()).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void protectedPath_reviewsHelpful_withoutHeader_returns401AndDoesNotCallChain() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/reviews/1/helpful");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(chain.getRequest()).isNull();
+        assertThat(response.getStatus()).isEqualTo(401);
+    }
+
+    @Test
     void protectedPath_withoutHeader_returns401AndDoesNotCallChain() throws ServletException, IOException {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/orders");
         MockHttpServletResponse response = new MockHttpServletResponse();
