@@ -39,6 +39,7 @@ export default function SellerDashboard() {
   const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [orders, setOrders] = useState<SellerOrder[]>([])
   const [metrics, setMetrics] = useState<SellerMetrics | null>(null)
+  const [ordersLoadError, setOrdersLoadError] = useState(false)
 
   const fetchInventory = useCallback(() => {
     if (!user) return
@@ -53,11 +54,21 @@ export default function SellerDashboard() {
     catalogApi.getCategories().then(setCategories).catch(console.error)
   }, [])
 
-  useEffect(() => {
+  const fetchOrders = useCallback(() => {
     if (!user) return
-    sellersApi.getOrders(user.id).then(setOrders).catch(console.error)
+    sellersApi
+      .getOrders(user.id)
+      .then((data) => {
+        setOrders(data)
+        setOrdersLoadError(false)
+      })
+      .catch(() => setOrdersLoadError(true))
     sellersApi.getMetrics(user.id).then(setMetrics).catch(console.error)
   }, [user])
+
+  useEffect(() => {
+    fetchOrders()
+  }, [fetchOrders])
 
   function openNewProductForm() {
     setEditingProduct(null)
@@ -211,7 +222,14 @@ export default function SellerDashboard() {
       )}
 
       {activeTab === 'orders' &&
-        (orders.length === 0 ? (
+        (ordersLoadError ? (
+          <div className="callout-alert">
+            <span>Could not load your orders.</span>
+            <button type="button" onClick={fetchOrders} className="ml-2 underline">
+              Retry
+            </button>
+          </div>
+        ) : orders.length === 0 ? (
           <p className="text-sm text-neutral-600">No orders received yet.</p>
         ) : (
           <div className="overflow-x-auto">
