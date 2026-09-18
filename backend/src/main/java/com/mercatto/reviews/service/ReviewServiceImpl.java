@@ -17,6 +17,11 @@ import java.util.Map;
  * the author's display name at read time, mirroring how {@code CartServiceImpl} resolves
  * product name/price at read time through Catalog's {@code ProductService}. This is a
  * read-only, never-mutating call, so it is safe inside this module's own transactions.
+ *
+ * <p>Deliberately does NOT validate {@code productId} against Catalog's {@code ProductService}:
+ * Catalog already depends on Reviews ({@code ProductServiceImpl} calls {@code ReviewService} for
+ * aggregate ratings), so a reverse Reviews -> Catalog call here would create a module cycle,
+ * which {@code ArchitectureBoundaryTest.modules_should_be_free_of_cycles} correctly rejects.
  */
 @Service
 @RequiredArgsConstructor
@@ -56,11 +61,13 @@ class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional
     public ReviewView markHelpful(Long reviewId) {
+        int updated = reviewRepository.incrementHelpfulCount(reviewId);
+        if (updated == 0) {
+            throw new ReviewNotFoundException("Review not found: " + reviewId);
+        }
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new ReviewNotFoundException("Review not found: " + reviewId));
-        review.setHelpfulCount(review.getHelpfulCount() + 1);
-        Review saved = reviewRepository.save(review);
-        return toView(saved);
+        return toView(review);
     }
 
     @Override

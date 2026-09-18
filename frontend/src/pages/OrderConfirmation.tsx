@@ -18,9 +18,11 @@ export default function OrderConfirmation() {
 
   if (!order) return <div className="mx-auto max-w-[900px] px-4 py-4 md:px-6 md:py-6">Loading…</div>
 
-  const shippingLabel = SHIPPING_OPTIONS[order.shippingMethod]
-  const paymentLabel = PAYMENT_OPTIONS[order.paymentMethod]
-  const address = `${order.address.street}, ${order.address.city} ${order.address.state} ${order.address.zip}`
+  const shippingLabel = order.shippingMethod ? SHIPPING_OPTIONS[order.shippingMethod] : 'Not available'
+  const paymentLabel = order.paymentMethod ? PAYMENT_OPTIONS[order.paymentMethod] : 'Not available'
+  const address = order.address
+    ? `${order.address.street}, ${order.address.city} ${order.address.state} ${order.address.zip}`
+    : 'Not available'
 
   return (
     <div className="mx-auto max-w-[900px] px-4 py-4 md:px-6 md:py-6">

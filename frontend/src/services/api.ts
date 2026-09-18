@@ -171,9 +171,10 @@ export interface Order {
   status: OrderStatus
   totalAmount: number
   items: OrderItem[]
-  address: OrderAddress
-  shippingMethod: ShippingMethod
-  paymentMethod: PaymentMethod
+  // Orders placed before this field existed have none of these set.
+  address: OrderAddress | null
+  shippingMethod: ShippingMethod | null
+  paymentMethod: PaymentMethod | null
   createdAt: string
 }
 
