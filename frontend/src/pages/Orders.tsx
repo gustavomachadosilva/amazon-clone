@@ -66,7 +66,16 @@ export default function Orders() {
                   </div>
                   <div>
                     <div className="uppercase tracking-[.1em] text-paper-600">Ship to</div>
-                    <div>{user.name}</div>
+                    {order.address ? (
+                      <>
+                        <div>{order.address.fullName}</div>
+                        <div className="text-paper-600">
+                          {order.address.street}, {order.address.city} {order.address.state} {order.address.zip}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-paper-600">Not available</div>
+                    )}
                   </div>
                   <div className="sm:text-right">Order #{order.id}</div>
                 </div>

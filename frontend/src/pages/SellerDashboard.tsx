@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { X } from 'lucide-react'
-import { catalogApi, Product, ProductInput, sellersApi } from '../services/api'
+import {
+  catalogApi,
+  Product,
+  ProductInput,
+  SellerMetrics,
+  SellerOrder,
+  sellersApi,
+} from '../services/api'
 import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui'
 import ProductForm from '../components/ProductForm'
 import { useAuth } from '../context/AuthContext'
@@ -11,14 +18,28 @@ interface Feedback {
   message: string
 }
 
+type Tab = 'products' | 'orders'
+
+const STATUS_STYLES: Record<SellerOrder['status'], string> = {
+  PAID: 'bg-accent2-100 text-accent2-800',
+  PENDING: 'bg-neutral-100 text-neutral-700',
+  PROCESSING: 'bg-neutral-100 text-neutral-700',
+  FAILED: 'bg-accent-100 text-accent-800',
+  CANCELLED: 'bg-accent-100 text-accent-800',
+}
+
 export default function SellerDashboard() {
   const { user } = useAuth()
+  const [activeTab, setActiveTab] = useState<Tab>('products')
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<Feedback | null>(null)
+  const [orders, setOrders] = useState<SellerOrder[]>([])
+  const [metrics, setMetrics] = useState<SellerMetrics | null>(null)
+  const [ordersLoadError, setOrdersLoadError] = useState(false)
 
   const fetchInventory = useCallback(() => {
     if (!user) return
@@ -32,6 +53,22 @@ export default function SellerDashboard() {
   useEffect(() => {
     catalogApi.getCategories().then(setCategories).catch(console.error)
   }, [])
+
+  const fetchOrders = useCallback(() => {
+    if (!user) return
+    sellersApi
+      .getOrders(user.id)
+      .then((data) => {
+        setOrders(data)
+        setOrdersLoadError(false)
+      })
+      .catch(() => setOrdersLoadError(true))
+    sellersApi.getMetrics(user.id).then(setMetrics).catch(console.error)
+  }, [user])
+
+  useEffect(() => {
+    fetchOrders()
+  }, [fetchOrders])
 
   function openNewProductForm() {
     setEditingProduct(null)
@@ -81,10 +118,30 @@ export default function SellerDashboard() {
     <div className="p-4 md:p-6">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1>Seller Dashboard</h1>
-        <Button variant="primary" onClick={openNewProductForm}>
-          New product
-        </Button>
+        {activeTab === 'products' && (
+          <Button variant="primary" onClick={openNewProductForm}>
+            New product
+          </Button>
+        )}
       </div>
+
+      {metrics && (
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-md border border-neutral-200 px-4 py-3">
+            <div className="text-xs uppercase tracking-wide text-neutral-600">Total revenue</div>
+            <div className="text-xl font-semibold">{usd(metrics.totalRevenue)}</div>
+          </div>
+          <div className="rounded-md border border-neutral-200 px-4 py-3">
+            <div className="text-xs uppercase tracking-wide text-neutral-600">Low stock products</div>
+            <div className="text-xl font-semibold">{metrics.lowStockProducts.length}</div>
+            {metrics.lowStockProducts.length > 0 && (
+              <div className="mt-1 text-xs text-neutral-600">
+                {metrics.lowStockProducts.map((p) => p.name).join(', ')}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {feedback && (
         <div className={`mb-4 ${feedback.type === 'success' ? 'callout-ok' : 'callout-alert'}`} role="status">
@@ -94,6 +151,31 @@ export default function SellerDashboard() {
           </button>
         </div>
       )}
+
+      <div className="mb-4 flex gap-4 border-b border-neutral-200" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'products'}
+          onClick={() => setActiveTab('products')}
+          className={`px-1 pb-2 text-sm font-medium border-b-2 ${
+            activeTab === 'products' ? 'border-accent-600 text-accent-700' : 'border-transparent text-neutral-600'
+          }`}
+        >
+          Products
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'orders'}
+          onClick={() => setActiveTab('orders')}
+          className={`px-1 pb-2 text-sm font-medium border-b-2 ${
+            activeTab === 'orders' ? 'border-accent-600 text-accent-700' : 'border-transparent text-neutral-600'
+          }`}
+        >
+          Orders {orders.length > 0 && `(${orders.length})`}
+        </button>
+      </div>
 
       {isFormOpen && (
         <ProductForm
@@ -105,37 +187,82 @@ export default function SellerDashboard() {
         />
       )}
 
-      <div className="overflow-x-auto">
-        <Table className="min-w-[560px]">
-          <TableHead>
-            <TableRow>
-              <TableHeader>Product</TableHeader>
-              <TableHeader>Stock</TableHeader>
-              <TableHeader>Price</TableHeader>
-              <TableHeader>Actions</TableHeader>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {products.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell>{product.name}</TableCell>
-                <TableCell className="readout">{product.stockQuantity}</TableCell>
-                <TableCell className="readout font-semibold">{usd(product.price)}</TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button variant="secondary" onClick={() => openEditForm(product)}>
-                      Edit
-                    </Button>
-                    <Button variant="secondary" onClick={() => handleDelete(product)}>
-                      Delete
-                    </Button>
-                  </div>
-                </TableCell>
+      {activeTab === 'products' && (
+        <div className="overflow-x-auto">
+          <Table className="min-w-[560px]">
+            <TableHead>
+              <TableRow>
+                <TableHeader>Product</TableHeader>
+                <TableHeader>Stock</TableHeader>
+                <TableHeader>Price</TableHeader>
+                <TableHeader>Actions</TableHeader>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHead>
+            <TableBody>
+              {products.map((product) => (
+                <TableRow key={product.id}>
+                  <TableCell>{product.name}</TableCell>
+                  <TableCell className="readout">{product.stockQuantity}</TableCell>
+                  <TableCell className="readout font-semibold">{usd(product.price)}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button variant="secondary" onClick={() => openEditForm(product)}>
+                        Edit
+                      </Button>
+                      <Button variant="secondary" onClick={() => handleDelete(product)}>
+                        Delete
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {activeTab === 'orders' &&
+        (ordersLoadError ? (
+          <div className="callout-alert">
+            <span>Could not load your orders.</span>
+            <button type="button" onClick={fetchOrders} className="ml-2 underline">
+              Retry
+            </button>
+          </div>
+        ) : orders.length === 0 ? (
+          <p className="text-sm text-neutral-600">No orders received yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table className="min-w-[640px]">
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Order</TableHeader>
+                  <TableHeader>Date</TableHeader>
+                  <TableHeader>Status</TableHeader>
+                  <TableHeader>Items</TableHeader>
+                  <TableHeader>Subtotal</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {orders.map((order) => (
+                  <TableRow key={order.orderId}>
+                    <TableCell>#{order.orderId}</TableCell>
+                    <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[order.status]}`}>
+                        {order.status}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {order.items.map((item) => `${item.quantity}× #${item.productId}`).join(', ')}
+                    </TableCell>
+                    <TableCell>{usd(order.subtotal)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ))}
     </div>
   )
 }

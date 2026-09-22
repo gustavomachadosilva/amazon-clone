@@ -3,42 +3,46 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Star } from 'lucide-react'
 import { Blueprint, Button, Input, Placeholder, Textarea } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
-import { useReviews } from '../context/ReviewsContext'
-import { catalogApi, type Product } from '../services/api'
+import { ApiRequestError, catalogApi, reviewsApi, type Product } from '../services/api'
 import { RATING_WORD } from '../lib/constants'
-import { deriveBrandLabel } from '../lib/mockProductMeta'
-import type { Review } from '../types/domain'
 
 export default function WriteReview() {
   const { id } = useParams<{ id: string }>()
   const productId = Number(id)
   const navigate = useNavigate()
   const { user } = useAuth()
-  const reviews = useReviews()
 
   const [product, setProduct] = useState<Product | null>(null)
   const [rating, setRating] = useState(0)
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     catalogApi.getById(productId).then(setProduct)
   }, [productId])
 
-  if (!product) return <div className="mx-auto max-w-[860px] px-4 py-4 md:px-6 md:py-6">Loading…</div>
+  useEffect(() => {
+    // A review's authorId is now a real foreign key to a users row, so an anonymous "Guest"
+    // submission is no longer possible — send unauthenticated visitors to sign in first,
+    // mirroring the guard used for cart actions in Product.tsx.
+    if (!user) navigate('/signin')
+  }, [user, navigate])
 
-  function submit() {
-    if (rating === 0) return
-    const review: Review = {
-      stars: rating as Review['stars'],
-      title,
-      author: user?.name ?? 'Guest',
-      date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-      text,
-      helpful: 0,
+  if (!product || !user) return <div className="mx-auto max-w-[860px] px-4 py-4 md:px-6 md:py-6">Loading…</div>
+
+  async function submit() {
+    if (rating === 0 || submitting) return
+    setSubmitting(true)
+    setError('')
+    try {
+      await reviewsApi.create(productId, { stars: rating, title, text })
+      navigate(`/product/${productId}`)
+    } catch (e) {
+      setError(e instanceof ApiRequestError && e.apiMessage ? e.apiMessage : 'Could not submit your review. Please try again.')
+      setSubmitting(false)
     }
-    reviews.addReview(productId, review)
-    navigate(`/product/${productId}`)
   }
 
   return (
@@ -50,7 +54,8 @@ export default function WriteReview() {
         <div className="min-w-0">
           <div className="h truncate">{product.name}</div>
           <div className="text-[16px] text-paper-600">
-            {deriveBrandLabel(product)} · {product.category}
+            {product.brand ? `${product.brand} · ` : ''}
+            {product.category}
           </div>
         </div>
       </Blueprint>
@@ -89,9 +94,11 @@ export default function WriteReview() {
           <span>Add a photo or video</span>
         </div>
 
+        {error && <div className="text-sm text-accent-800">{error}</div>}
+
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Button variant="primary" onClick={submit} disabled={rating === 0}>
-            Submit review
+          <Button variant="primary" onClick={submit} disabled={rating === 0 || submitting}>
+            {submitting ? 'Submitting…' : 'Submit review'}
           </Button>
           <Button variant="secondary" onClick={() => navigate(`/product/${productId}`)}>
             Cancel

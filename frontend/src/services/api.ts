@@ -70,6 +70,12 @@ export interface Product {
   category: string
   sellerId: number
   imageUrl?: string
+  brand: string | null
+  warrantyMonths: number | null
+  modelNumber: string | null
+  listPrice: number | null
+  averageRating: number
+  reviewCount: number
 }
 
 export interface Page<T> {
@@ -90,6 +96,10 @@ export interface ProductInput {
   stockQuantity: number
   category: string
   imageUrl?: string
+  brand?: string
+  warrantyMonths?: number
+  modelNumber?: string
+  listPrice?: number
 }
 
 export const catalogApi = {
@@ -108,9 +118,31 @@ export const catalogApi = {
   remove: (id: number) => api.delete<void>(`/api/catalog/products/${id}`),
 }
 
+export interface SellerOrderItem {
+  productId: number
+  quantity: number
+  unitPrice: number
+}
+
+export interface SellerOrder {
+  orderId: number
+  buyerId: number
+  status: OrderStatus
+  createdAt: string
+  items: SellerOrderItem[]
+  subtotal: number
+}
+
+export interface SellerMetrics {
+  totalRevenue: number
+  lowStockProducts: Product[]
+}
+
 export const sellersApi = {
   getInventory: (sellerId: number, page: number = 0, size: number = 10) =>
     api.get<Page<Product>>(`/api/sellers/${sellerId}/products?page=${page}&size=${size}`),
+  getOrders: (sellerId: number) => api.get<SellerOrder[]>(`/api/sellers/${sellerId}/orders`),
+  getMetrics: (sellerId: number) => api.get<SellerMetrics>(`/api/sellers/${sellerId}/metrics`),
 }
 
 export type OrderStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'FAILED' | 'CANCELLED'
@@ -122,12 +154,27 @@ export interface OrderItem {
   unitPrice: number
 }
 
+export interface OrderAddress {
+  fullName: string
+  street: string
+  city: string
+  state: string
+  zip: string
+}
+
+export type ShippingMethod = 'STANDARD' | 'EXPRESS' | 'PICKUP'
+export type PaymentMethod = 'CARD' | 'STORE' | 'GIFT'
+
 export interface Order {
   id: number
   buyerId: number
   status: OrderStatus
   totalAmount: number
   items: OrderItem[]
+  // Orders placed before this field existed have none of these set.
+  address: OrderAddress | null
+  shippingMethod: ShippingMethod | null
+  paymentMethod: PaymentMethod | null
   createdAt: string
 }
 
@@ -136,11 +183,18 @@ export interface CheckoutItem {
   quantity: number
 }
 
+export interface CheckoutPayload {
+  items: CheckoutItem[]
+  address: OrderAddress
+  shippingMethod: ShippingMethod
+  paymentMethod: PaymentMethod
+}
+
 export const ordersApi = {
-  checkout: (items: CheckoutItem[], idempotencyKey?: string) =>
+  checkout: (payload: CheckoutPayload, idempotencyKey?: string) =>
     api.post<Order>(
       '/api/orders/checkout',
-      { items },
+      payload,
       idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
     ),
   getById: (id: number) => api.get<Order>(`/api/orders/${id}`),
@@ -201,4 +255,52 @@ export const cartApi = {
   moveToCart: (userId: number, productId: number) =>
     api.post<CartView>(`/api/cart/${userId}/items/${productId}/move-to-cart`, undefined),
   clear: (userId: number) => api.delete<CartView>(`/api/cart/${userId}`),
+}
+
+export interface ReviewView {
+  id: number
+  productId: number
+  authorId: number
+  authorName: string
+  stars: number
+  title: string
+  text: string
+  helpfulCount: number
+  createdAt: string
+}
+
+export interface CreateReviewPayload {
+  stars: number
+  title: string
+  text: string
+}
+
+export const reviewsApi = {
+  listByProduct: (productId: number) => api.get<ReviewView[]>(`/api/reviews/products/${productId}`),
+  create: (productId: number, payload: CreateReviewPayload) =>
+    api.post<ReviewView>(`/api/reviews/products/${productId}`, payload),
+  markHelpful: (reviewId: number) => api.post<ReviewView>(`/api/reviews/${reviewId}/helpful`, undefined),
+}
+
+export interface WishListView {
+  id: number
+  buyerId: number
+  name: string
+  productIds: number[]
+  createdAt: string
+}
+
+export interface AddItemResult {
+  list: WishListView
+  alreadyPresent: boolean
+}
+
+export const listsApi = {
+  listMine: () => api.get<WishListView[]>('/api/lists'),
+  create: (name: string) => api.post<WishListView>('/api/lists', { name }),
+  addItem: (listId: number, productId: number) =>
+    api.post<AddItemResult>(`/api/lists/${listId}/items`, { productId }),
+  removeItem: (listId: number, productId: number) =>
+    api.delete<WishListView>(`/api/lists/${listId}/items/${productId}`),
+  remove: (listId: number) => api.delete<void>(`/api/lists/${listId}`),
 }

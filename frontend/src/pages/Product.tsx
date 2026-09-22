@@ -5,20 +5,11 @@ import ProductGridCard from '../components/ProductGridCard'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useLists } from '../context/ListsContext'
-import { useReviews } from '../context/ReviewsContext'
-import { catalogApi, type Product as ProductType } from '../services/api'
+import { catalogApi, reviewsApi, type Product as ProductType, type ReviewView } from '../services/api'
 import { usd } from '../lib/format'
 import { installmentLine } from '../lib/pricing'
 import { RATING_DISTRIBUTION, RELATED_REASONS, ALSO_VIEWED_SHARES, STORE_NAME } from '../lib/constants'
-import {
-  deriveBrandLabel,
-  deriveDeliveryLabel,
-  deriveDiscountPct,
-  deriveListPrice,
-  deriveModelNumber,
-  deriveStockLabel,
-  WARRANTY_LABEL,
-} from '../lib/mockProductMeta'
+import { deriveDeliveryLabel, deriveStockLabel } from '../lib/mockProductMeta'
 import { onEnterKey } from '../lib/a11y'
 
 export default function Product() {
@@ -28,16 +19,28 @@ export default function Product() {
   const { user } = useAuth()
   const cart = useCart()
   const lists = useLists()
-  const reviews = useReviews()
 
   const [product, setProduct] = useState<ProductType | null>(null)
   const [related, setRelated] = useState<ProductType[]>([])
   const [qty, setQty] = useState(1)
-  const [listTarget, setListTarget] = useState<string>('')
+  const [listTarget, setListTarget] = useState<number | null>(null)
   const [creatingList, setCreatingList] = useState(false)
   const [newListName, setNewListName] = useState('')
   const [listFeedback, setListFeedback] = useState('')
+  const [helpfulError, setHelpfulError] = useState('')
   const [bundleChecked, setBundleChecked] = useState<Set<number>>(new Set())
+
+  // Independent from the product-loading state above: a failed reviews fetch must not block
+  // the rest of the page (price, add to cart, specs, etc.) from rendering. Mirrors the
+  // request-key/resolved-key pattern used for the results fetch in Search.tsx, so loading/error
+  // are derived rather than set synchronously inside the effect body.
+  const [productReviews, setProductReviews] = useState<ReviewView[]>([])
+  const [reviewsRetryTick, setReviewsRetryTick] = useState(0)
+  const reviewsRequestKey = product ? `${product.id}#${reviewsRetryTick}` : null
+  const [resolvedReviewsKey, setResolvedReviewsKey] = useState<string | null>(null)
+  const [reviewsResolvedOk, setReviewsResolvedOk] = useState(true)
+  const reviewsLoading = reviewsRequestKey !== null && resolvedReviewsKey !== reviewsRequestKey
+  const reviewsLoadError = !reviewsLoading && !reviewsResolvedOk
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reseta quantidade ao trocar de produto; refatorar é fora do escopo deste card
@@ -56,21 +59,44 @@ export default function Product() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- inicializa lista alvo default; refatorar para estado derivado é fora do escopo deste card
-    if (lists.lists.length > 0 && !listTarget) setListTarget(lists.lists[0].id)
+    if (lists.lists.length > 0 && listTarget === null) setListTarget(lists.lists[0].id)
   }, [lists.lists, listTarget])
+
+  useEffect(() => {
+    if (!product || !reviewsRequestKey) return
+    let cancelled = false
+    const key = reviewsRequestKey
+    reviewsApi
+      .listByProduct(product.id)
+      .then((data) => {
+        if (cancelled) return
+        setProductReviews(data)
+        setReviewsResolvedOk(true)
+        setResolvedReviewsKey(key)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setReviewsResolvedOk(false)
+        setResolvedReviewsKey(key)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [product, reviewsRequestKey])
 
   if (!product) return <div className="w-full px-4 py-4 md:px-8 md:py-6 lg:px-10">Loading…</div>
 
-  const productReviews = reviews.getReviews(product.id)
-  const rating = productReviews.reduce((sum, r) => sum + r.stars, 0) / productReviews.length
-  const listPrice = deriveListPrice(product)
-  const discountPct = deriveDiscountPct(product)
+  const rating = product.averageRating
+  const hasDiscount = product.listPrice !== null && product.listPrice > product.price
+  const discountPct = hasDiscount
+    ? Math.round((1 - product.price / (product.listPrice as number)) * 100)
+    : 0
   const bullets = [
     product.description,
-    '12-month manufacturer warranty included.',
-    `Compatible with the main accessories in the ${deriveBrandLabel(product)} line.`,
+    product.warrantyMonths != null ? `${product.warrantyMonths}-month manufacturer warranty included.` : null,
+    product.brand ? `Compatible with the main accessories in the ${product.brand} line.` : null,
     'Ships in recyclable, single-box packaging.',
-  ]
+  ].filter((bullet): bullet is string => Boolean(bullet))
 
   const alsoViewed = related.slice(0, 6)
   const recommended = related.slice(0, 4)
@@ -95,28 +121,60 @@ export default function Product() {
     navigate('/cart')
   }
 
-  function addToList() {
+  async function addToList() {
     if (!product) return
-    let target = listTarget
-    if (lists.lists.length === 0) {
-      const created = lists.createList('Shopping List')
-      target = created.id
-      setListTarget(created.id)
+    if (!user) {
+      navigate('/signin')
+      return
     }
-    const list = lists.lists.find((l) => l.id === target)
-    const result = lists.addToList(target, product.id)
-    setListFeedback(result ?? `Saved to ${list?.name ?? 'your list'}`)
+    try {
+      let target = listTarget
+      if (target === null) {
+        const created = await lists.createList('Shopping List')
+        target = created.id
+        setListTarget(created.id)
+      }
+      const list = lists.lists.find((l) => l.id === target)
+      const result = await lists.addToList(target, product.id)
+      setListFeedback(result === 'exists' ? 'Already in this list' : `Saved to ${list?.name ?? 'your list'}`)
+    } catch {
+      setListFeedback('Could not save to list. Please try again.')
+    }
     setTimeout(() => setListFeedback(''), 3000)
   }
 
-  function saveNewList() {
+  function markReviewHelpful(reviewId: number) {
+    if (!user) {
+      navigate('/signin')
+      return
+    }
+    reviewsApi
+      .markHelpful(reviewId)
+      .then((updated) => {
+        setProductReviews((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
+      })
+      .catch(() => {
+        setHelpfulError('Could not mark review as helpful. Please try again.')
+        setTimeout(() => setHelpfulError(''), 3000)
+      })
+  }
+
+  async function saveNewList() {
     if (!newListName.trim() || !product) return
-    const created = lists.createList(newListName.trim())
-    lists.addToList(created.id, product.id)
-    setListTarget(created.id)
-    setCreatingList(false)
-    setNewListName('')
-    setListFeedback(`Saved to ${created.name}`)
+    if (!user) {
+      navigate('/signin')
+      return
+    }
+    try {
+      const created = await lists.createList(newListName.trim())
+      await lists.addToList(created.id, product.id)
+      setListTarget(created.id)
+      setCreatingList(false)
+      setNewListName('')
+      setListFeedback(`Saved to ${created.name}`)
+    } catch {
+      setListFeedback('Could not save to list. Please try again.')
+    }
     setTimeout(() => setListFeedback(''), 3000)
   }
 
@@ -159,25 +217,27 @@ export default function Product() {
           <h1 className="text-[38px] leading-[1.15] md:text-[48px]">{product.name}</h1>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className="tag tag-accent-2">{product.category}</span>
-            <span className="text-[16.5px] text-accent-700">Visit the {deriveBrandLabel(product)} store</span>
+            {product.brand && (
+              <span className="text-[16.5px] text-accent-700">Visit the {product.brand} store</span>
+            )}
           </div>
 
           <div className="mb-3 flex items-center gap-2">
             <StarRating rating={rating} />
             <span className="text-accent-700">
-              {rating.toFixed(1)} ({productReviews.length.toLocaleString('en-US')} ratings)
+              {rating.toFixed(1)} ({product.reviewCount.toLocaleString('en-US')} ratings)
             </span>
           </div>
 
           <div className="hr" />
 
           <div className="my-3 flex flex-wrap items-baseline gap-2.5">
-            {discountPct > 0 && (
+            {hasDiscount && discountPct > 0 && (
               <span className="h text-2xl text-accent-800">-{discountPct}%</span>
             )}
             <span className="readout text-4xl font-semibold">{usd(product.price)}</span>
-            {listPrice > product.price && (
-              <span className="text-sm text-paper-500 line-through">Typical price: {usd(listPrice)}</span>
+            {hasDiscount && (
+              <span className="text-sm text-paper-500 line-through">Typical price: {usd(product.listPrice as number)}</span>
             )}
           </div>
           <div className="text-[16px] text-paper-700">{installmentLine(product.price)}</div>
@@ -194,24 +254,30 @@ export default function Product() {
             <h3 className="text-[22px]">Technical specifications</h3>
             <Table>
               <TableBody>
+                {product.brand && (
+                  <TableRow>
+                    <TableCell className="w-[140px]">Brand</TableCell>
+                    <TableCell>{product.brand}</TableCell>
+                  </TableRow>
+                )}
+                {product.modelNumber && (
+                  <TableRow>
+                    <TableCell className="w-[140px]">Model</TableCell>
+                    <TableCell>{product.modelNumber}</TableCell>
+                  </TableRow>
+                )}
                 <TableRow>
-                  <TableCell className="w-[140px]">Brand</TableCell>
-                  <TableCell>{deriveBrandLabel(product)}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Model</TableCell>
-                  <TableCell>{deriveModelNumber(product)}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Category</TableCell>
+                  <TableCell className="w-[140px]">Category</TableCell>
                   <TableCell>{product.category}</TableCell>
                 </TableRow>
+                {product.warrantyMonths != null && (
+                  <TableRow>
+                    <TableCell className="w-[140px]">Warranty</TableCell>
+                    <TableCell>{product.warrantyMonths}-month limited warranty</TableCell>
+                  </TableRow>
+                )}
                 <TableRow>
-                  <TableCell>Warranty</TableCell>
-                  <TableCell>{WARRANTY_LABEL}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Sold by</TableCell>
+                  <TableCell className="w-[140px]">Sold by</TableCell>
                   <TableCell>{STORE_NAME}</TableCell>
                 </TableRow>
               </TableBody>
@@ -267,10 +333,13 @@ export default function Product() {
             <h3 className="text-[18px]">Add to a list</h3>
             {!creatingList ? (
               <>
-                <Select value={listTarget} onChange={(e) => setListTarget(e.target.value)}>
+                <Select
+                  value={listTarget !== null ? String(listTarget) : ''}
+                  onChange={(e) => setListTarget(Number(e.target.value))}
+                >
                   {lists.lists.map((list) => (
                     <option key={list.id} value={list.id}>
-                      {list.name} ({list.items.length})
+                      {list.name} ({list.productIds.length})
                     </option>
                   ))}
                 </Select>
@@ -298,7 +367,8 @@ export default function Product() {
 
           <div className="hr" />
           <div className="text-xs leading-relaxed text-paper-700">
-            Free returns within 30 days · Secure payment · 12-month warranty
+            Free returns within 30 days · Secure payment
+            {product.warrantyMonths != null ? ` · ${product.warrantyMonths}-month warranty` : ''}
           </div>
         </Blueprint>
       </div>
@@ -388,10 +458,6 @@ export default function Product() {
 
             <div className="flex flex-col">
               {recommended.map((item, index) => {
-                const itemReviews = reviews.getReviews(item.id)
-                const itemRating = itemReviews.length
-                  ? itemReviews.reduce((sum, r) => sum + r.stars, 0) / itemReviews.length
-                  : 0
                 return (
                   <div
                     key={item.id}
@@ -417,10 +483,10 @@ export default function Product() {
                       >
                         {item.name}
                       </div>
-                      {itemReviews.length > 0 && (
+                      {item.reviewCount > 0 && (
                         <div className="mt-1 flex items-center gap-1.5">
-                          <StarRating rating={itemRating} size={14} />
-                          <span className="readout text-xs text-paper-600">{itemReviews.length}</span>
+                          <StarRating rating={item.averageRating} size={14} />
+                          <span className="readout text-xs text-paper-600">{item.reviewCount}</span>
                         </div>
                       )}
                       <div className="mt-1 truncate text-xs text-accent-700">
@@ -464,7 +530,7 @@ export default function Product() {
             <div className="h text-[54px]">{rating.toFixed(1)}</div>
             <StarRating rating={rating} />
             <div className="mb-3 text-[16px] text-paper-600">
-              {productReviews.length.toLocaleString('en-US')} global ratings
+              {product.reviewCount.toLocaleString('en-US')} global ratings
             </div>
             {RATING_DISTRIBUTION.map((row) => (
               <div key={row.label} className="mb-1 flex items-center gap-2">
@@ -476,21 +542,41 @@ export default function Product() {
               </div>
             ))}
           </div>
-          <div className="flex flex-col gap-5">
-            {productReviews.map((review, index) => (
-              <div key={`${review.author}-${index}`}>
-                <StarRating rating={review.stars} />
-                <div className="h text-[18px]">{review.title}</div>
-                <div className="mb-1.5 text-[16px] text-paper-600">
-                  {review.author} · {review.date} · Verified purchase
+          {reviewsLoading ? (
+            <div className="text-[16.5px] text-paper-700">Loading reviews…</div>
+          ) : reviewsLoadError ? (
+            <Blueprint className="p-6 text-center">
+              <p className="text-paper-700">We couldn&apos;t load the reviews for this product.</p>
+              <Button variant="secondary" onClick={() => setReviewsRetryTick((tick) => tick + 1)}>
+                Retry
+              </Button>
+            </Blueprint>
+          ) : productReviews.length === 0 ? (
+            <div className="text-[16.5px] text-paper-700">No reviews yet. Be the first to write one.</div>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {helpfulError && <div className="text-xs text-accent-700">{helpfulError}</div>}
+              {productReviews.map((review) => (
+                <div key={review.id}>
+                  <StarRating rating={review.stars} />
+                  <div className="h text-[18px]">{review.title}</div>
+                  <div className="mb-1.5 text-[16px] text-paper-600">
+                    {review.authorName} ·{' '}
+                    {new Date(review.createdAt).toLocaleDateString('en-US', {
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}{' '}
+                    · Verified purchase
+                  </div>
+                  <p className="max-w-[70ch] text-[17px] text-paper-800">{review.text}</p>
+                  <Button variant="ghost" onClick={() => markReviewHelpful(review.id)}>
+                    Helpful ({review.helpfulCount})
+                  </Button>
                 </div>
-                <p className="max-w-[70ch] text-[17px] text-paper-800">{review.text}</p>
-                <Button variant="ghost" onClick={() => reviews.markHelpful(product.id, index)}>
-                  Helpful ({review.helpful})
-                </Button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

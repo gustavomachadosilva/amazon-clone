@@ -6,6 +6,9 @@ import com.mercatto.catalog.service.ProductService;
 import com.mercatto.orders.domain.Order;
 import com.mercatto.orders.domain.OrderItem;
 import com.mercatto.orders.domain.OrderStatus;
+import com.mercatto.orders.domain.PaymentMethod;
+import com.mercatto.orders.domain.ShippingAddress;
+import com.mercatto.orders.domain.ShippingMethod;
 import com.mercatto.orders.event.OrderPlacedEvent;
 import com.mercatto.orders.repository.OrderRepository;
 import org.junit.jupiter.api.Test;
@@ -66,12 +69,22 @@ class OrderServiceImplTest {
                 });
     }
 
+    private static ShippingAddress testAddress() {
+        return ShippingAddress.builder()
+                .fullName("Ada Lovelace")
+                .street("1578 Union Street, Apt 92")
+                .city("Seattle")
+                .state("WA")
+                .zip("98104")
+                .build();
+    }
+
     @Test
     void checkoutRejectsInsufficientStockWithoutCharging() {
         Product product = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(1).build();
         when(productService.findById(1L)).thenReturn(Optional.of(product));
 
-        assertThatThrownBy(() -> orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), null))
+        assertThatThrownBy(() -> orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), null, testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD))
                 .isInstanceOf(InsufficientStockException.class);
 
         verifyNoInteractions(paymentGateway);
@@ -88,7 +101,7 @@ class OrderServiceImplTest {
                 new OrderService.CheckoutItem(1L, 3),
                 new OrderService.CheckoutItem(1L, 3));
 
-        assertThatThrownBy(() -> orderService.checkout(10L, items, null))
+        assertThatThrownBy(() -> orderService.checkout(10L, items, null, testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD))
                 .isInstanceOf(InsufficientStockException.class);
 
         verifyNoInteractions(paymentGateway);
@@ -104,7 +117,7 @@ class OrderServiceImplTest {
                 .thenReturn(new PaymentGateway.PaymentResult(true, "tx-1", "ok"));
         stubReserveAndUpdateStatus();
 
-        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), null);
+        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), null, testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD);
 
         assertThat(result.getStatus()).isEqualTo(OrderStatus.PAID);
         verify(paymentGateway).charge(any(), any(), any());
@@ -129,7 +142,7 @@ class OrderServiceImplTest {
                 .thenReturn(new PaymentGateway.PaymentResult(true, "tx-1", "ok"));
         stubReserveAndUpdateStatus();
 
-        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 3)), null);
+        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 3)), null, testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD);
 
         assertThat(result.getStatus()).isEqualTo(OrderStatus.PAID);
         verify(paymentGateway).charge(any(), any(), any());
@@ -151,7 +164,7 @@ class OrderServiceImplTest {
                 new OrderService.CheckoutItem(1L, 2),
                 new OrderService.CheckoutItem(2L, 3));
 
-        Order result = orderService.checkout(10L, items, null);
+        Order result = orderService.checkout(10L, items, null, testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD);
 
         assertThat(result.getTotalAmount()).isEqualByComparingTo(BigDecimal.valueOf(35));
         assertThat(result.getItems())
@@ -172,7 +185,7 @@ class OrderServiceImplTest {
                 new OrderService.CheckoutItem(1L, 2),
                 new OrderService.CheckoutItem(2L, 5));
 
-        assertThatThrownBy(() -> orderService.checkout(10L, items, null))
+        assertThatThrownBy(() -> orderService.checkout(10L, items, null, testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD))
                 .isInstanceOf(InsufficientStockException.class);
 
         verifyNoInteractions(paymentGateway);
@@ -184,7 +197,7 @@ class OrderServiceImplTest {
     void checkoutThrowsWhenProductNotFound() {
         when(productService.findById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 1)), null))
+        assertThatThrownBy(() -> orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 1)), null, testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD))
                 .isInstanceOf(ProductNotFoundException.class);
 
         verifyNoInteractions(paymentGateway);
@@ -200,7 +213,7 @@ class OrderServiceImplTest {
                 .thenReturn(new PaymentGateway.PaymentResult(false, null, "declined"));
         stubReserveAndUpdateStatus();
 
-        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), null);
+        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), null, testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD);
 
         assertThat(result.getStatus()).isEqualTo(OrderStatus.FAILED);
         verify(orderReservationService).reserve(any(Order.class));
@@ -216,7 +229,7 @@ class OrderServiceImplTest {
         when(orderReservationService.claimForCharging(nullable(Long.class))).thenReturn(true);
         when(paymentGateway.charge(any(), any(), any())).thenThrow(new IllegalStateException("gateway timeout"));
 
-        assertThatThrownBy(() -> orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), null))
+        assertThatThrownBy(() -> orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), null, testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD))
                 .isInstanceOf(IllegalStateException.class);
 
         // updateStatus runs in its own REQUIRES_NEW transaction (OrderReservationService)
@@ -227,13 +240,67 @@ class OrderServiceImplTest {
     }
 
     @Test
+    void checkoutPersistsAddressShippingMethodAndPaymentMethodOnNewOrder() {
+        Product product = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(5).build();
+        when(productService.findById(1L)).thenReturn(Optional.of(product));
+        when(paymentGateway.charge(any(), any(), any()))
+                .thenReturn(new PaymentGateway.PaymentResult(true, "tx-1", "ok"));
+        stubReserveAndUpdateStatus();
+        ShippingAddress address = testAddress();
+
+        Order result = orderService.checkout(
+                10L, List.of(new OrderService.CheckoutItem(1L, 2)), null, address, ShippingMethod.EXPRESS, PaymentMethod.GIFT);
+
+        assertThat(result.getAddress()).isEqualTo(address);
+        assertThat(result.getShippingMethod()).isEqualTo(ShippingMethod.EXPRESS);
+        assertThat(result.getPaymentMethod()).isEqualTo(PaymentMethod.GIFT);
+    }
+
+    @Test
     void checkoutReturnsExistingOrderForSameBuyerAndIdempotencyKeyWithoutCharging() {
         Order existingOrder = Order.builder().id(99L).buyerId(10L).status(OrderStatus.PAID).build();
         when(orderRepository.findByBuyerIdAndIdempotencyKey(10L, "key-1")).thenReturn(Optional.of(existingOrder));
 
-        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1");
+        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1", testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD);
 
         assertThat(result).isSameAs(existingOrder);
+        verifyNoInteractions(paymentGateway, productService, orderReservationService);
+    }
+
+    @Test
+    void checkoutIdempotentReplayIgnoresAddressAndPaymentFromTheReplayRequest() {
+        ShippingAddress originalAddress = ShippingAddress.builder()
+                .fullName("Original Buyer")
+                .street("Original Street")
+                .city("Original City")
+                .state("OS")
+                .zip("00000")
+                .build();
+        Order existingOrder = Order.builder()
+                .id(99L)
+                .buyerId(10L)
+                .status(OrderStatus.PAID)
+                .address(originalAddress)
+                .shippingMethod(ShippingMethod.STANDARD)
+                .paymentMethod(PaymentMethod.CARD)
+                .build();
+        when(orderRepository.findByBuyerIdAndIdempotencyKey(10L, "key-1")).thenReturn(Optional.of(existingOrder));
+
+        ShippingAddress replayAddress = ShippingAddress.builder()
+                .fullName("Different Buyer")
+                .street("Different Street")
+                .city("Different City")
+                .state("DS")
+                .zip("11111")
+                .build();
+
+        Order result = orderService.checkout(
+                10L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1", replayAddress, ShippingMethod.EXPRESS, PaymentMethod.GIFT);
+
+        assertThat(result).isSameAs(existingOrder);
+        assertThat(result.getAddress()).isEqualTo(originalAddress);
+        assertThat(result.getShippingMethod()).isEqualTo(ShippingMethod.STANDARD);
+        assertThat(result.getPaymentMethod()).isEqualTo(PaymentMethod.CARD);
         verifyNoInteractions(paymentGateway, productService, orderReservationService);
     }
 
@@ -246,7 +313,7 @@ class OrderServiceImplTest {
                 .thenReturn(new PaymentGateway.PaymentResult(true, "tx-1", "ok"));
         stubReserveAndUpdateStatus();
 
-        Order result = orderService.checkout(20L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1");
+        Order result = orderService.checkout(20L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1", testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD);
 
         assertThat(result.getBuyerId()).isEqualTo(20L);
         verify(orderRepository, never()).findByBuyerIdAndIdempotencyKey(10L, "key-1");
@@ -261,7 +328,7 @@ class OrderServiceImplTest {
                 .thenReturn(new PaymentGateway.PaymentResult(true, "tx-1", "ok"));
         stubReserveAndUpdateStatus();
 
-        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), "   ");
+        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), "   ", testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD);
 
         assertThat(result.getIdempotencyKey()).isNull();
         verify(orderRepository, never()).findByBuyerIdAndIdempotencyKey(anyLong(), anyString());
@@ -281,7 +348,7 @@ class OrderServiceImplTest {
                     return order;
                 });
 
-        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1");
+        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1", testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD);
 
         assertThat(result).isSameAs(existingOrder);
         assertThat(result.getStatus()).isEqualTo(OrderStatus.PAID);
@@ -306,7 +373,7 @@ class OrderServiceImplTest {
                     return order;
                 });
 
-        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1");
+        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1", testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD);
 
         assertThat(result.getStatus()).isEqualTo(OrderStatus.FAILED);
         verify(paymentGateway).charge(eq(99L), eq(BigDecimal.TEN), any());
@@ -322,7 +389,7 @@ class OrderServiceImplTest {
         when(orderReservationService.claimForCharging(99L)).thenReturn(false);
         when(orderRepository.findByIdWithItems(99L)).thenReturn(Optional.of(stillProcessing));
 
-        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1");
+        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1", testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD);
 
         assertThat(result).isSameAs(stillProcessing);
         verifyNoInteractions(paymentGateway, eventPublisher);
@@ -339,7 +406,7 @@ class OrderServiceImplTest {
         when(orderReservationService.reserve(any(Order.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate idempotency key"));
 
-        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1");
+        Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), "key-1", testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD);
 
         assertThat(result).isSameAs(winningOrder);
         verifyNoInteractions(paymentGateway, eventPublisher);

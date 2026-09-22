@@ -2,9 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import { Button, Blueprint, Placeholder, StarRating } from './ui'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
-import { useReviews } from '../context/ReviewsContext'
 import { truncate, usd } from '../lib/format'
-import { deriveDeliveryLabel, deriveListPrice } from '../lib/mockProductMeta'
+import { deriveDeliveryLabel } from '../lib/mockProductMeta'
 import { onEnterKey } from '../lib/a11y'
 import type { Product } from '../services/api'
 
@@ -17,11 +16,8 @@ export default function ProductGridCard({ product, compact = false }: ProductGri
   const navigate = useNavigate()
   const { user } = useAuth()
   const cart = useCart()
-  const reviews = useReviews()
 
-  const productReviews = reviews.getReviews(product.id)
-  const rating = productReviews.reduce((sum, r) => sum + r.stars, 0) / productReviews.length
-  const listPrice = deriveListPrice(product)
+  const hasDiscount = product.listPrice !== null && product.listPrice > product.price
 
   function open() {
     navigate(`/product/${product.id}`)
@@ -71,8 +67,8 @@ export default function ProductGridCard({ product, compact = false }: ProductGri
       <div className="border-t border-dashed border-divider px-3 pt-3">
         <div className={`text-[18px] leading-[1.3] ${compact ? '' : 'line-clamp-2 min-h-[47px]'}`}>{displayName}</div>
         <div className="mt-1.5 flex items-center gap-1.5 text-sm">
-          <StarRating rating={rating} size={17} />
-          <span className="readout text-paper-600">{productReviews.length.toLocaleString('en-US')}</span>
+          <StarRating rating={product.averageRating} size={17} />
+          <span className="readout text-paper-600">{product.reviewCount.toLocaleString('en-US')}</span>
         </div>
       </div>
 
@@ -82,8 +78,8 @@ export default function ProductGridCard({ product, compact = false }: ProductGri
             <span className={`readout font-semibold text-foreground ${compact ? 'text-[25px]' : 'text-[29px]'}`}>
               {usd(product.price)}
             </span>
-            {listPrice > product.price && (
-              <span className="readout text-[15px] text-paper-500 line-through">{usd(listPrice)}</span>
+            {hasDiscount && (
+              <span className="readout text-[15px] text-paper-500 line-through">{usd(product.listPrice as number)}</span>
             )}
           </div>
           <span className={`stamp ${lowStock ? 'stamp-alert' : ''}`}>

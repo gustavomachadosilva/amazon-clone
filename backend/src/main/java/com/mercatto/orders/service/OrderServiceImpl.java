@@ -6,6 +6,9 @@ import com.mercatto.catalog.service.ProductService;
 import com.mercatto.orders.domain.Order;
 import com.mercatto.orders.domain.OrderItem;
 import com.mercatto.orders.domain.OrderStatus;
+import com.mercatto.orders.domain.PaymentMethod;
+import com.mercatto.orders.domain.ShippingAddress;
+import com.mercatto.orders.domain.ShippingMethod;
 import com.mercatto.orders.event.OrderPlacedEvent;
 import com.mercatto.orders.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -51,7 +54,13 @@ class OrderServiceImpl implements OrderService {
      */
     @Override
     @Transactional
-    public Order checkout(Long buyerId, List<CheckoutItem> items, String idempotencyKey) {
+    public Order checkout(
+            Long buyerId,
+            List<CheckoutItem> items,
+            String idempotencyKey,
+            ShippingAddress address,
+            ShippingMethod shippingMethod,
+            PaymentMethod paymentMethod) {
         String normalizedKey = normalizeIdempotencyKey(idempotencyKey);
 
         if (normalizedKey != null) {
@@ -72,6 +81,9 @@ class OrderServiceImpl implements OrderService {
                 .status(OrderStatus.PENDING)
                 .totalAmount(BigDecimal.ZERO)
                 .idempotencyKey(normalizedKey)
+                .address(address)
+                .shippingMethod(shippingMethod)
+                .paymentMethod(paymentMethod)
                 .build();
 
         Map<Long, Integer> requestedQuantities = items.stream()

@@ -3,8 +3,8 @@
 [![CI](https://github.com/gustavomachadosilva/amazon-clone/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/gustavomachadosilva/amazon-clone/actions/workflows/ci.yml)
 
 A marketplace project (Amazon-like) being built for a college course, structured as a **modular
-monolith**: one Spring Boot deployable, one PostgreSQL database, four business modules
-(`users`, `catalog`, `orders`, `sellers`) kept isolated by convention so the codebase doesn't
+monolith**: one Spring Boot deployable, one PostgreSQL database, five business modules
+(`users`, `catalog`, `orders`, `cart`, `sellers`) kept isolated by convention so the codebase doesn't
 degrade into a ball of mud — and so it *could* be split into microservices later without a
 rewrite.
 
@@ -12,7 +12,7 @@ rewrite.
 
 - **Backend:** Java 21 + Spring Boot 3 (Maven), packages-by-module.
 - **Frontend:** React + Vite + TypeScript + Tailwind CSS.
-- **Database:** PostgreSQL, one schema per module (`users`, `catalog`, `orders`).
+- **Database:** PostgreSQL, one schema per module (`users`, `catalog`, `orders`, `cart`).
 - **Infra:** Docker Compose for local dev.
 
 ## Architecture: how modules talk to each other
@@ -52,7 +52,7 @@ entity ever joins across a schema boundary.
    - Postgres: `localhost:5432` (credentials from `.env`)
 
 Postgres runs the SQL in `backend/src/main/resources/db/init/` on first boot, creating the
-`users`, `catalog`, and `orders` schemas before Hibernate touches the database.
+`users`, `catalog`, `orders`, and `cart` schemas before Hibernate touches the database.
 
 ### Running without Docker
 
@@ -67,8 +67,9 @@ semeia dados automaticamente ao subir:
 - **Usuários** (`users.service.UserSeeder`): uma lista fixa de contas variadas — 3 sellers (o
   seller âncora `seller.demo@mercatto.dev` / `Seller123!`, dono dos produtos semeados, mais 2
   sellers extras) e 6 buyers, cada um com nome e e-mail próprios.
-- **Produtos** (`catalog.service.DummyJsonSeeder`): ~50 produtos importados da API pública
-  [DummyJSON](https://dummyjson.com/), associados ao seller âncora acima.
+- **Produtos** (`catalog.service.AmazonProductSeeder`): 500 produtos de uma amostra curada do
+  dataset Kaggle "Amazon Products 2023" (arquivo `backend/src/main/resources/seed/amazon-products-sample.csv`),
+  distribuídos round-robin entre os sellers semeados.
 
 Esse seed só roda quando `SPRING_PROFILES_ACTIVE=dev` (o padrão em `.env.example` e no
 `docker-compose.yml`) — **nunca em produção**. Ele também é idempotente: em toda subida verifica

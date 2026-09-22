@@ -13,12 +13,14 @@ vi.mock('./services/api', () => ({
   },
   usersApi: {
     getMe: vi.fn(() => Promise.resolve({ id: 1, name: 'Test', role: 'BUYER' })),
+  },
+  listsApi: {
+    listMine: vi.fn(() => Promise.resolve([])),
   }
 }))
 import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
 import { ListsProvider } from './context/ListsContext'
-import { ReviewsProvider } from './context/ReviewsContext'
 import App from './App'
 
 describe('App Component', () => {
@@ -29,9 +31,7 @@ describe('App Component', () => {
         <AuthProvider>
           <CartProvider>
             <ListsProvider>
-              <ReviewsProvider>
-                <App />
-              </ReviewsProvider>
+              <App />
             </ListsProvider>
           </CartProvider>
         </AuthProvider>

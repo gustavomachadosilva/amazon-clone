@@ -19,7 +19,7 @@ Two primary audiences, both central to the product:
 
 Mercatto is a fictional general-merchandise marketplace (Amazon-like) built as coursework. It
 exists to demonstrate a correctly built full-stack application — a Java/Spring Boot modular
-monolith (`users`, `catalog`, `orders`, `sellers` modules, one Postgres schema each, see
+monolith (`users`, `catalog`, `orders`, `cart`, `sellers` modules, one Postgres schema each, see
 `README.md`'s "Contrato de Modularidade") paired with a React/Vite/TypeScript/Tailwind frontend —
 through a complete, working shopping journey end to end.
 
@@ -41,10 +41,11 @@ is explicitly not a clone of any existing retailer.
 - Local dev via Docker Compose (`docker compose up --build`): frontend on `:5173`, backend API on
   `:8080`, Postgres on `:5432`.
 - `SPRING_PROFILES_ACTIVE=dev` seeds data automatically and idempotently so `Home.tsx` and
-  `SellerDashboard.tsx` never render empty in a fresh environment: ~50 products imported from the
-  public DummyJSON API (`catalog.service.DummyJsonSeeder`) assigned to an anchor seller account
-  (`seller.demo@mercatto.dev`), plus a fixed list of seller and buyer accounts
-  (`users.service.UserSeeder`). This seed never runs in production.
+  `SellerDashboard.tsx` never render empty in a fresh environment: 500 products from a curated
+  sample of the Kaggle "Amazon Products 2023" dataset (`catalog.service.AmazonProductSeeder`,
+  reading `backend/src/main/resources/seed/amazon-products-sample.csv`) distributed round-robin
+  across a fixed list of seller and buyer accounts (`users.service.UserSeeder`). This seed never
+  runs in production.
 - GitHub-based workflow: `dev` is the integration/default branch (no `main`); all work lands via
   PR from a feature branch into `dev`, gated by `mvn test` (backend) and `npm run lint` / `npm run
   build` (frontend) before opening a PR.
@@ -52,12 +53,12 @@ is explicitly not a clone of any existing retailer.
 ## Capabilities and Constraints
 
 - Backend: Java 21 + Spring Boot 3 (Maven), packages-by-module (`users`, `catalog`, `orders`,
-  `sellers`). Cross-module communication only through a module's public `service` interface or
+  `cart`, `sellers`). Cross-module communication only through a module's public `service` interface or
   `ApplicationEvent`s — never direct repository/entity access or a shared transaction (full rules
   in `README.md`).
 - Third-party integrations are ports with mock implementations until real integration exists
   (e.g. `orders.service.PaymentGateway` / `MockPaymentGateway`) — no real payments today.
-- Database: one PostgreSQL instance, one schema per module (`users`, `catalog`, `orders`).
+- Database: one PostgreSQL instance, one schema per module (`users`, `catalog`, `orders`, `cart`).
   Cross-module entity references are bare foreign-key ids, never JPA `@ManyToOne`.
 - Frontend: React + Vite + TypeScript + Tailwind CSS.
 
@@ -68,9 +69,10 @@ is explicitly not a clone of any existing retailer.
   search, product, lists, cart, sign-in, checkout, orders, review), plus the "Industry" design
   system/token set (`_ds/`) the reference visuals are built on. Desktop-first (1280px content
   column); responsive behavior was not designed in the reference.
-- Catalogue content is real (imported from DummyJSON) but the branding, storefront copy, and
-  seller/buyer accounts are original fixtures created for this coursework, not real business
-  data. No real testimonials, press, or case studies exist and none should be fabricated.
+- Catalogue content is real (imported from a curated sample of the Kaggle "Amazon Products 2023"
+  dataset) but the branding, storefront copy, and seller/buyer accounts are original fixtures
+  created for this coursework, not real business data. No real testimonials, press, or case
+  studies exist and none should be fabricated.
 
 ## Product Principles
 

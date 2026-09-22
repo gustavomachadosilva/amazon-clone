@@ -1,25 +1,12 @@
 import type { Product } from '../services/api'
 
 /**
- * The real backend Product has no brand/list-price/rating/delivery/model-number/warranty
- * fields — these are computed deterministically from real fields so the same product
- * always shows the same numbers, instead of inventing random catalogue data.
+ * brand, listPrice/discount, warranty and model number are now real Product fields (see
+ * catalog.Product) — this file no longer derives them. What remains below is fabricated on
+ * purpose: fast-delivery/delivery-estimate has no real source in this project (there is no
+ * logistics/shipping module), so it stays a deterministic, clearly-labeled placeholder rather
+ * than a random value, to avoid pretending there is real delivery data behind it.
  */
-
-export function deriveBrandLabel(product: Product): string {
-  return `Seller #${product.sellerId}`
-}
-
-export function deriveListPrice(product: Product): number {
-  const markup = 1.15 + (product.id % 4) * 0.05
-  return Math.round(product.price * markup * 100) / 100
-}
-
-export function deriveDiscountPct(product: Product): number {
-  const listPrice = deriveListPrice(product)
-  if (listPrice <= product.price) return 0
-  return Math.round((1 - product.price / listPrice) * 100)
-}
 
 export function deriveStockLabel(product: Product): string {
   if (product.stockQuantity <= 0) return 'Out of stock'
@@ -34,9 +21,3 @@ export function deriveFastDelivery(product: Product): boolean {
 export function deriveDeliveryLabel(product: Product): string {
   return deriveFastDelivery(product) ? 'Arrives tomorrow' : 'Free delivery Thursday, August 13'
 }
-
-export function deriveModelNumber(product: Product): string {
-  return `MCT-${product.id}`
-}
-
-export const WARRANTY_LABEL = '12-month limited warranty'

@@ -1,6 +1,9 @@
 package com.mercatto.orders.service;
 
 import com.mercatto.orders.domain.Order;
+import com.mercatto.orders.domain.PaymentMethod;
+import com.mercatto.orders.domain.ShippingAddress;
+import com.mercatto.orders.domain.ShippingMethod;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
@@ -14,7 +17,24 @@ public interface OrderService {
 
     record CheckoutItem(@NotNull @Positive Long productId, @Positive int quantity) {}
 
-    Order checkout(Long buyerId, List<CheckoutItem> items, String idempotencyKey);
+    /**
+     * Places an order for the given buyer, charging the payment gateway and
+     * persisting the address/shipping/payment choices made at checkout as an
+     * immutable snapshot on the resulting {@link Order}.
+     * <p>
+     * When {@code idempotencyKey} matches an order already placed by this
+     * buyer (idempotent replay, including a retry of a previously
+     * PENDING/FAILED attempt), {@code address}, {@code shippingMethod} and
+     * {@code paymentMethod} from this call are ignored — the returned order
+     * keeps the values recorded on the original attempt.
+     */
+    Order checkout(
+            Long buyerId,
+            List<CheckoutItem> items,
+            String idempotencyKey,
+            ShippingAddress address,
+            ShippingMethod shippingMethod,
+            PaymentMethod paymentMethod);
 
     Optional<Order> findById(Long id);
 

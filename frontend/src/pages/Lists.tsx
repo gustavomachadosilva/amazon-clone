@@ -4,7 +4,6 @@ import { Blueprint, Button, Input, Placeholder, StarRating } from '../components
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useLists } from '../context/ListsContext'
-import { useReviews } from '../context/ReviewsContext'
 import { useProductsByIds } from '../hooks/useProductsByIds'
 import { usd } from '../lib/format'
 import { deriveDeliveryLabel, deriveStockLabel } from '../lib/mockProductMeta'
@@ -15,31 +14,49 @@ export default function Lists() {
   const { user } = useAuth()
   const lists = useLists()
   const cart = useCart()
-  const reviews = useReviews()
-  const [activeListId, setActiveListId] = useState<string>(lists.lists[0]?.id ?? '')
+  const [activeListId, setActiveListId] = useState<number | null>(lists.lists[0]?.id ?? null)
   const [newListName, setNewListName] = useState('')
+  const [actionError, setActionError] = useState('')
 
   useEffect(() => {
     if (!lists.lists.find((l) => l.id === activeListId)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- realinha seleção ativa quando a lista some; refatorar para estado derivado é fora do escopo deste card
-      setActiveListId(lists.lists[0]?.id ?? '')
+      setActiveListId(lists.lists[0]?.id ?? null)
     }
   }, [lists.lists, activeListId])
 
   const activeList = lists.lists.find((l) => l.id === activeListId) ?? null
-  const { products } = useProductsByIds(activeList?.items ?? [])
+  const { products } = useProductsByIds(activeList?.productIds ?? [])
 
-  function createList() {
+  async function createList() {
     if (!newListName.trim()) return
-    const list = lists.createList(newListName)
-    setActiveListId(list.id)
-    setNewListName('')
+    try {
+      const list = await lists.createList(newListName)
+      setActiveListId(list.id)
+      setNewListName('')
+    } catch {
+      setActionError('Could not create the list. Please try again.')
+    }
+  }
+
+  function deleteActiveList() {
+    if (!activeList) return
+    lists.deleteList(activeList.id).catch(() => {
+      setActionError('Could not delete the list. Please try again.')
+    })
+  }
+
+  function removeFromActiveList(productId: number) {
+    if (!activeList) return
+    lists.removeFromList(activeList.id, productId).catch(() => {
+      setActionError('Could not remove the item. Please try again.')
+    })
   }
 
   function addAllToCart() {
     if (!user) return
     if (!activeList) return
-    activeList.items.forEach((productId) => {
+    activeList.productIds.forEach((productId) => {
       const product = products.get(productId)
       if (product) cart.addItem(product)
     })
@@ -69,7 +86,7 @@ export default function Lists() {
                 />
                 <div>
                   <div className={active ? 'font-medium text-accent-800' : ''}>{list.name}</div>
-                  <div className="text-[15px] text-paper-600">{list.items.length} items</div>
+                  <div className="text-[15px] text-paper-600">{list.productIds.length} items</div>
                 </div>
               </div>
             )
@@ -102,19 +119,25 @@ export default function Lists() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h1>{activeList.name}</h1>
-                <p className="text-[16.5px] text-paper-700">{activeList.items.length} item(s) · private list</p>
+                <p className="text-[16.5px] text-paper-700">{activeList.productIds.length} item(s) · private list</p>
               </div>
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={addAllToCart}>
                   Add all to cart
                 </Button>
-                <Button variant="ghost" onClick={() => lists.deleteList(activeList.id)}>
+                <Button variant="ghost" onClick={deleteActiveList}>
                   Delete list
                 </Button>
               </div>
             </div>
 
-            {activeList.items.length === 0 ? (
+            {actionError && (
+              <div role="alert" className="callout-alert mt-2">
+                {actionError}
+              </div>
+            )}
+
+            {activeList.productIds.length === 0 ? (
               <Blueprint className="mt-4 p-8 text-center">
                 <h3>This list is empty</h3>
                 <p className="text-paper-700">Open a product and use &ldquo;Add to list&rdquo; to save it here.</p>
@@ -124,11 +147,9 @@ export default function Lists() {
               </Blueprint>
             ) : (
               <div className="mt-4 flex flex-col gap-4">
-                {activeList.items.map((productId) => {
+                {activeList.productIds.map((productId) => {
                   const product = products.get(productId)
                   if (!product) return null
-                  const productReviews = reviews.getReviews(product.id)
-                  const rating = productReviews.reduce((sum, r) => sum + r.stars, 0) / productReviews.length
                   return (
                     <Blueprint
                       key={productId}
@@ -154,8 +175,8 @@ export default function Lists() {
                           {product.name}
                         </div>
                         <div className="flex items-center gap-1.5 text-xs">
-                          <StarRating rating={rating} />
-                          <span className="text-paper-600">({productReviews.length})</span>
+                          <StarRating rating={product.averageRating} />
+                          <span className="text-paper-600">({product.reviewCount})</span>
                         </div>
                         <div className="text-xs text-paper-700">
                           {deriveDeliveryLabel(product)} · {deriveStockLabel(product)}
@@ -177,7 +198,11 @@ export default function Lists() {
                         >
                           Add to cart
                         </Button>
-                        <Button variant="ghost" block onClick={() => lists.removeFromList(activeList.id, productId)}>
+                        <Button
+                          variant="ghost"
+                          block
+                          onClick={() => removeFromActiveList(productId)}
+                        >
                           Remove from list
                         </Button>
                       </div>
