@@ -87,12 +87,12 @@ public class ProductController {
                                            @Valid @RequestBody UpdateProductRequest request,
                                            Principal principal) {
         AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
-        Optional<Product> existing = productService.findById(id);
+        Optional<ProductService.ProductSummary> existing = productService.findById(id);
         if (existing.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
         authenticatedUser.requireRole(UserRole.SELLER);
-        authenticatedUser.requireOwner(existing.get().getSellerId());
+        authenticatedUser.requireOwner(existing.get().sellerId());
 
         Product changes = Product.builder()
                 .name(request.name())
@@ -112,12 +112,12 @@ public class ProductController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id, Principal principal) {
         AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
-        Optional<Product> existing = productService.findById(id);
+        Optional<ProductService.ProductSummary> existing = productService.findById(id);
         if (existing.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
         authenticatedUser.requireRole(UserRole.SELLER);
-        authenticatedUser.requireOwner(existing.get().getSellerId());
+        authenticatedUser.requireOwner(existing.get().sellerId());
 
         productService.delete(id);
         return ResponseEntity.noContent().build();

@@ -1,6 +1,6 @@
 package com.mercatto.sellers.api;
 
-import com.mercatto.catalog.domain.Product;
+import com.mercatto.catalog.service.ProductService;
 import com.mercatto.sellers.service.SellerDashboardService;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.AuthenticatedUser;
@@ -23,7 +23,7 @@ public class SellerDashboardController {
     private final SellerDashboardService sellerDashboardService;
 
     @GetMapping("/products")
-    public Page<Product> inventory(@PathVariable Long sellerId, Pageable pageable, Principal principal) {
+    public Page<ProductService.ProductSummary> inventory(@PathVariable Long sellerId, Pageable pageable, Principal principal) {
         AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
         authenticatedUser.requireRole(UserRole.SELLER);
         authenticatedUser.requireOwner(sellerId);

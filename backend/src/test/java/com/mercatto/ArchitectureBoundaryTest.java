@@ -77,4 +77,22 @@ public class ArchitectureBoundaryTest {
                 + "(Contrato de Modularidade regra 3)")
             .check(classes);
     }
+
+    @Test
+    void catalog_domain_should_not_leak_outside_catalog_module() {
+        noClasses().that().resideOutsideOfPackage("..catalog..")
+            .should().dependOnClassesThat().resideInAPackage("..catalog.domain..")
+            .as("catalog.domain is persistence-internal; cross-module readers must depend on "
+                + "catalog.service DTOs instead (Card #142)")
+            .check(classes);
+    }
+
+    @Test
+    void orders_domain_should_not_leak_outside_orders_module() {
+        noClasses().that().resideOutsideOfPackage("..orders..")
+            .should().dependOnClassesThat().resideInAPackage("..orders.domain..")
+            .as("orders.domain is persistence-internal; cross-module readers must depend on "
+                + "orders.service DTOs instead (Card #142)")
+            .check(classes);
+    }
 }

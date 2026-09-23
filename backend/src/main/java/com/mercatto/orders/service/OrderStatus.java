@@ -1,4 +1,4 @@
-package com.mercatto.orders.domain;
+package com.mercatto.orders.service;
 
 public enum OrderStatus {
     PENDING,

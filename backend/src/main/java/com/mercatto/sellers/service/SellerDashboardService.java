@@ -1,7 +1,7 @@
 package com.mercatto.sellers.service;
 
-import com.mercatto.catalog.domain.Product;
-import com.mercatto.orders.domain.OrderStatus;
+import com.mercatto.catalog.service.ProductService;
+import com.mercatto.orders.service.OrderStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -28,9 +28,9 @@ public interface SellerDashboardService {
     record SellerOrderView(Long orderId, Long buyerId, OrderStatus status, Instant createdAt,
                             List<SellerOrderItemView> items, BigDecimal subtotal) {}
 
-    record SellerMetricsView(BigDecimal totalRevenue, List<Product> lowStockProducts) {}
+    record SellerMetricsView(BigDecimal totalRevenue, List<ProductService.ProductSummary> lowStockProducts) {}
 
-    Page<Product> getInventory(Long sellerId, Pageable pageable);
+    Page<ProductService.ProductSummary> getInventory(Long sellerId, Pageable pageable);
 
     List<SellerOrderView> getReceivedOrders(Long sellerId);
 

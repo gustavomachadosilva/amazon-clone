@@ -19,8 +19,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // once — the WHERE clause makes this a compare-and-swap, so two concurrent retries of the
     // same order (same idempotency key) can never both proceed to charge the payment gateway.
     @Modifying
-    @Query("update Order o set o.status = com.mercatto.orders.domain.OrderStatus.PROCESSING "
-            + "where o.id = :id and o.status in (com.mercatto.orders.domain.OrderStatus.PENDING, com.mercatto.orders.domain.OrderStatus.FAILED)")
+    @Query("update Order o set o.status = com.mercatto.orders.service.OrderStatus.PROCESSING "
+            + "where o.id = :id and o.status in (com.mercatto.orders.service.OrderStatus.PENDING, com.mercatto.orders.service.OrderStatus.FAILED)")
     int claimForCharging(@Param("id") Long id);
 
     @Query("select distinct o from Order o left join fetch o.items where o.id = :id")

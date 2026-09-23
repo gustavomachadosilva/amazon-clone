@@ -16,7 +16,18 @@ public interface ProductService {
 
     Page<Product> search(String query, String category, Pageable pageable);
 
-    Optional<Product> findById(Long id);
+    /**
+     * A persistence-free read model of a {@link Product}, used for every cross-module read
+     * (cart, orders, sellers) so those modules never depend on catalog's JPA entity shape
+     * (Contrato de Modularidade regra 3 / Card #142). Not reused for {@link #searchWithRating}/
+     * {@link #findByIdWithRating} — those already have their own read model ({@link ProductView})
+     * carrying the rating fields.
+     */
+    record ProductSummary(Long id, String name, String description, BigDecimal price, Integer stockQuantity,
+                           String category, String imageUrl, String brand, Integer warrantyMonths,
+                           String modelNumber, BigDecimal listPrice, Long sellerId, Instant createdAt) {}
+
+    Optional<ProductSummary> findById(Long id);
 
     Product create(Product product);
 
@@ -24,7 +35,7 @@ public interface ProductService {
 
     void delete(Long id);
 
-    Page<Product> findBySeller(Long sellerId, Pageable pageable);
+    Page<ProductSummary> findBySeller(Long sellerId, Pageable pageable);
 
     void decreaseStock(Long productId, int quantity);
 

@@ -1,7 +1,7 @@
 package com.mercatto.sellers.api;
 
-import com.mercatto.catalog.domain.Product;
-import com.mercatto.orders.domain.OrderStatus;
+import com.mercatto.catalog.service.ProductService;
+import com.mercatto.orders.service.OrderStatus;
 import com.mercatto.sellers.service.SellerDashboardService;
 import com.mercatto.sellers.service.SellerDashboardService.SellerOrderItemView;
 import com.mercatto.sellers.service.SellerDashboardService.SellerOrderView;
@@ -50,9 +50,9 @@ class SellerDashboardControllerTest {
 
     @Test
     void inventoryAsOwnSeller_returns200() throws Exception {
-        Product product = Product.builder().id(1L).name("Widget").price(BigDecimal.TEN).stockQuantity(5)
-                .category("tools").sellerId(10L).build();
-        Page<Product> page = new PageImpl<>(List.of(product));
+        ProductService.ProductSummary product = new ProductService.ProductSummary(
+                1L, "Widget", null, BigDecimal.TEN, 5, "tools", null, null, null, null, null, 10L, null);
+        Page<ProductService.ProductSummary> page = new PageImpl<>(List.of(product));
         when(sellerDashboardService.getInventory(anyLong(), any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/api/sellers/10/products").principal(SELLER))
