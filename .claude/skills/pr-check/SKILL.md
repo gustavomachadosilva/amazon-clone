@@ -51,6 +51,13 @@ Modularidade" descrito no README):
 cd backend && mvn -q test
 ```
 
+> **Nota:** em Mac com Homebrew, `mvn` pode resolver para um JDK mais novo que o Java 21
+> do projeto, fazendo `ArchitectureBoundaryTest` falhar com `Unsupported class file major
+> version 70` — não é uma violação real de regra de arquitetura, é o ArchUnit não lendo
+> bytecode de uma JVM mais nova do que ele suporta. Se isso acontecer, aponte
+> `JAVA_HOME` para o JDK 21 local antes de rodar `mvn test` (ver README, seção "Running
+> locally").
+
 **Frontend** — hoje não há framework de teste configurado (`frontend/package.json` só
 tem `lint`, `build`, `dev`, `preview`). Rode o que existe como gate de qualidade:
 ```bash

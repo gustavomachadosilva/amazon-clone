@@ -59,6 +59,16 @@ Postgres runs the SQL in `backend/src/main/resources/db/init/` on first boot, cr
 - Backend: `cd backend && mvn spring-boot:run` (needs a local Postgres matching your `.env`).
 - Frontend: `cd frontend && npm install && npm run dev`.
 
+> **Nota (macOS/Homebrew):** se `mvn` resolver para um JDK mais novo que o Java 21 do
+> projeto (comum em Mac com `brew install openjdk`, que instala a versão mais recente),
+> `mvn test` falha em `ArchitectureBoundaryTest` com
+> `java.lang.IllegalArgumentException: Unsupported class file major version 70` — o
+> ArchUnit 1.2.1 não lê bytecode de uma JVM mais nova do que ele suporta, não é uma
+> violação real de regra de arquitetura. Rode `java -version` para conferir e aponte
+> `JAVA_HOME` para o JDK 21 instalado localmente (ex.: `export JAVA_HOME=$(/usr/libexec/java_home -v 21)`
+> no macOS) antes de rodar `mvn`. O CI (`.github/workflows/ci.yml`) já usa Temurin 21 e
+> não é afetado.
+
 ## Seed de dados (ambiente de desenvolvimento)
 
 Para que `Home.tsx` e `SellerDashboard.tsx` nunca renderizem vazios em um ambiente novo, o backend
