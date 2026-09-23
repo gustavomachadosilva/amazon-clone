@@ -1,11 +1,8 @@
 package com.mercatto.sellers.service;
 
-import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.service.ProductService;
-import com.mercatto.orders.domain.Order;
-import com.mercatto.orders.domain.OrderItem;
-import com.mercatto.orders.domain.OrderStatus;
 import com.mercatto.orders.service.OrderService;
+import com.mercatto.orders.service.OrderStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,7 +19,7 @@ class SellerDashboardServiceImpl implements SellerDashboardService {
     private final OrderService orderService;
 
     @Override
-    public Page<Product> getInventory(Long sellerId, Pageable pageable) {
+    public Page<ProductService.ProductSummary> getInventory(Long sellerId, Pageable pageable) {
         return productService.findBySeller(sellerId, pageable);
     }
 
@@ -33,35 +30,35 @@ class SellerDashboardServiceImpl implements SellerDashboardService {
                 .toList();
     }
 
-    private SellerOrderView toSellerOrderView(Order order, Long sellerId) {
-        List<SellerOrderItemView> items = order.getItems().stream()
-                .filter(item -> sellerId.equals(item.getSellerId()))
+    private SellerOrderView toSellerOrderView(OrderService.OrderView order, Long sellerId) {
+        List<SellerOrderItemView> items = order.items().stream()
+                .filter(item -> sellerId.equals(item.sellerId()))
                 .map(this::toSellerOrderItemView)
                 .toList();
         BigDecimal subtotal = items.stream()
                 .map(item -> item.unitPrice().multiply(BigDecimal.valueOf(item.quantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        return new SellerOrderView(order.getId(), order.getBuyerId(), order.getStatus(), order.getCreatedAt(),
+        return new SellerOrderView(order.id(), order.buyerId(), order.status(), order.createdAt(),
                 items, subtotal);
     }
 
-    private SellerOrderItemView toSellerOrderItemView(OrderItem item) {
-        return new SellerOrderItemView(item.getProductId(), item.getQuantity(), item.getUnitPrice());
+    private SellerOrderItemView toSellerOrderItemView(OrderService.OrderItemView item) {
+        return new SellerOrderItemView(item.productId(), item.quantity(), item.unitPrice());
     }
 
     @Override
     public SellerMetricsView getMetrics(Long sellerId) {
         List<SellerOrderView> orders = getReceivedOrders(sellerId);
-        
+
         BigDecimal totalRevenue = orders.stream()
                 .filter(o -> o.status() == OrderStatus.PAID)
                 .map(SellerOrderView::subtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // A threshold of 10 for low stock
-        List<Product> lowStockProducts = productService.findBySeller(sellerId, Pageable.unpaged())
+        List<ProductService.ProductSummary> lowStockProducts = productService.findBySeller(sellerId, Pageable.unpaged())
                 .stream()
-                .filter(p -> p.getStockQuantity() < 10)
+                .filter(p -> p.stockQuantity() < 10)
                 .toList();
 
         return new SellerMetricsView(totalRevenue, lowStockProducts);

@@ -1,4 +1,5 @@
 import type { Product } from '../services/api'
+import { getStandardDeliveryLabel } from './deliveryDate'
 
 /**
  * brand, listPrice/discount, warranty and model number are now real Product fields (see
@@ -19,5 +20,5 @@ export function deriveFastDelivery(product: Product): boolean {
 }
 
 export function deriveDeliveryLabel(product: Product): string {
-  return deriveFastDelivery(product) ? 'Arrives tomorrow' : 'Free delivery Thursday, August 13'
+  return deriveFastDelivery(product) ? 'Arrives tomorrow' : `Free delivery ${getStandardDeliveryLabel()}`
 }

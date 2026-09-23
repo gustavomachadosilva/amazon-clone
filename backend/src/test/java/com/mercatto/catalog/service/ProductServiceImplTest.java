@@ -72,12 +72,29 @@ class ProductServiceImplTest {
 
     @Test
     void findByIdDelegatesToRepository() {
-        Product product = Product.builder().id(1L).build();
+        Instant createdAt = Instant.parse("2024-01-01T00:00:00Z");
+        Product product = Product.builder()
+                .id(1L)
+                .name("Widget")
+                .description("A widget")
+                .price(BigDecimal.TEN)
+                .stockQuantity(5)
+                .category("tools")
+                .imageUrl("http://image")
+                .brand("Acme")
+                .warrantyMonths(12)
+                .modelNumber("MDL-1")
+                .listPrice(BigDecimal.valueOf(15))
+                .sellerId(10L)
+                .createdAt(createdAt)
+                .build();
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
-        Optional<Product> result = productService.findById(1L);
+        Optional<ProductService.ProductSummary> result = productService.findById(1L);
 
-        assertThat(result).contains(product);
+        assertThat(result).contains(new ProductService.ProductSummary(
+                1L, "Widget", "A widget", BigDecimal.TEN, 5, "tools", "http://image", "Acme", 12,
+                "MDL-1", BigDecimal.valueOf(15), 10L, createdAt));
     }
 
     @Test
@@ -135,12 +152,30 @@ class ProductServiceImplTest {
     @Test
     void findBySellerDelegatesToRepository() {
         Pageable pageable = Pageable.unpaged();
-        Page<Product> page = new PageImpl<>(List.of());
+        Instant createdAt = Instant.parse("2024-01-01T00:00:00Z");
+        Product product = Product.builder()
+                .id(1L)
+                .name("Widget")
+                .description("A widget")
+                .price(BigDecimal.TEN)
+                .stockQuantity(5)
+                .category("tools")
+                .imageUrl("http://image")
+                .brand("Acme")
+                .warrantyMonths(12)
+                .modelNumber("MDL-1")
+                .listPrice(BigDecimal.valueOf(15))
+                .sellerId(10L)
+                .createdAt(createdAt)
+                .build();
+        Page<Product> page = new PageImpl<>(List.of(product));
         when(productRepository.findBySellerId(10L, pageable)).thenReturn(page);
 
-        Page<Product> result = productService.findBySeller(10L, pageable);
+        Page<ProductService.ProductSummary> result = productService.findBySeller(10L, pageable);
 
-        assertThat(result).isSameAs(page);
+        assertThat(result.getContent()).containsExactly(new ProductService.ProductSummary(
+                1L, "Widget", "A widget", BigDecimal.TEN, 5, "tools", "http://image", "Acme", 12,
+                "MDL-1", BigDecimal.valueOf(15), 10L, createdAt));
     }
 
 

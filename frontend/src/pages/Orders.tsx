@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useProductsByIds } from '../hooks/useProductsByIds'
 import { ordersApi, type Order } from '../services/api'
-import { DELIVERY_DATE_LABEL } from '../lib/constants'
+import { getStandardDeliveryLabel } from '../lib/deliveryDate'
 import { usd } from '../lib/format'
 import { deriveFastDelivery } from '../lib/mockProductMeta'
 import { onEnterKey } from '../lib/a11y'
@@ -81,7 +81,7 @@ export default function Orders() {
                 </div>
                 <div className="p-4">
                   <div className="h mb-3 text-[24px] text-accent-700">
-                    {anyFast ? 'Arriving tomorrow' : `Arriving ${DELIVERY_DATE_LABEL}`}
+                    {anyFast ? 'Arriving tomorrow' : `Arriving ${getStandardDeliveryLabel(new Date(order.createdAt))}`}
                   </div>
                   {order.items.map((item) => {
                     const product = products.get(item.productId)

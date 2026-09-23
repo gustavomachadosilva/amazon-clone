@@ -2,7 +2,6 @@ package com.mercatto.cart.service;
 
 import com.mercatto.cart.domain.CartItem;
 import com.mercatto.cart.repository.CartItemRepository;
-import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.catalog.service.ProductService;
 import org.junit.jupiter.api.Test;
@@ -36,8 +35,9 @@ class CartServiceImplTest {
     @InjectMocks
     private CartServiceImpl cartService;
 
-    private static Product product(long id, String name, String price) {
-        return Product.builder().id(id).name(name).price(new BigDecimal(price)).stockQuantity(100).build();
+    private static ProductService.ProductSummary product(long id, String name, String price) {
+        return new ProductService.ProductSummary(
+                id, name, null, new BigDecimal(price), 100, null, null, null, null, null, null, 20L, null);
     }
 
     @Test

@@ -1,11 +1,9 @@
 package com.mercatto.orders.service;
 
-import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.catalog.service.ProductService;
 import com.mercatto.orders.domain.Order;
 import com.mercatto.orders.domain.OrderItem;
-import com.mercatto.orders.domain.OrderStatus;
 import com.mercatto.orders.domain.PaymentMethod;
 import com.mercatto.orders.domain.ShippingAddress;
 import com.mercatto.orders.domain.ShippingMethod;
@@ -69,6 +67,11 @@ class OrderServiceImplTest {
                 });
     }
 
+    private static ProductService.ProductSummary product(long id, BigDecimal price, int stock) {
+        return new ProductService.ProductSummary(
+                id, "Product " + id, null, price, stock, null, null, null, null, null, null, 20L, null);
+    }
+
     private static ShippingAddress testAddress() {
         return ShippingAddress.builder()
                 .fullName("Ada Lovelace")
@@ -81,7 +84,7 @@ class OrderServiceImplTest {
 
     @Test
     void checkoutRejectsInsufficientStockWithoutCharging() {
-        Product product = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(1).build();
+        ProductService.ProductSummary product = product(1L, BigDecimal.TEN, 1);
         when(productService.findById(1L)).thenReturn(Optional.of(product));
 
         assertThatThrownBy(() -> orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), null, testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD))
@@ -94,7 +97,7 @@ class OrderServiceImplTest {
 
     @Test
     void checkoutRejectsInsufficientStockWhenSameProductSpansMultipleLines() {
-        Product product = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(5).build();
+        ProductService.ProductSummary product = product(1L, BigDecimal.TEN, 5);
         when(productService.findById(1L)).thenReturn(Optional.of(product));
 
         List<OrderService.CheckoutItem> items = List.of(
@@ -111,7 +114,7 @@ class OrderServiceImplTest {
 
     @Test
     void checkoutChargesAndSavesWhenStockIsSufficient() {
-        Product product = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(5).build();
+        ProductService.ProductSummary product = product(1L, BigDecimal.TEN, 5);
         when(productService.findById(1L)).thenReturn(Optional.of(product));
         when(paymentGateway.charge(any(), any(), any()))
                 .thenReturn(new PaymentGateway.PaymentResult(true, "tx-1", "ok"));
@@ -136,7 +139,7 @@ class OrderServiceImplTest {
 
     @Test
     void checkoutSucceedsWhenRequestedQuantityEqualsAvailableStock() {
-        Product product = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(3).build();
+        ProductService.ProductSummary product = product(1L, BigDecimal.TEN, 3);
         when(productService.findById(1L)).thenReturn(Optional.of(product));
         when(paymentGateway.charge(any(), any(), any()))
                 .thenReturn(new PaymentGateway.PaymentResult(true, "tx-1", "ok"));
@@ -152,8 +155,8 @@ class OrderServiceImplTest {
 
     @Test
     void checkoutWithMultipleProductsComputesTotalAndItemsCorrectly() {
-        Product product1 = Product.builder().id(1L).price(BigDecimal.valueOf(10)).stockQuantity(5).build();
-        Product product2 = Product.builder().id(2L).price(BigDecimal.valueOf(5)).stockQuantity(10).build();
+        ProductService.ProductSummary product1 = product(1L, BigDecimal.valueOf(10), 5);
+        ProductService.ProductSummary product2 = product(2L, BigDecimal.valueOf(5), 10);
         when(productService.findById(1L)).thenReturn(Optional.of(product1));
         when(productService.findById(2L)).thenReturn(Optional.of(product2));
         when(paymentGateway.charge(any(), any(), any()))
@@ -176,8 +179,8 @@ class OrderServiceImplTest {
 
     @Test
     void checkoutRejectsWhenOneOfSeveralItemsHasInsufficientStock() {
-        Product product1 = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(5).build();
-        Product product2 = Product.builder().id(2L).price(BigDecimal.valueOf(5)).stockQuantity(1).build();
+        ProductService.ProductSummary product1 = product(1L, BigDecimal.TEN, 5);
+        ProductService.ProductSummary product2 = product(2L, BigDecimal.valueOf(5), 1);
         when(productService.findById(1L)).thenReturn(Optional.of(product1));
         when(productService.findById(2L)).thenReturn(Optional.of(product2));
 
@@ -207,7 +210,7 @@ class OrderServiceImplTest {
 
     @Test
     void checkoutSavesAsFailedAndDoesNotPublishEventWhenPaymentIsDeclined() {
-        Product product = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(5).build();
+        ProductService.ProductSummary product = product(1L, BigDecimal.TEN, 5);
         when(productService.findById(1L)).thenReturn(Optional.of(product));
         when(paymentGateway.charge(any(), any(), any()))
                 .thenReturn(new PaymentGateway.PaymentResult(false, null, "declined"));
@@ -223,7 +226,7 @@ class OrderServiceImplTest {
 
     @Test
     void checkoutMarksOrderFailedInItsOwnTransactionWhenPaymentGatewayThrows() {
-        Product product = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(5).build();
+        ProductService.ProductSummary product = product(1L, BigDecimal.TEN, 5);
         when(productService.findById(1L)).thenReturn(Optional.of(product));
         when(orderReservationService.reserve(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(orderReservationService.claimForCharging(nullable(Long.class))).thenReturn(true);
@@ -241,7 +244,7 @@ class OrderServiceImplTest {
 
     @Test
     void checkoutPersistsAddressShippingMethodAndPaymentMethodOnNewOrder() {
-        Product product = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(5).build();
+        ProductService.ProductSummary product = product(1L, BigDecimal.TEN, 5);
         when(productService.findById(1L)).thenReturn(Optional.of(product));
         when(paymentGateway.charge(any(), any(), any()))
                 .thenReturn(new PaymentGateway.PaymentResult(true, "tx-1", "ok"));
@@ -306,7 +309,7 @@ class OrderServiceImplTest {
 
     @Test
     void checkoutDoesNotReturnAnotherBuyersOrderForAMatchingIdempotencyKey() {
-        Product product = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(5).build();
+        ProductService.ProductSummary product = product(1L, BigDecimal.TEN, 5);
         when(productService.findById(1L)).thenReturn(Optional.of(product));
         when(orderRepository.findByBuyerIdAndIdempotencyKey(20L, "key-1")).thenReturn(Optional.empty());
         when(paymentGateway.charge(any(), any(), any()))
@@ -322,7 +325,7 @@ class OrderServiceImplTest {
 
     @Test
     void checkoutTreatsBlankIdempotencyKeyAsAbsentAndDoesNotPersistBlankString() {
-        Product product = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(5).build();
+        ProductService.ProductSummary product = product(1L, BigDecimal.TEN, 5);
         when(productService.findById(1L)).thenReturn(Optional.of(product));
         when(paymentGateway.charge(any(), any(), any()))
                 .thenReturn(new PaymentGateway.PaymentResult(true, "tx-1", "ok"));
@@ -398,7 +401,7 @@ class OrderServiceImplTest {
 
     @Test
     void checkoutReturnsExistingOrderWhenConcurrentRequestWinsTheIdempotencyKeyRace() {
-        Product product = Product.builder().id(1L).price(BigDecimal.TEN).stockQuantity(5).build();
+        ProductService.ProductSummary product = product(1L, BigDecimal.TEN, 5);
         Order winningOrder = Order.builder().id(42L).buyerId(10L).status(OrderStatus.PAID).build();
         when(productService.findById(1L)).thenReturn(Optional.of(product));
         when(orderRepository.findByBuyerIdAndIdempotencyKey(10L, "key-1"))
@@ -417,7 +420,7 @@ class OrderServiceImplTest {
     void findBySellerIdReturnsEmptyListWithoutFetchingOrdersWhenNoOrderIdsMatch() {
         when(orderRepository.findOrderIdsByItemsSellerId(10L)).thenReturn(List.of());
 
-        List<Order> result = orderService.findBySellerId(10L);
+        List<OrderService.OrderView> result = orderService.findBySellerId(10L);
 
         assertThat(result).isEmpty();
         verify(orderRepository, never()).findByIdInWithItems(any());
@@ -425,12 +428,14 @@ class OrderServiceImplTest {
 
     @Test
     void findBySellerIdChainsOrderIdLookupThenFetchesOrdersWithItems() {
-        Order order = Order.builder().id(5L).build();
+        Order order = Order.builder().id(5L).buyerId(20L).status(OrderStatus.PAID).build();
+        order.addItem(OrderItem.builder().productId(1L).sellerId(10L).quantity(2).unitPrice(BigDecimal.TEN).build());
         when(orderRepository.findOrderIdsByItemsSellerId(10L)).thenReturn(List.of(5L));
         when(orderRepository.findByIdInWithItems(List.of(5L))).thenReturn(List.of(order));
 
-        List<Order> result = orderService.findBySellerId(10L);
+        List<OrderService.OrderView> result = orderService.findBySellerId(10L);
 
-        assertThat(result).containsExactly(order);
+        assertThat(result).containsExactly(new OrderService.OrderView(5L, 20L, OrderStatus.PAID, order.getCreatedAt(),
+                List.of(new OrderService.OrderItemView(1L, 10L, 2, BigDecimal.TEN))));
     }
 }

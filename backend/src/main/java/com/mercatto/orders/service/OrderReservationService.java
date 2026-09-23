@@ -1,7 +1,6 @@
 package com.mercatto.orders.service;
 
 import com.mercatto.orders.domain.Order;
-import com.mercatto.orders.domain.OrderStatus;
 import com.mercatto.orders.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

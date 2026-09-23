@@ -76,6 +76,12 @@ class ProductControllerTest {
                 1L, Instant.parse("2026-01-01T00:00:00Z"), 4.5, 3L);
     }
 
+    private static ProductService.ProductSummary productSummary(long id, long sellerId) {
+        return new ProductService.ProductSummary(id, "Widget", "A useful widget", BigDecimal.TEN, 10, "tools",
+                "http://example.com/img.png", "Acme", 12, "MDL-1", BigDecimal.valueOf(15),
+                sellerId, Instant.parse("2026-01-01T00:00:00Z"));
+    }
+
     @Test
     void search_returns200WithRatingEnrichedProducts() throws Exception {
         Page<ProductService.ProductView> page = new PageImpl<>(List.of(productView(1L)));
@@ -172,8 +178,7 @@ class ProductControllerTest {
 
     @Test
     void updateAsOwner_returns200AndCallsService() throws Exception {
-        Product existing = Product.builder().id(1L).name("Widget").price(BigDecimal.TEN).stockQuantity(10)
-                .category("tools").sellerId(1L).build();
+        ProductService.ProductSummary existing = productSummary(1L, 1L);
         Product updated = Product.builder().id(1L).name("Widget v2").price(BigDecimal.valueOf(20)).stockQuantity(5)
                 .category("tools").sellerId(1L).build();
         when(productService.findById(1L)).thenReturn(Optional.of(existing));
@@ -191,8 +196,7 @@ class ProductControllerTest {
 
     @Test
     void updateAsNonOwner_returns403() throws Exception {
-        Product existing = Product.builder().id(1L).name("Widget").price(BigDecimal.TEN).stockQuantity(10)
-                .category("tools").sellerId(1L).build();
+        ProductService.ProductSummary existing = productSummary(1L, 1L);
         when(productService.findById(1L)).thenReturn(Optional.of(existing));
 
         mockMvc.perform(put("/api/catalog/products/1")
@@ -237,7 +241,7 @@ class ProductControllerTest {
 
     @Test
     void deleteAsOwner_returns204() throws Exception {
-        Product existing = Product.builder().id(1L).sellerId(1L).build();
+        ProductService.ProductSummary existing = productSummary(1L, 1L);
         when(productService.findById(1L)).thenReturn(Optional.of(existing));
 
         mockMvc.perform(delete("/api/catalog/products/1").principal(SELLER))
@@ -248,7 +252,7 @@ class ProductControllerTest {
 
     @Test
     void deleteAsNonOwner_returns403() throws Exception {
-        Product existing = Product.builder().id(1L).sellerId(1L).build();
+        ProductService.ProductSummary existing = productSummary(1L, 1L);
         when(productService.findById(1L)).thenReturn(Optional.of(existing));
 
         mockMvc.perform(delete("/api/catalog/products/1").principal(OTHER_SELLER))

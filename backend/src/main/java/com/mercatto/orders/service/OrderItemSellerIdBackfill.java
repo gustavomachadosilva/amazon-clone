@@ -1,6 +1,5 @@
 package com.mercatto.orders.service;
 
-import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.service.ProductService;
 import com.mercatto.orders.domain.OrderItem;
 import com.mercatto.orders.repository.OrderItemRepository;
@@ -40,7 +39,7 @@ class OrderItemSellerIdBackfill {
         int updated = 0;
         for (OrderItem item : items) {
             Long sellerId = productService.findById(item.getProductId())
-                    .map(Product::getSellerId)
+                    .map(ProductService.ProductSummary::sellerId)
                     .orElse(null);
             if (sellerId != null) {
                 item.setSellerId(sellerId);

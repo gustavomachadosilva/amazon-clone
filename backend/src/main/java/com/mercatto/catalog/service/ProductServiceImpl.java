@@ -38,8 +38,8 @@ class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Optional<Product> findById(Long id) {
-        return productRepository.findById(id);
+    public Optional<ProductSummary> findById(Long id) {
+        return productRepository.findById(id).map(this::toSummary);
     }
 
     @Override
@@ -89,8 +89,8 @@ class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Page<Product> findBySeller(Long sellerId, Pageable pageable) {
-        return productRepository.findBySellerId(sellerId, pageable);
+    public Page<ProductSummary> findBySeller(Long sellerId, Pageable pageable) {
+        return productRepository.findBySellerId(sellerId, pageable).map(this::toSummary);
     }
 
     // REQUIRES_NEW: this is invoked from an AFTER_COMMIT event listener, where the
@@ -129,6 +129,23 @@ class ProductServiceImpl implements ProductService {
     public Optional<ProductView> findByIdWithRating(Long id) {
         return productRepository.findById(id)
                 .map(product -> toView(product, reviewService.getAggregate(id)));
+    }
+
+    private ProductSummary toSummary(Product product) {
+        return new ProductSummary(
+                product.getId(),
+                product.getName(),
+                product.getDescription(),
+                product.getPrice(),
+                product.getStockQuantity(),
+                product.getCategory(),
+                product.getImageUrl(),
+                product.getBrand(),
+                product.getWarrantyMonths(),
+                product.getModelNumber(),
+                product.getListPrice(),
+                product.getSellerId(),
+                product.getCreatedAt());
     }
 
     private ProductView toView(Product product, ReviewService.RatingAggregate aggregate) {
