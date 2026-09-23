@@ -4,6 +4,7 @@ import { Blueprint, Button, Table, TableBody, TableCell, TableRow } from '../com
 import { useAuth } from '../context/AuthContext'
 import { ordersApi, type Order } from '../services/api'
 import { PAYMENT_OPTIONS, SHIPPING_OPTIONS } from '../lib/constants'
+import { getStandardDeliveryLabel } from '../lib/deliveryDate'
 import { usd } from '../lib/format'
 
 export default function OrderConfirmation() {
@@ -33,7 +34,7 @@ export default function OrderConfirmation() {
           <span className="tag tag-accent-2">Logged for dispatch</span>
         </div>
         <p className="text-paper-700">
-          A confirmation was sent to {user?.email ?? 'you'}. Arriving Thursday, August 13.
+          A confirmation was sent to {user?.email ?? 'you'}. Arriving {getStandardDeliveryLabel()}.
         </p>
 
         <div className="overflow-x-auto">
