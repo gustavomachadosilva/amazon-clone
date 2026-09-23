@@ -21,8 +21,6 @@ export const RATING_DISTRIBUTION = [
   { label: '1★', pct: 2 },
 ]
 
-export const DELIVERY_DATE_LABEL = 'Thursday, August 13'
-
 export const DEFAULT_ADDRESS = {
   street: '1578 Union Street, Apt 92',
   city: 'Seattle',
