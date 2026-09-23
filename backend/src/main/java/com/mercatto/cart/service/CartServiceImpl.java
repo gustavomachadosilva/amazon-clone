@@ -2,7 +2,6 @@ package com.mercatto.cart.service;
 
 import com.mercatto.cart.domain.CartItem;
 import com.mercatto.cart.repository.CartItemRepository;
-import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.catalog.service.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -117,16 +116,16 @@ class CartServiceImpl implements CartService {
             // added to a cart; such an orphaned line is silently dropped from
             // the view rather than surfaced as an error, since the cart
             // itself is still valid without it.
-            Optional<Product> product = productService.findById(cartItem.getProductId());
+            Optional<ProductService.ProductSummary> product = productService.findById(cartItem.getProductId());
             if (product.isEmpty()) {
                 continue;
             }
 
-            BigDecimal lineTotal = product.get().getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
+            BigDecimal lineTotal = product.get().price().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
             CartItemView view = new CartItemView(
                     cartItem.getProductId(),
-                    product.get().getName(),
-                    product.get().getPrice(),
+                    product.get().name(),
+                    product.get().price(),
                     cartItem.getQuantity(),
                     lineTotal,
                     cartItem.isSavedForLater());

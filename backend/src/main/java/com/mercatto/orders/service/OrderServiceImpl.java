@@ -1,11 +1,9 @@
 package com.mercatto.orders.service;
 
-import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.catalog.service.ProductService;
 import com.mercatto.orders.domain.Order;
 import com.mercatto.orders.domain.OrderItem;
-import com.mercatto.orders.domain.OrderStatus;
 import com.mercatto.orders.domain.PaymentMethod;
 import com.mercatto.orders.domain.ShippingAddress;
 import com.mercatto.orders.domain.ShippingMethod;
@@ -91,23 +89,23 @@ class OrderServiceImpl implements OrderService {
 
         BigDecimal total = BigDecimal.ZERO;
         for (CheckoutItem checkoutItem : items) {
-            Product product = productService.findById(checkoutItem.productId())
+            ProductService.ProductSummary product = productService.findById(checkoutItem.productId())
                     .orElseThrow(() -> new ProductNotFoundException("Product not found: " + checkoutItem.productId()));
 
             int requestedQuantity = requestedQuantities.get(checkoutItem.productId());
-            if (requestedQuantity > product.getStockQuantity()) {
+            if (requestedQuantity > product.stockQuantity()) {
                 throw new InsufficientStockException(
-                        "Insufficient stock for product " + product.getId() + ": requested "
-                                + requestedQuantity + ", available " + product.getStockQuantity());
+                        "Insufficient stock for product " + product.id() + ": requested "
+                                + requestedQuantity + ", available " + product.stockQuantity());
             }
 
-            total = total.add(product.getPrice().multiply(BigDecimal.valueOf(checkoutItem.quantity())));
+            total = total.add(product.price().multiply(BigDecimal.valueOf(checkoutItem.quantity())));
 
             order.addItem(OrderItem.builder()
-                    .productId(product.getId())
-                    .sellerId(product.getSellerId())
+                    .productId(product.id())
+                    .sellerId(product.sellerId())
                     .quantity(checkoutItem.quantity())
-                    .unitPrice(product.getPrice())
+                    .unitPrice(product.price())
                     .build());
         }
         order.setTotalAmount(total);
@@ -185,11 +183,20 @@ class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public List<Order> findBySellerId(Long sellerId) {
+    public List<OrderView> findBySellerId(Long sellerId) {
         List<Long> orderIds = orderRepository.findOrderIdsByItemsSellerId(sellerId);
         if (orderIds.isEmpty()) {
             return List.of();
         }
-        return orderRepository.findByIdInWithItems(orderIds);
+        return orderRepository.findByIdInWithItems(orderIds).stream()
+                .map(this::toOrderView)
+                .toList();
+    }
+
+    private OrderView toOrderView(Order order) {
+        List<OrderItemView> items = order.getItems().stream()
+                .map(item -> new OrderItemView(item.getProductId(), item.getSellerId(), item.getQuantity(), item.getUnitPrice()))
+                .toList();
+        return new OrderView(order.getId(), order.getBuyerId(), order.getStatus(), order.getCreatedAt(), items);
     }
 }

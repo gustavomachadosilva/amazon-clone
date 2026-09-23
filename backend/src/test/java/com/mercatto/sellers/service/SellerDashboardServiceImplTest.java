@@ -1,10 +1,8 @@
 package com.mercatto.sellers.service;
 
 import com.mercatto.catalog.service.ProductService;
-import com.mercatto.orders.domain.Order;
-import com.mercatto.orders.domain.OrderItem;
-import com.mercatto.orders.domain.OrderStatus;
 import com.mercatto.orders.service.OrderService;
+import com.mercatto.orders.service.OrderStatus;
 import com.mercatto.sellers.service.SellerDashboardService.SellerOrderItemView;
 import com.mercatto.sellers.service.SellerDashboardService.SellerOrderView;
 import org.junit.jupiter.api.Test;
@@ -14,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,22 +33,25 @@ class SellerDashboardServiceImplTest {
 
     @Test
     void getReceivedOrdersDelegatesToOrderServiceBySellerId() {
-        Order order = Order.builder().id(100L).buyerId(20L).status(OrderStatus.PAID).build();
-        order.addItem(OrderItem.builder().productId(1L).sellerId(10L).quantity(3).unitPrice(BigDecimal.TEN).build());
+        Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+        OrderService.OrderView order = new OrderService.OrderView(100L, 20L, OrderStatus.PAID, createdAt,
+                List.of(new OrderService.OrderItemView(1L, 10L, 3, BigDecimal.TEN)));
         when(orderService.findBySellerId(10L)).thenReturn(List.of(order));
 
         List<SellerOrderView> result = sellerDashboardService.getReceivedOrders(10L);
 
-        assertThat(result).containsExactly(new SellerOrderView(100L, 20L, OrderStatus.PAID, order.getCreatedAt(),
+        assertThat(result).containsExactly(new SellerOrderView(100L, 20L, OrderStatus.PAID, createdAt,
                 List.of(new SellerOrderItemView(1L, 3, BigDecimal.TEN)), BigDecimal.valueOf(30)));
         verify(orderService).findBySellerId(10L);
     }
 
     @Test
     void getReceivedOrdersOnlyIncludesItemsBelongingToTheSeller() {
-        Order order = Order.builder().id(100L).buyerId(20L).status(OrderStatus.PAID).build();
-        order.addItem(OrderItem.builder().productId(1L).sellerId(10L).quantity(2).unitPrice(BigDecimal.TEN).build());
-        order.addItem(OrderItem.builder().productId(99L).sellerId(77L).quantity(5).unitPrice(BigDecimal.valueOf(50)).build());
+        Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+        OrderService.OrderView order = new OrderService.OrderView(100L, 20L, OrderStatus.PAID, createdAt,
+                List.of(
+                        new OrderService.OrderItemView(1L, 10L, 2, BigDecimal.TEN),
+                        new OrderService.OrderItemView(99L, 77L, 5, BigDecimal.valueOf(50))));
         when(orderService.findBySellerId(10L)).thenReturn(List.of(order));
 
         List<SellerOrderView> result = sellerDashboardService.getReceivedOrders(10L);
@@ -63,8 +65,9 @@ class SellerDashboardServiceImplTest {
     void getReceivedOrdersSurvivesProductBeingDeletedFromCatalog() {
         // Order placed before the product was later deleted from the catalog: sellerId is
         // denormalized onto the order item at checkout time, so the order still shows up.
-        Order order = Order.builder().id(100L).buyerId(20L).status(OrderStatus.PAID).build();
-        order.addItem(OrderItem.builder().productId(1L).sellerId(10L).quantity(1).unitPrice(BigDecimal.TEN).build());
+        Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+        OrderService.OrderView order = new OrderService.OrderView(100L, 20L, OrderStatus.PAID, createdAt,
+                List.of(new OrderService.OrderItemView(1L, 10L, 1, BigDecimal.TEN)));
         when(orderService.findBySellerId(10L)).thenReturn(List.of(order));
 
         List<SellerOrderView> result = sellerDashboardService.getReceivedOrders(10L);

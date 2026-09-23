@@ -1,6 +1,5 @@
 package com.mercatto.lists.service;
 
-import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.catalog.service.ProductService;
 import com.mercatto.lists.domain.WishList;
@@ -61,8 +60,9 @@ class WishListServiceImplTest {
                 .build();
     }
 
-    private static Product product(long id) {
-        return Product.builder().id(id).name("Product " + id).build();
+    private static ProductService.ProductSummary product(long id) {
+        return new ProductService.ProductSummary(
+                id, "Product " + id, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test

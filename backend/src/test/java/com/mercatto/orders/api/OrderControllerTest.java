@@ -2,7 +2,7 @@ package com.mercatto.orders.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mercatto.orders.domain.Order;
-import com.mercatto.orders.domain.OrderStatus;
+import com.mercatto.orders.service.OrderStatus;
 import com.mercatto.orders.domain.PaymentMethod;
 import com.mercatto.orders.domain.ShippingAddress;
 import com.mercatto.orders.domain.ShippingMethod;

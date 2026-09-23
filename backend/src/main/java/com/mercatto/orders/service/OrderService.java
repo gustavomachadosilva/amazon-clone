@@ -7,6 +7,8 @@ import com.mercatto.orders.domain.ShippingMethod;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -40,6 +42,15 @@ public interface OrderService {
 
     List<Order> findByBuyer(Long buyerId);
 
+    record OrderItemView(Long productId, Long sellerId, int quantity, BigDecimal unitPrice) {}
+
+    /**
+     * A persistence-free read model of an {@link Order}, used for cross-module reads (e.g. by
+     * Sellers) so those modules never depend on orders' JPA entity shape (Contrato de
+     * Modularidade regra 3 / Card #142).
+     */
+    record OrderView(Long id, Long buyerId, OrderStatus status, Instant createdAt, List<OrderItemView> items) {}
+
     /**
      * Returns the complete orders (all their items, even items belonging to
      * other sellers in the same cart/checkout) that contain at least one
@@ -51,5 +62,5 @@ public interface OrderService {
      * from the catalog. Intended for cross-module composition (e.g. by
      * Sellers, to look up orders received for its products).
      */
-    List<Order> findBySellerId(Long sellerId);
+    List<OrderView> findBySellerId(Long sellerId);
 }
