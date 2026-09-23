@@ -15,7 +15,6 @@ export default function Orders() {
   const { user } = useAuth()
   const cart = useCart()
   const [orders, setOrders] = useState<Order[]>([])
-  const standardLabel = getStandardDeliveryLabel()
 
   useEffect(() => {
     if (user) ordersApi.listByBuyer().then(setOrders)
@@ -82,7 +81,7 @@ export default function Orders() {
                 </div>
                 <div className="p-4">
                   <div className="h mb-3 text-[24px] text-accent-700">
-                    {anyFast ? 'Arriving tomorrow' : `Arriving ${standardLabel}`}
+                    {anyFast ? 'Arriving tomorrow' : `Arriving ${getStandardDeliveryLabel(new Date(order.createdAt))}`}
                   </div>
                   {order.items.map((item) => {
                     const product = products.get(item.productId)
