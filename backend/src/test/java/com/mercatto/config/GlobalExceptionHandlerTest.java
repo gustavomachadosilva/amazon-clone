@@ -157,6 +157,17 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void userNotFound_mapsTo404WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/user-not-found"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Usuário não encontrado: 1"))
+                .andExpect(jsonPath("$.path").value("/test/user-not-found"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
     void productNotFound_mapsTo404WithStandardBody() throws Exception {
         mockMvc.perform(get("/test/product-not-found"))
                 .andExpect(status().isNotFound())

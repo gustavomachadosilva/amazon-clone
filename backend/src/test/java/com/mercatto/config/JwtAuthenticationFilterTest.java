@@ -89,6 +89,30 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void protectedPath_getUsersMe_withoutHeader_returns401AndDoesNotCallChain() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/users/me");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(chain.getRequest()).isNull();
+        assertThat(response.getStatus()).isEqualTo(401);
+    }
+
+    @Test
+    void protectedPath_patchUsersMe_withoutHeader_returns401AndDoesNotCallChain() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("PATCH", "/api/users/me");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(chain.getRequest()).isNull();
+        assertThat(response.getStatus()).isEqualTo(401);
+    }
+
+    @Test
     void protectedPath_withMalformedHeader_returns401() throws ServletException, IOException {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/orders");
         request.addHeader("Authorization", "not-a-bearer-token");

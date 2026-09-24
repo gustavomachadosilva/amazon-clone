@@ -21,4 +21,14 @@ public interface UserService {
     Optional<User> findByEmail(String email);
 
     boolean isSeller(Long userId);
+
+    /**
+     * Updates the profile of the given user. A {@code null} argument leaves the corresponding
+     * field unchanged, so {@code updateProfile(id, null, null)} is a no-op.
+     *
+     * @return the updated user
+     * @throws UserNotFoundException if no user exists with {@code userId}
+     * @throws EmailAlreadyExistsException if {@code email} is already used by another user
+     */
+    User updateProfile(Long userId, String name, String email);
 }

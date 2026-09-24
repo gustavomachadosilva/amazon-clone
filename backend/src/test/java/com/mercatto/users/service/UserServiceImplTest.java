@@ -17,6 +17,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -181,5 +182,107 @@ class UserServiceImplTest {
         when(userRepository.findByEmail("jane@example.com")).thenReturn(Optional.of(user));
 
         assertThat(userService.findByEmail("jane@example.com")).contains(user);
+    }
+
+    private User existingUser() {
+        return User.builder()
+                .id(1L)
+                .name("Jane Doe")
+                .email("jane@example.com")
+                .passwordHash("$2a$10$hash")
+                .role(UserRole.BUYER)
+                .build();
+    }
+
+    @Test
+    void updateProfileUpdatesNameAndEmail() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existingUser()));
+        when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User result = userService.updateProfile(1L, "New Name", "new@example.com");
+
+        verify(userRepository).save(userCaptor.capture());
+        User saved = userCaptor.getValue();
+        assertThat(saved.getName()).isEqualTo("New Name");
+        assertThat(saved.getEmail()).isEqualTo("new@example.com");
+        assertThat(result).isSameAs(saved);
+    }
+
+    @Test
+    void updateProfileWithOnlyNameKeepsEmailAndSkipsEmailCheck() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existingUser()));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User result = userService.updateProfile(1L, "New Name", null);
+
+        assertThat(result.getName()).isEqualTo("New Name");
+        assertThat(result.getEmail()).isEqualTo("jane@example.com");
+        verify(userRepository, never()).existsByEmail(anyString());
+    }
+
+    @Test
+    void updateProfileWithOnlyEmailKeepsName() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existingUser()));
+        when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User result = userService.updateProfile(1L, null, "new@example.com");
+
+        assertThat(result.getName()).isEqualTo("Jane Doe");
+        assertThat(result.getEmail()).isEqualTo("new@example.com");
+    }
+
+    @Test
+    void updateProfileWithSameEmailDoesNotCheckForDuplicates() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existingUser()));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User result = userService.updateProfile(1L, null, "jane@example.com");
+
+        assertThat(result.getEmail()).isEqualTo("jane@example.com");
+        verify(userRepository, never()).existsByEmail(anyString());
+    }
+
+    @Test
+    void updateProfileWithEmailOfAnotherUser_throwsEmailAlreadyExistsException() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existingUser()));
+        when(userRepository.existsByEmail("taken@example.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> userService.updateProfile(1L, "New Name", "taken@example.com"))
+                .isInstanceOf(EmailAlreadyExistsException.class)
+                .hasMessage("E-mail já cadastrado: taken@example.com");
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void updateProfileWithAllNullIsNoOp() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existingUser()));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User result = userService.updateProfile(1L, null, null);
+
+        assertThat(result.getName()).isEqualTo("Jane Doe");
+        assertThat(result.getEmail()).isEqualTo("jane@example.com");
+        verify(userRepository, never()).existsByEmail(anyString());
+    }
+
+    @Test
+    void updateProfileWhenUserMissing_throwsUserNotFoundException() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.updateProfile(99L, "New Name", "new@example.com"))
+                .isInstanceOf(UserNotFoundException.class)
+                .hasMessage("Usuário não encontrado: 99");
+
+        verify(userRepository, never()).save(any());
     }
 }
