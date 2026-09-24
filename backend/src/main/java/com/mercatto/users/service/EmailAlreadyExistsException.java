@@ -1,8 +1,8 @@
 package com.mercatto.users.service;
 
 /**
- * Thrown by {@link UserService#register} when the given email is already associated with an
- * existing account. Raised before any user is persisted.
+ * Thrown by {@link UserService#register} and {@link UserService#updateProfile} when the given
+ * email is already associated with another existing account. Raised before anything is persisted.
  */
 public class EmailAlreadyExistsException extends RuntimeException {
 

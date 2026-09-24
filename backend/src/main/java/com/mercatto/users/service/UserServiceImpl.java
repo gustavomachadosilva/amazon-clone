@@ -6,6 +6,7 @@ import com.mercatto.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
@@ -54,5 +55,22 @@ class UserServiceImpl implements UserService {
         return userRepository.findById(userId)
                 .map(user -> user.getRole() == UserRole.SELLER)
                 .orElse(false);
+    }
+
+    @Override
+    @Transactional
+    public User updateProfile(Long userId, String name, String email) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("Usuário não encontrado: " + userId));
+        if (email != null && !email.equals(user.getEmail())) {
+            if (userRepository.existsByEmail(email)) {
+                throw new EmailAlreadyExistsException("E-mail já cadastrado: " + email);
+            }
+            user.setEmail(email);
+        }
+        if (name != null) {
+            user.setName(name);
+        }
+        return userRepository.save(user);
     }
 }

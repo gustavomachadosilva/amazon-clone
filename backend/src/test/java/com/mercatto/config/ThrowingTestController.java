@@ -4,6 +4,7 @@ import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.orders.service.InsufficientStockException;
 import com.mercatto.users.service.EmailAlreadyExistsException;
 import com.mercatto.users.service.ForbiddenRoleException;
+import com.mercatto.users.service.UserNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.validation.annotation.Validated;
@@ -61,6 +62,11 @@ public class ThrowingTestController {
     @GetMapping("/product-not-found")
     public String productNotFound() {
         throw new ProductNotFoundException("Product not found: 1");
+    }
+
+    @GetMapping("/user-not-found")
+    public String userNotFound() {
+        throw new UserNotFoundException("Usuário não encontrado: 1");
     }
 
     @GetMapping("/illegal-argument-no-message")
