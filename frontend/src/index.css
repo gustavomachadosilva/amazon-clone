@@ -247,6 +247,8 @@
       linear-gradient(90deg, var(--color-divider) 1px, transparent 1px);
     background-size: 14px 14px;
   }
+  /* real product photo — fills its container; Tailwind width utilities (e.g. w-[56px]) override it */
+  .ph-image { display: block; width: 100%; height: auto; object-fit: contain; }
   .ph span {
     font-family: var(--font-mono); font-weight: 500; font-size: 13.5px;
     letter-spacing: .07em; text-transform: uppercase; color: var(--color-paper-600);

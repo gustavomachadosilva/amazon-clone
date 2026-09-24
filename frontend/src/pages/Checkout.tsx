@@ -163,9 +163,9 @@ export default function Checkout() {
                 <Placeholder label={line.name} aspect="1/1" className="w-[56px] flex-none" src={products.get(line.productId)?.imageUrl} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate">{line.name}</div>
-                  <div className="text-xs text-paper-600">Qty {line.qty}</div>
+                  <div className="whitespace-nowrap text-xs text-paper-600">Qty {line.qty}</div>
                 </div>
-                <div className="readout flex-none font-semibold">{usd(line.price * line.qty)}</div>
+                <div className="readout flex-none whitespace-nowrap font-semibold">{usd(line.price * line.qty)}</div>
               </div>
             ))}
           </div>
