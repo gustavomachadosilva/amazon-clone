@@ -179,6 +179,37 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void invalidReviewMedia_mapsTo400WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/invalid-review-media"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Only JPEG, PNG, WebP, MP4 or WebM files are allowed"))
+                .andExpect(jsonPath("$.path").value("/test/invalid-review-media"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void reviewMediaNotFound_mapsTo404WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/review-media-not-found"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value("Review media not found: 1"))
+                .andExpect(jsonPath("$.path").value("/test/review-media-not-found"));
+    }
+
+    @Test
+    void maxUploadSizeExceeded_mapsTo413WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/max-upload-size-exceeded"))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.status").value(413))
+                .andExpect(jsonPath("$.error").value("Payload Too Large"))
+                .andExpect(jsonPath("$.message").value("File too large: images up to 5 MB, videos up to 50 MB"))
+                .andExpect(jsonPath("$.path").value("/test/max-upload-size-exceeded"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
     void methodArgumentNotValid_withClassLevelViolation_includesGlobalErrorMessage() throws Exception {
         mockMvc.perform(post("/test/validated-class-level")
                         .contentType(MediaType.APPLICATION_JSON)

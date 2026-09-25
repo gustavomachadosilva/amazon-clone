@@ -33,8 +33,11 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       JWT_SECRET: ${JWT_SECRET:-replace-me}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      MEDIA_DIR: /app/data/review-media
     ports:
       - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - review_media:/app/data/review-media
 
   frontend:
     build: ./frontend
@@ -51,3 +54,4 @@ services:
 
 volumes:
   db_data:
+  review_media:

@@ -2,6 +2,8 @@ package com.mercatto.config;
 
 import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.orders.service.InsufficientStockException;
+import com.mercatto.reviews.service.InvalidReviewMediaException;
+import com.mercatto.reviews.service.ReviewMediaNotFoundException;
 import com.mercatto.users.service.EmailAlreadyExistsException;
 import com.mercatto.users.service.ForbiddenRoleException;
 import com.mercatto.users.service.UserNotFoundException;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 /**
  * Test-only controller used exclusively by {@link GlobalExceptionHandlerTest} to trigger each
@@ -67,6 +70,21 @@ public class ThrowingTestController {
     @GetMapping("/user-not-found")
     public String userNotFound() {
         throw new UserNotFoundException("Usuário não encontrado: 1");
+    }
+
+    @GetMapping("/invalid-review-media")
+    public String invalidReviewMedia() {
+        throw new InvalidReviewMediaException("Only JPEG, PNG, WebP, MP4 or WebM files are allowed");
+    }
+
+    @GetMapping("/review-media-not-found")
+    public String reviewMediaNotFound() {
+        throw new ReviewMediaNotFoundException("Review media not found: 1");
+    }
+
+    @GetMapping("/max-upload-size-exceeded")
+    public String maxUploadSizeExceeded() {
+        throw new MaxUploadSizeExceededException(50L * 1024 * 1024);
     }
 
     @GetMapping("/illegal-argument-no-message")

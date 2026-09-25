@@ -95,4 +95,13 @@ public class ArchitectureBoundaryTest {
                 + "orders.service DTOs instead (Card #142)")
             .check(classes);
     }
+
+    @Test
+    void reviews_domain_should_not_leak_outside_reviews_module() {
+        noClasses().that().resideOutsideOfPackage("..reviews..")
+            .should().dependOnClassesThat().resideInAPackage("..reviews.domain..")
+            .as("reviews.domain (Review, ReviewMedia) is persistence-internal; other modules must "
+                + "depend on reviews.service DTOs instead (Contrato de Modularidade regra 3)")
+            .check(classes);
+    }
 }

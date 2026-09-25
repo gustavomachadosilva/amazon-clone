@@ -3,6 +3,8 @@ package com.mercatto.config;
 import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.lists.service.WishListNotFoundException;
 import com.mercatto.orders.service.InsufficientStockException;
+import com.mercatto.reviews.service.InvalidReviewMediaException;
+import com.mercatto.reviews.service.ReviewMediaNotFoundException;
 import com.mercatto.reviews.service.ReviewNotFoundException;
 import com.mercatto.users.service.EmailAlreadyExistsException;
 import com.mercatto.users.service.ForbiddenRoleException;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.time.Instant;
@@ -61,6 +64,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(ReviewNotFoundException.class)
     public ResponseEntity<ApiError> handleReviewNotFound(ReviewNotFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidReviewMediaException.class)
+    public ResponseEntity<ApiError> handleInvalidReviewMedia(InvalidReviewMediaException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ReviewMediaNotFoundException.class)
+    public ResponseEntity<ApiError> handleReviewMediaNotFound(ReviewMediaNotFoundException ex, HttpServletRequest request) {
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
@@ -116,6 +129,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .collect(Collectors.joining("; "));
         String message = detail.isBlank() ? "Validation failed" : detail;
         return ResponseEntity.status(status).body(errorBody(status, message, pathOf(request)));
+    }
+
+    // Raised by the servlet multipart parser before any controller runs (a file over
+    // spring.servlet.multipart.max-file-size or a request over max-request-size).
+    @Override
+    protected ResponseEntity<Object> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex,
+                                                                          HttpHeaders headers,
+                                                                          HttpStatusCode status,
+                                                                          WebRequest request) {
+        HttpStatus payloadTooLarge = HttpStatus.PAYLOAD_TOO_LARGE;
+        return ResponseEntity.status(payloadTooLarge)
+                .body(errorBody(payloadTooLarge, "File too large: images up to 5 MB, videos up to 50 MB",
+                        pathOf(request)));
     }
 
     @Override
