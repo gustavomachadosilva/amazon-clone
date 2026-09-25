@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { vi } from 'vitest'
 import { Route, Routes } from 'react-router-dom'
+import { AUTH_STORAGE_KEY } from '../services/auth-token'
 import { renderWithProviders } from '../test/test-utils'
 import SignIn from './SignIn'
 
@@ -117,5 +118,30 @@ describe('SignIn page', () => {
 
     const submitButton = screen.getByText('Continue')
     expect(submitButton).toBeEnabled()
+  })
+
+  it('keeps an existing session when a login attempt fails with 401', async () => {
+    const storedUser = {
+      id: 1,
+      name: 'Test Buyer',
+      email: 'buyer@example.com',
+      role: 'BUYER',
+      token: 'existing-token',
+      tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    }
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(storedUser))
+    mockedUsersApi.login.mockRejectedValue(new ApiRequestError(401))
+    mockedCartApi.get.mockResolvedValue({ userId: 1, items: [], savedForLater: [], itemCount: 0, total: 0 })
+
+    renderSignIn()
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'buyer@example.com' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'wrong-password' } })
+    fireEvent.click(screen.getByText('Continue'))
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('Incorrect email or password.'),
+    )
+    expect(JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) ?? 'null')).toEqual(storedUser)
   })
 })

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, type ReactNode } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { ApiRequestError, usersApi } from '../services/api'
 import { AUTH_STORAGE_KEY } from '../services/auth-token'
@@ -71,9 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null
   }
 
-  function signOut() {
+  // Stable identity so effects subscribing with it (useSignOutOnUnauthorized) don't resubscribe every render.
+  const signOut = useCallback(() => {
     setUser(null)
-  }
+  }, [setUser])
 
   return <AuthContext.Provider value={{ user, signIn, register, signOut }}>{children}</AuthContext.Provider>
 }
