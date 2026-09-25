@@ -10,6 +10,7 @@ vi.mock('../services/api', async (importOriginal) => {
     ordersApi: {
       ...actual.ordersApi,
       getById: vi.fn(),
+      updateAddress: vi.fn(),
     },
     catalogApi: {
       ...actual.catalogApi,
@@ -248,5 +249,114 @@ describe('OrderDetails page', () => {
 
     await waitFor(() => expect(mockedCartApi.addItem).toHaveBeenCalledWith(AUTH_USER.id, 1, 2))
     expect(await screen.findByText('Cart stub')).toBeInTheDocument()
+  })
+})
+
+describe('OrderDetails address change', () => {
+  const NOT_SHIPPED = { fulfillmentStatus: 'NOT_SHIPPED' as const, shippedAt: null }
+  const SHIPPED_NOTE = 'This order has already shipped, so its delivery address can no longer be changed.'
+
+  async function openAddressForm() {
+    fireEvent.click(await screen.findByRole('button', { name: 'Change address' }))
+    return screen.getByRole('form', { name: 'Change delivery address' })
+  }
+
+  it('updates the address and shows it in the summary', async () => {
+    seedAuth()
+    mockedOrdersApi.getById.mockResolvedValue(makeOrder(NOT_SHIPPED))
+    const newAddress = { fullName: 'Test Buyer', street: '2 Pine St', city: 'Seattle', state: 'WA', zip: '98104' }
+    mockedOrdersApi.updateAddress.mockResolvedValue(makeOrder({ ...NOT_SHIPPED, address: newAddress }))
+
+    renderOrderDetails()
+
+    const form = await openAddressForm()
+    expect(within(form).getByLabelText('Full name')).toHaveValue('Test Buyer')
+    expect(within(form).getByLabelText('City')).toHaveValue('Seattle')
+    expect(within(form).getByLabelText('Street address')).toHaveValue('1 Main St')
+
+    fireEvent.change(within(form).getByLabelText('Street address'), { target: { value: '  2 Pine St ' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Save address' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Your delivery address has been updated.')
+    expect(mockedOrdersApi.updateAddress).toHaveBeenCalledWith(42, newAddress)
+    const summary = screen.getByRole('complementary', { name: 'Order summary' })
+    expect(within(summary).getByText('2 Pine St, Seattle WA 98104')).toBeInTheDocument()
+    expect(screen.queryByRole('form', { name: 'Change delivery address' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Change address' })).toBeInTheDocument()
+  })
+
+  it('reloads the order on a 409 and explains that it has shipped', async () => {
+    seedAuth()
+    mockedOrdersApi.getById
+      .mockResolvedValueOnce(makeOrder(NOT_SHIPPED))
+      .mockResolvedValueOnce(makeOrder({ fulfillmentStatus: 'SHIPPED' }))
+    mockedOrdersApi.updateAddress.mockRejectedValue(new ApiRequestError(409, 'Order already shipped'))
+
+    renderOrderDetails()
+
+    const form = await openAddressForm()
+    fireEvent.change(within(form).getByLabelText('Street address'), { target: { value: '2 Pine St' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Save address' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "This order has already shipped, so the address can't be changed anymore.",
+    )
+    expect(mockedOrdersApi.getById).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('form', { name: 'Change delivery address' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Change address' })).not.toBeInTheDocument()
+    expect(screen.getByText(SHIPPED_NOTE)).toBeInTheDocument()
+    expect(screen.getByText('1 Main St, Seattle WA 98104')).toBeInTheDocument()
+  })
+
+  it('hides the button and explains why once the order has shipped', async () => {
+    seedAuth()
+    mockedOrdersApi.getById.mockResolvedValue(makeOrder())
+
+    renderOrderDetails()
+
+    expect(await screen.findByText(SHIPPED_NOTE)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Change address' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('hides the button for a cancelled order that never shipped', async () => {
+    seedAuth()
+    mockedOrdersApi.getById.mockResolvedValue(makeOrder({ ...NOT_SHIPPED, status: 'CANCELLED' }))
+
+    renderOrderDetails()
+
+    expect(
+      await screen.findByText('This order was cancelled, so its delivery address can no longer be changed.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Change address' })).not.toBeInTheDocument()
+  })
+
+  it('validates the fields before saving', async () => {
+    seedAuth()
+    mockedOrdersApi.getById.mockResolvedValue(makeOrder(NOT_SHIPPED))
+
+    renderOrderDetails()
+
+    const form = await openAddressForm()
+    fireEvent.change(within(form).getByLabelText('Full name'), { target: { value: ' ' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Save address' }))
+
+    expect(await within(form).findByText('Enter a full name.')).toBeInTheDocument()
+    expect(mockedOrdersApi.updateAddress).not.toHaveBeenCalled()
+  })
+
+  it('keeps the form open with an error when the save fails', async () => {
+    seedAuth()
+    mockedOrdersApi.getById.mockResolvedValue(makeOrder(NOT_SHIPPED))
+    mockedOrdersApi.updateAddress.mockRejectedValue(new ApiRequestError(500))
+
+    renderOrderDetails()
+
+    const form = await openAddressForm()
+    fireEvent.click(within(form).getByRole('button', { name: 'Save address' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("We couldn't update the address. Please try again.")
+    expect(screen.getByRole('form', { name: 'Change delivery address' })).toBeInTheDocument()
+    await waitFor(() => expect(within(form).getByRole('button', { name: 'Save address' })).toBeEnabled())
   })
 })

@@ -85,6 +85,11 @@ export function shipmentBadge(order: Pick<Order, 'status' | 'fulfillmentStatus'>
   }
 }
 
+/** The delivery address can change only until the order ships, and never once it is cancelled. */
+export function canChangeAddress(order: Pick<Order, 'status' | 'fulfillmentStatus'>): boolean {
+  return order.fulfillmentStatus === 'NOT_SHIPPED' && order.status !== 'CANCELLED'
+}
+
 /**
  * The backend computes an estimate for every order, including failed ones, so the UI decides
  * when it is meaningful: only for paid orders that haven't been delivered yet.

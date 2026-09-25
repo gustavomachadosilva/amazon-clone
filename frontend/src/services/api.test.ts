@@ -176,3 +176,20 @@ describe('reviewsApi.create', () => {
     expect(init.headers).toMatchObject({ 'Content-Type': 'application/json' })
   })
 })
+
+describe('ordersApi.updateAddress', () => {
+  it('PATCHes the bare address to the order address endpoint', async () => {
+    storeSession('valid-token')
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ id: 42 }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+    const address = { fullName: 'Test Buyer', street: '2 Pine St', city: 'Seattle', state: 'WA', zip: '98101' }
+
+    await ordersApi.updateAddress(42, address)
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toMatch(/\/api\/orders\/42\/address$/)
+    expect(init.method).toBe('PATCH')
+    expect(init.body).toBe(JSON.stringify(address))
+  })
+})

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Blueprint, Button, Input, Placeholder } from '../components/ui'
+import { Blueprint, Button, Placeholder } from '../components/ui'
+import AddressFields from '../components/orders/AddressFields'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useProductsByIds } from '../hooks/useProductsByIds'
-import { ApiRequestError, ordersApi } from '../services/api'
+import { ApiRequestError, ordersApi, type OrderAddress } from '../services/api'
+import { normalizeAddress, validateAddress, type AddressErrors } from '../lib/address'
 import { DEFAULT_ADDRESS, PAYMENT_OPTIONS, SHIPPING_OPTIONS } from '../lib/constants'
 import { usd } from '../lib/format'
 import { computeCheckoutTotals } from '../lib/pricing'
@@ -26,13 +28,14 @@ export default function Checkout() {
   const allIds = cart.items.map((line) => line.productId)
   const { products } = useProductsByIds(allIds)
 
-  const [address, setAddress] = useState({
+  const [address, setAddress] = useState<OrderAddress>({
     fullName: user?.name ?? '',
     zip: DEFAULT_ADDRESS.zip,
     street: DEFAULT_ADDRESS.street,
     city: DEFAULT_ADDRESS.city,
     state: DEFAULT_ADDRESS.state,
   })
+  const [addressErrors, setAddressErrors] = useState<AddressErrors>({})
   const [shipping, setShipping] = useState<ShippingMethod>('STANDARD')
   const [payment, setPayment] = useState<PaymentMethod>('CARD')
   const [placing, setPlacing] = useState(false)
@@ -48,13 +51,18 @@ export default function Checkout() {
   const totals = computeCheckoutTotals(cart.subtotal, shipping)
 
   async function placeOrder() {
-    setPlacing(true)
     setError(null)
+    const normalized = normalizeAddress(address)
+    const errors = validateAddress(normalized)
+    setAddressErrors(errors)
+    if (Object.keys(errors).length > 0) return
+
+    setPlacing(true)
     try {
       const order = await ordersApi.checkout(
         {
           items: cart.items.map((line) => ({ productId: line.productId, quantity: line.qty })),
-          address,
+          address: normalized,
           shippingMethod: shipping,
           paymentMethod: payment,
         },
@@ -87,33 +95,8 @@ export default function Checkout() {
             <span className="stamp shrink-0 !rotate-0">01</span>
             <h2 className="text-[24px]">Shipping address</h2>
           </div>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Input
-              label="Full name"
-              value={address.fullName}
-              onChange={(e) => setAddress({ ...address, fullName: e.target.value })}
-            />
-            <Input
-              label="ZIP code"
-              value={address.zip}
-              onChange={(e) => setAddress({ ...address, zip: e.target.value })}
-            />
-            <Input
-              label="Street address"
-              containerClassName="sm:col-span-2"
-              value={address.street}
-              onChange={(e) => setAddress({ ...address, street: e.target.value })}
-            />
-            <Input
-              label="City"
-              value={address.city}
-              onChange={(e) => setAddress({ ...address, city: e.target.value })}
-            />
-            <Input
-              label="State"
-              value={address.state}
-              onChange={(e) => setAddress({ ...address, state: e.target.value })}
-            />
+          <div className="mt-3">
+            <AddressFields value={address} onChange={setAddress} errors={addressErrors} disabled={placing} />
           </div>
         </Blueprint>
 

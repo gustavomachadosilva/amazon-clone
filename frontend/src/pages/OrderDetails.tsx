@@ -1,11 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Blueprint, Button, Table, TableBody, TableCell, TableRow } from '../components/ui'
+import AddressFields from '../components/orders/AddressFields'
 import OrderItemRow from '../components/orders/OrderItemRow'
+import { useAuth } from '../context/AuthContext'
 import { useProductsByIds } from '../hooks/useProductsByIds'
+import { EMPTY_ADDRESS, normalizeAddress, validateAddress, type AddressErrors } from '../lib/address'
 import { PAYMENT_OPTIONS, SHIPPING_OPTIONS } from '../lib/constants'
 import { usd } from '../lib/format'
 import {
+  canChangeAddress,
   deliveryHeadline,
   formatOrderDate,
   paymentBadge,
@@ -13,7 +17,7 @@ import {
   timelineSteps,
   HEADLINE_TONE_CLASS,
 } from '../lib/orderStatus'
-import { ApiRequestError, ordersApi, type Order } from '../services/api'
+import { ApiRequestError, ordersApi, type Order, type OrderAddress } from '../services/api'
 
 type LoadKind = 'ok' | 'not-found' | 'forbidden' | 'error'
 
@@ -80,13 +84,122 @@ function SummaryField({ label, children }: { label: string; children: ReactNode 
   )
 }
 
-function OrderSummary({ order }: { order: Order }) {
-  const itemsSubtotal = order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
-  const shippingLabel = order.shippingMethod ? SHIPPING_OPTIONS[order.shippingMethod] : 'Not available'
-  const paymentLabel = order.paymentMethod ? PAYMENT_OPTIONS[order.paymentMethod] : 'Not available'
+type Feedback = { kind: 'ok' | 'alert'; message: string }
+
+function lockedReason(order: Pick<Order, 'status'>): string {
+  return order.status === 'CANCELLED'
+    ? 'This order was cancelled, so its delivery address can no longer be changed.'
+    : 'This order has already shipped, so its delivery address can no longer be changed.'
+}
+
+// The "Ship to" block, with an inline form to change the address until the order ships.
+function ShipToSection({ order, onOrderChange }: { order: Order; onOrderChange: (order: Order) => void }) {
+  const { user } = useAuth()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState<OrderAddress>(EMPTY_ADDRESS)
+  const [errors, setErrors] = useState<AddressErrors>({})
+  const [saving, setSaving] = useState(false)
+  // Field errors render inline through AddressFields; this holds the outcome of a save attempt.
+  const [feedback, setFeedback] = useState<Feedback | null>(null)
+  const editable = canChangeAddress(order)
+
+  function startEditing() {
+    setDraft(order.address ?? { ...EMPTY_ADDRESS, fullName: user?.name ?? '' })
+    setErrors({})
+    setFeedback(null)
+    setEditing(true)
+  }
+
+  function cancelEditing() {
+    setEditing(false)
+    setErrors({})
+    setFeedback(null)
+  }
+
+  // A 409 means the order changed under us (shipped or cancelled meanwhile) — or, rarely, the
+  // backend rejected the values. Reload it to tell which, and show the page as it is now.
+  async function handleConflict() {
+    let fresh: Order
+    try {
+      fresh = await ordersApi.getById(order.id)
+    } catch {
+      setFeedback({ kind: 'alert', message: "We couldn't update the address. Please try again." })
+      return
+    }
+    onOrderChange(fresh)
+    if (canChangeAddress(fresh)) {
+      setFeedback({ kind: 'alert', message: "We couldn't update the address. Please try again." })
+      return
+    }
+    setEditing(false)
+    setFeedback({
+      kind: 'alert',
+      message:
+        fresh.status === 'CANCELLED'
+          ? "This order was cancelled, so the address can't be changed anymore."
+          : "This order has already shipped, so the address can't be changed anymore.",
+    })
+  }
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault()
+    setFeedback(null)
+    const normalized = normalizeAddress(draft)
+    const fieldErrors = validateAddress(normalized)
+    setErrors(fieldErrors)
+    if (Object.keys(fieldErrors).length > 0) return
+
+    setSaving(true)
+    try {
+      const updated = await ordersApi.updateAddress(order.id, normalized)
+      onOrderChange(updated)
+      setEditing(false)
+      setFeedback({ kind: 'ok', message: 'Your delivery address has been updated.' })
+    } catch (e) {
+      if (e instanceof ApiRequestError && e.status === 409) {
+        await handleConflict()
+      } else if (e instanceof ApiRequestError && e.status === 400) {
+        setFeedback({ kind: 'alert', message: 'Please check the address and try again.' })
+      } else {
+        setFeedback({ kind: 'alert', message: "We couldn't update the address. Please try again." })
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const feedbackMessage =
+    feedback &&
+    (feedback.kind === 'ok' ? (
+      <p role="status" className="callout-ok">
+        {feedback.message}
+      </p>
+    ) : (
+      <div role="alert" className="callout-alert">
+        {feedback.message}
+      </div>
+    ))
+
+  if (editing) {
+    return (
+      <form onSubmit={submit} noValidate aria-label="Change delivery address" className="flex min-w-0 flex-col gap-3">
+        <div className="field-label">Ship to</div>
+        <AddressFields value={draft} onChange={setDraft} errors={errors} disabled={saving} columns={1} />
+        {feedbackMessage}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="primary" type="submit" disabled={saving}>
+            {saving ? 'Saving…' : 'Save address'}
+          </Button>
+          <Button variant="secondary" type="button" onClick={cancelEditing} disabled={saving}>
+            Cancel
+          </Button>
+        </div>
+      </form>
+    )
+  }
 
   return (
-    <Blueprint as="aside" aria-label="Order summary" className="flex flex-col gap-4 bg-card p-4 md:p-6">
+    <div className="flex min-w-0 flex-col gap-2">
       <SummaryField label="Ship to">
         {order.address ? (
           <>
@@ -99,6 +212,28 @@ function OrderSummary({ order }: { order: Order }) {
           <span className="text-paper-600">Not available</span>
         )}
       </SummaryField>
+      {feedbackMessage}
+      {editable ? (
+        <div>
+          <Button variant="secondary" onClick={startEditing}>
+            Change address
+          </Button>
+        </div>
+      ) : (
+        order.address && <p className="text-[15px] text-paper-600">{lockedReason(order)}</p>
+      )}
+    </div>
+  )
+}
+
+function OrderSummary({ order, onOrderChange }: { order: Order; onOrderChange: (order: Order) => void }) {
+  const itemsSubtotal = order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
+  const shippingLabel = order.shippingMethod ? SHIPPING_OPTIONS[order.shippingMethod] : 'Not available'
+  const paymentLabel = order.paymentMethod ? PAYMENT_OPTIONS[order.paymentMethod] : 'Not available'
+
+  return (
+    <Blueprint as="aside" aria-label="Order summary" className="flex flex-col gap-4 bg-card p-4 md:p-6">
+      <ShipToSection order={order} onOrderChange={onOrderChange} />
       <SummaryField label="Shipping">{shippingLabel}</SummaryField>
       <SummaryField label="Payment">{paymentLabel}</SummaryField>
       <Table>
@@ -117,7 +252,7 @@ function OrderSummary({ order }: { order: Order }) {
   )
 }
 
-function LoadedOrder({ order }: { order: Order }) {
+function LoadedOrder({ order, onOrderChange }: { order: Order; onOrderChange: (order: Order) => void }) {
   const { products } = useProductsByIds(order.items.map((item) => item.productId))
   const payment = paymentBadge(order.status)
   const shipment = shipmentBadge(order)
@@ -158,7 +293,7 @@ function LoadedOrder({ order }: { order: Order }) {
             ))}
           </Blueprint>
         </div>
-        <OrderSummary order={order} />
+        <OrderSummary order={order} onOrderChange={onOrderChange} />
       </div>
     </>
   )
@@ -192,6 +327,12 @@ export default function OrderDetails() {
       cancelled = true
     }
   }, [id, isValidId, requestKey])
+
+  // Swaps in an updated order (e.g. after an address change) without going back to loading,
+  // which a retryTick bump would do.
+  function replaceOrder(order: Order) {
+    setResult({ forKey: requestKey, kind: 'ok', order })
+  }
 
   // Loading is derived: there is no result yet for the current id + retry attempt.
   const current = result?.forKey === requestKey ? result : null
@@ -230,7 +371,7 @@ export default function OrderDetails() {
       </div>
     )
   } else {
-    content = <LoadedOrder order={current.order} />
+    content = <LoadedOrder order={current.order} onOrderChange={replaceOrder} />
   }
 
   return <div className={PAGE_CLASS}>{content}</div>
