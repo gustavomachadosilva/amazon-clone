@@ -1,4 +1,4 @@
-import type { FulfillmentStatus, Order, OrderStatus } from '../services/api'
+import type { FulfillmentStatus, Order, OrderStatus, SellerOrder } from '../services/api'
 import { formatDeliveryDate, getStandardDeliveryLabel } from './deliveryDate'
 
 type OrderStatusFields = Pick<
@@ -82,6 +82,26 @@ export function shipmentBadge(order: Pick<Order, 'status' | 'fulfillmentStatus'>
       return { label: 'Out for delivery', className: 'tag tag-accent' }
     case 'DELIVERED':
       return { label: 'Delivered', className: 'tag tag-neutral' }
+  }
+}
+
+export interface FulfillmentAction {
+  next: FulfillmentStatus
+  label: string
+}
+
+/** The seller's next shipping step for an order, or null when there is nothing left to advance. */
+export function nextFulfillmentAction(order: Pick<SellerOrder, 'status' | 'fulfillmentStatus'>): FulfillmentAction | null {
+  if (order.status !== 'PAID') return null
+  switch (order.fulfillmentStatus) {
+    case 'NOT_SHIPPED':
+      return { next: 'SHIPPED', label: 'Mark as shipped' }
+    case 'SHIPPED':
+      return { next: 'OUT_FOR_DELIVERY', label: 'Mark as out for delivery' }
+    case 'OUT_FOR_DELIVERY':
+      return { next: 'DELIVERED', label: 'Mark as delivered' }
+    case 'DELIVERED':
+      return null
   }
 }
 

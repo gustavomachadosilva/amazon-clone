@@ -1,6 +1,7 @@
 package com.mercatto.sellers.service;
 
 import com.mercatto.catalog.service.ProductService;
+import com.mercatto.orders.service.FulfillmentStatus;
 import com.mercatto.orders.service.OrderService;
 import com.mercatto.orders.service.OrderStatus;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,12 @@ class SellerDashboardServiceImpl implements SellerDashboardService {
                 .toList();
     }
 
+    // No @Transactional here: Orders owns the transaction (and the row lock) for the transition.
+    @Override
+    public SellerOrderView advanceFulfillment(Long sellerId, Long orderId, FulfillmentStatus next) {
+        return toSellerOrderView(orderService.advanceFulfillment(orderId, sellerId, next), sellerId);
+    }
+
     private SellerOrderView toSellerOrderView(OrderService.OrderView order, Long sellerId) {
         List<SellerOrderItemView> items = order.items().stream()
                 .filter(item -> sellerId.equals(item.sellerId()))
@@ -38,8 +45,8 @@ class SellerDashboardServiceImpl implements SellerDashboardService {
         BigDecimal subtotal = items.stream()
                 .map(item -> item.unitPrice().multiply(BigDecimal.valueOf(item.quantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        return new SellerOrderView(order.id(), order.buyerId(), order.status(), order.createdAt(),
-                items, subtotal);
+        return new SellerOrderView(order.id(), order.buyerId(), order.status(), order.fulfillmentStatus(),
+                order.createdAt(), items, subtotal);
     }
 
     private SellerOrderItemView toSellerOrderItemView(OrderService.OrderItemView item) {
