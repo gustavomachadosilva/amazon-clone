@@ -30,11 +30,11 @@ class PaymentGatewayConfig {
     PaymentGateway paymentGateway(
             @Value("${stripe.api-key:}") String stripeApiKey,
             @Value("${payment.mock.decline:none}") String mockDecline) {
-        MockPaymentGateway.DeclineMode declineMode = parseDeclineMode(mockDecline);
         if (stripeApiKey == null || stripeApiKey.isBlank() || PLACEHOLDER.equals(stripeApiKey)) {
-            return new MockPaymentGateway(declineMode);
+            return new MockPaymentGateway(parseDeclineMode(mockDecline));
         }
-        if (declineMode != MockPaymentGateway.DeclineMode.NONE) {
+        // Not parsed here: the setting is ignored with Stripe, so a typo in it must not stop startup.
+        if (mockDecline != null && !mockDecline.isBlank() && !"none".equalsIgnoreCase(mockDecline.trim())) {
             log.warn("payment.mock.decline={} is ignored: a Stripe API key is configured, so StripePaymentGateway is used",
                     mockDecline);
         }
