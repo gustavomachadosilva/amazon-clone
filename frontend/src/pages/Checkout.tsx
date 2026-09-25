@@ -2,17 +2,17 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Blueprint, Button, Placeholder } from '../components/ui'
 import AddressFields from '../components/orders/AddressFields'
+import PaymentMethodOptions from '../components/orders/PaymentMethodOptions'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useProductsByIds } from '../hooks/useProductsByIds'
-import { ApiRequestError, ordersApi, type OrderAddress } from '../services/api'
+import { ApiRequestError, ordersApi, type OrderAddress, type PaymentMethod } from '../services/api'
 import { normalizeAddress, validateAddress, type AddressErrors } from '../lib/address'
-import { DEFAULT_ADDRESS, PAYMENT_OPTIONS, SHIPPING_OPTIONS } from '../lib/constants'
+import { DEFAULT_ADDRESS, SHIPPING_OPTIONS } from '../lib/constants'
 import { usd } from '../lib/format'
 import { computeCheckoutTotals } from '../lib/pricing'
 
 type ShippingMethod = keyof typeof SHIPPING_OPTIONS
-type PaymentMethod = keyof typeof PAYMENT_OPTIONS
 
 function generateFallbackKey(): string {
   const bytes = new Uint8Array(16)
@@ -124,14 +124,8 @@ export default function Checkout() {
             <span className="stamp shrink-0 !rotate-0">03</span>
             <h2 className="text-[24px]">Payment method</h2>
           </div>
-          <div className="mt-3 flex flex-col gap-2">
-            {(Object.keys(PAYMENT_OPTIONS) as PaymentMethod[]).map((key) => (
-              <label key={key} className="radio flex">
-                <input type="radio" name="payment" checked={payment === key} onChange={() => setPayment(key)} />
-                <span className="dot" />
-                {PAYMENT_OPTIONS[key]}
-              </label>
-            ))}
+          <div className="mt-3">
+            <PaymentMethodOptions name="payment" value={payment} onChange={setPayment} disabled={placing} />
           </div>
         </Blueprint>
 

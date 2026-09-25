@@ -125,4 +125,27 @@ describe('Orders page', () => {
 
     expect(await screen.findByText('Order details stub')).toBeInTheDocument()
   })
+
+  it('links failed orders to their details page to fix the payment', async () => {
+    seedAuth()
+    mockedOrdersApi.listByBuyer.mockResolvedValue([makeOrder({ status: 'FAILED' })])
+
+    renderOrders()
+
+    const fixLink = await screen.findByRole('link', { name: 'Fix payment for order #7' })
+    expect(fixLink).toHaveAttribute('href', '/orders/7')
+    fireEvent.click(fixLink)
+
+    expect(await screen.findByText('Order details stub')).toBeInTheDocument()
+  })
+
+  it('has no "Fix payment" link for paid orders', async () => {
+    seedAuth()
+    mockedOrdersApi.listByBuyer.mockResolvedValue([makeOrder()])
+
+    renderOrders()
+
+    expect(await screen.findByRole('link', { name: 'Order #7' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Fix payment/ })).not.toBeInTheDocument()
+  })
 })

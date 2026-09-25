@@ -78,6 +78,15 @@ export default function Orders() {
                     <Link to={`/orders/${order.id}`} className="text-[15px]" aria-label={`View order details for order #${order.id}`}>
                       View order details
                     </Link>
+                    {order.status === 'FAILED' && (
+                      <Link
+                        to={`/orders/${order.id}`}
+                        className="text-[15px] font-medium text-alert-700"
+                        aria-label={`Fix payment for order #${order.id}`}
+                      >
+                        Fix payment
+                      </Link>
+                    )}
                   </div>
                 </div>
                 <div className="p-4">

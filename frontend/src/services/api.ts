@@ -245,6 +245,20 @@ export const ordersApi = {
   // Only allowed while the order hasn't shipped; the backend answers 409 otherwise.
   updateAddress: (id: number, address: OrderAddress) =>
     api.patch<Order>(`/api/orders/${id}/address`, address),
+  // Only for FAILED orders. A second decline still answers 200 with the order left FAILED; a 409
+  // means an item went out of stock (see isOutOfStockError) or the order isn't retryable anymore.
+  retryPayment: (id: number, paymentMethod: PaymentMethod) =>
+    api.post<Order>(`/api/orders/${id}/payment`, { paymentMethod }),
+}
+
+// The 409s a payment retry can get share a status, so the out-of-stock case is told apart by the
+// messages from the stock check OrderServiceImpl runs before retrying.
+export function isOutOfStockError(e: unknown): boolean {
+  return (
+    e instanceof ApiRequestError &&
+    e.status === 409 &&
+    /insufficient stock|no longer available/i.test(e.apiMessage ?? '')
+  )
 }
 
 export interface RegisterPayload {
