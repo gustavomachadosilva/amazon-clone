@@ -4,6 +4,7 @@ import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.orders.service.InsufficientStockException;
 import com.mercatto.orders.service.InvalidFulfillmentTransitionException;
 import com.mercatto.orders.service.OrderAccessDeniedException;
+import com.mercatto.orders.service.OrderAddressNotEditableException;
 import com.mercatto.orders.service.OrderNotFoundException;
 import com.mercatto.reviews.service.InvalidReviewMediaException;
 import com.mercatto.reviews.service.ReviewMediaNotFoundException;
@@ -58,6 +59,11 @@ public class ThrowingTestController {
     @GetMapping("/invalid-fulfillment-transition")
     public String invalidFulfillmentTransition() {
         throw new InvalidFulfillmentTransitionException("Cannot advance order 1 from NOT_SHIPPED to DELIVERED");
+    }
+
+    @GetMapping("/order-address-not-editable")
+    public String orderAddressNotEditable() {
+        throw new OrderAddressNotEditableException("Order already shipped");
     }
 
     @GetMapping("/email-already-exists")

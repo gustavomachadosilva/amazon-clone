@@ -628,4 +628,112 @@ class OrderServiceImplTest {
 
         verifyNoInteractions(orderRepository);
     }
+
+    // --- updateShippingAddress ------------------------------------------------------------
+
+    private static final Long BUYER_ID = 20L;
+
+    private static ShippingAddress newAddress() {
+        return ShippingAddress.builder()
+                .fullName("Grace Hopper")
+                .street("200 Navy Way")
+                .city("Arlington")
+                .state("VA")
+                .zip("22202")
+                .build();
+    }
+
+    private static Order buyerOrder(OrderStatus status, FulfillmentStatus fulfillmentStatus) {
+        Order order = paidOrder(fulfillmentStatus, 10L);
+        order.setStatus(status);
+        order.setAddress(testAddress());
+        return order;
+    }
+
+    @Test
+    void updateShippingAddressReplacesTheAddressAndSaves() {
+        Order order = buyerOrder(OrderStatus.PAID, FulfillmentStatus.NOT_SHIPPED);
+        stubLockedOrder(order);
+        stubSaveReturnsArgument();
+        ShippingAddress address = newAddress();
+
+        Order updated = orderService.updateShippingAddress(7L, BUYER_ID, address);
+
+        assertThat(updated).isSameAs(order);
+        assertThat(updated.getAddress()).isSameAs(address);
+        assertThat(updated.getAddress().getFullName()).isEqualTo("Grace Hopper");
+        assertThat(updated.getItems()).hasSize(1);
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void updateShippingAddressThrowsWhenOrderDoesNotExist() {
+        when(orderRepository.findByIdForUpdate(7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> orderService.updateShippingAddress(7L, BUYER_ID, newAddress()))
+                .isInstanceOf(OrderNotFoundException.class);
+
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void updateShippingAddressRejectsNonOwnerBeforeCheckingOrderState() {
+        // Already shipped too: ownership must be checked first (403, not 409).
+        Order order = buyerOrder(OrderStatus.PAID, FulfillmentStatus.SHIPPED);
+        stubLockedOrder(order);
+
+        assertThatThrownBy(() -> orderService.updateShippingAddress(7L, 99L, newAddress()))
+                .isInstanceOf(OrderAccessDeniedException.class);
+
+        assertThat(order.getAddress().getFullName()).isEqualTo("Ada Lovelace");
+        verify(orderRepository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = FulfillmentStatus.class, names = "NOT_SHIPPED", mode = EnumSource.Mode.EXCLUDE)
+    void updateShippingAddressRejectsOrdersThatAlreadyShipped(FulfillmentStatus fulfillmentStatus) {
+        Order order = buyerOrder(OrderStatus.PAID, fulfillmentStatus);
+        stubLockedOrder(order);
+
+        assertThatThrownBy(() -> orderService.updateShippingAddress(7L, BUYER_ID, newAddress()))
+                .isInstanceOf(OrderAddressNotEditableException.class)
+                .hasMessage("Order already shipped");
+
+        assertThat(order.getAddress().getFullName()).isEqualTo("Ada Lovelace");
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void updateShippingAddressRejectsCancelledOrders() {
+        Order order = buyerOrder(OrderStatus.CANCELLED, FulfillmentStatus.NOT_SHIPPED);
+        stubLockedOrder(order);
+
+        assertThatThrownBy(() -> orderService.updateShippingAddress(7L, BUYER_ID, newAddress()))
+                .isInstanceOf(OrderAddressNotEditableException.class)
+                .hasMessage("Order is cancelled");
+
+        assertThat(order.getAddress().getFullName()).isEqualTo("Ada Lovelace");
+        verify(orderRepository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = OrderStatus.class, names = {"PENDING", "PROCESSING", "FAILED", "PAID"})
+    void updateShippingAddressIsAllowedForEveryNonCancelledStatusWhileNotShipped(OrderStatus status) {
+        Order order = buyerOrder(status, FulfillmentStatus.NOT_SHIPPED);
+        stubLockedOrder(order);
+        stubSaveReturnsArgument();
+
+        Order updated = orderService.updateShippingAddress(7L, BUYER_ID, newAddress());
+
+        assertThat(updated.getAddress().getFullName()).isEqualTo("Grace Hopper");
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void updateShippingAddressRejectsNullAddress() {
+        assertThatThrownBy(() -> orderService.updateShippingAddress(7L, BUYER_ID, null))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verifyNoInteractions(orderRepository);
+    }
 }

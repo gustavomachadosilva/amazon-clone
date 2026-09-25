@@ -13,6 +13,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -64,6 +65,16 @@ public class OrderController {
         return orderService.findByBuyer(authenticatedUser.userId()).stream()
                 .map(OrderResponse::from)
                 .toList();
+    }
+
+    @PatchMapping("/{id}/address")
+    public ResponseEntity<OrderResponse> updateAddress(
+            @PathVariable Long id,
+            @Valid @RequestBody ShippingAddress address,
+            Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        Order order = orderService.updateShippingAddress(id, authenticatedUser.userId(), address);
+        return ResponseEntity.ok(OrderResponse.from(order));
     }
 
     public record CheckoutRequest(
