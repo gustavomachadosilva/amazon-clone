@@ -233,6 +233,12 @@ export interface UserResponse {
   role: UserRole
 }
 
+// GET /api/users/me also returns when the account was created; login/register responses don't,
+// so it lives in its own type instead of on the shared UserResponse.
+export interface UserProfile extends UserResponse {
+  createdAt: string
+}
+
 export interface LoginResponse extends UserResponse {
   token: string
   expiresAt: string
@@ -241,6 +247,7 @@ export interface LoginResponse extends UserResponse {
 export const usersApi = {
   login: (email: string, password: string) => api.post<LoginResponse>('/api/users/login', { email, password }),
   register: (payload: RegisterPayload) => api.post<UserResponse>('/api/users/register', payload),
+  me: () => api.get<UserProfile>('/api/users/me'),
 }
 
 export interface CartItemView {

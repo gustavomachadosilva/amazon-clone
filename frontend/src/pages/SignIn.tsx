@@ -5,10 +5,17 @@ import { useAuth } from '../context/AuthContext'
 import { STORE_NAME } from '../lib/constants'
 import type { UserRole } from '../types/domain'
 
+// Where to go after signing in: the page a protected route (RequireAuth) bounced the visitor
+// from, or home when they came here directly.
+function redirectTarget(state: unknown): string {
+  const from = (state as { from?: Partial<Location> } | null)?.from
+  if (!from?.pathname || from.pathname === '/signin') return '/'
+  return `${from.pathname}${from.search ?? ''}${from.hash ?? ''}`
+}
+
 export default function SignIn() {
   const navigate = useNavigate()
-  // Set when the user was sent here from another page (e.g. their session expired mid-use).
-  const from = (useLocation().state as { from?: Location } | null)?.from
+  const location = useLocation()
   const auth = useAuth()
   const [mode, setMode] = useState<'signin' | 'register'>('signin')
   const [form, setForm] = useState({ name: '', email: '', pass: '', role: 'BUYER' as UserRole })
@@ -27,11 +34,7 @@ export default function SignIn() {
         setError(result)
         return
       }
-      if (from && from.pathname !== '/signin') {
-        navigate(`${from.pathname}${from.search ?? ''}${from.hash ?? ''}`, { replace: true })
-      } else {
-        navigate('/')
-      }
+      navigate(redirectTarget(location.state), { replace: true })
     } finally {
       setIsSubmitting(false)
     }

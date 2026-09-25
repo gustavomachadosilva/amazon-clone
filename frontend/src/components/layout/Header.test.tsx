@@ -63,6 +63,7 @@ function renderHeader(route: string) {
             <Routes>
               <Route path="/" element={<div>Home stub</div>} />
               <Route path="/orders" element={<div>Orders stub</div>} />
+              <Route path="/account" element={<div>Account stub</div>} />
               <Route path="/signin" element={<div>SignIn stub</div>} />
               <Route
                 path="/protected"
@@ -168,5 +169,74 @@ describe('Header sign out', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open menu' }))
     const mobileMenu = screen.getByRole('navigation', { name: 'Mobile menu' })
     expect(within(mobileMenu).queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Header account links', () => {
+  it('sends a signed-in user to /account from Account & Lists', async () => {
+    seedAuth()
+    renderHeader('/')
+    await waitForSignedInState()
+
+    fireEvent.click(screen.getByText('Account & Lists'))
+
+    expect(await screen.findByText('Account stub')).toBeInTheDocument()
+  })
+
+  it('sends a signed-in user to /account from the mobile account icon', async () => {
+    seedAuth()
+    renderHeader('/')
+    await waitForSignedInState()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Account' }))
+
+    expect(await screen.findByText('Account stub')).toBeInTheDocument()
+  })
+
+  it('sends a signed-in user to /account from "Hello, {name}" in the mobile menu', async () => {
+    seedAuth()
+    renderHeader('/')
+    await waitForSignedInState()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open menu' }))
+    const mobileMenu = screen.getByRole('navigation', { name: 'Mobile menu' })
+    fireEvent.click(within(mobileMenu).getByRole('button', { name: 'Hello, Test Buyer' }))
+
+    expect(await screen.findByText('Account stub')).toBeInTheDocument()
+  })
+
+  it('keeps Returns & Orders pointing at /orders on desktop and mobile', async () => {
+    seedAuth()
+    renderHeader('/')
+    await waitForSignedInState()
+
+    fireEvent.click(screen.getByText('& Orders'))
+    expect(await screen.findByText('Orders stub')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Account & Lists'))
+    expect(await screen.findByText('Account stub')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open menu' }))
+    const mobileMenu = screen.getByRole('navigation', { name: 'Mobile menu' })
+    fireEvent.click(within(mobileMenu).getByRole('button', { name: 'Returns & Orders' }))
+    expect(await screen.findByText('Orders stub')).toBeInTheDocument()
+  })
+
+  it('sends a signed-out visitor to /signin from Account & Lists', async () => {
+    renderHeader('/')
+    expect(await screen.findByText('Home stub')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Account & Lists'))
+
+    expect(await screen.findByText('SignIn stub')).toBeInTheDocument()
+  })
+
+  it('sends a signed-out visitor to /signin from the mobile account icon', async () => {
+    renderHeader('/')
+    expect(await screen.findByText('Home stub')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(await screen.findByText('SignIn stub')).toBeInTheDocument()
   })
 })

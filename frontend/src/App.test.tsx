@@ -12,7 +12,9 @@ vi.mock('./services/api', () => ({
     listMyOrders: vi.fn(() => Promise.resolve([])),
   },
   usersApi: {
-    getMe: vi.fn(() => Promise.resolve({ id: 1, name: 'Test', role: 'BUYER' })),
+    me: vi.fn(() =>
+      Promise.resolve({ id: 1, name: 'Test', email: 'test@example.com', role: 'BUYER', createdAt: '2026-03-01T00:00:00Z' }),
+    ),
   },
   listsApi: {
     listMine: vi.fn(() => Promise.resolve([])),

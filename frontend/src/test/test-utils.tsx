@@ -1,12 +1,12 @@
 import { render, type RenderResult } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { MemoryRouter, type Location } from 'react-router-dom'
+import { MemoryRouter, type MemoryRouterProps } from 'react-router-dom'
 import { AuthProvider } from '../context/AuthContext'
 import { CartProvider } from '../context/CartContext'
 
 interface RenderOptions {
-  // A path, or a partial location when the test needs router state (e.g. { pathname, state }).
-  route?: string | Partial<Location>
+  // A path, or a { pathname, state } entry when the test needs location state.
+  route?: NonNullable<MemoryRouterProps['initialEntries']>[number]
 }
 
 export function renderWithProviders(ui: ReactNode, { route = '/' }: RenderOptions = {}): RenderResult {
