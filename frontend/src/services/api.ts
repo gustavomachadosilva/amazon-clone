@@ -179,9 +179,13 @@ export const sellersApi = {
 
 export type OrderStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'FAILED' | 'CANCELLED'
 
+export type FulfillmentStatus = 'NOT_SHIPPED' | 'SHIPPED' | 'OUT_FOR_DELIVERY' | 'DELIVERED'
+
 export interface OrderItem {
   id: number
   productId: number
+  // Null only on legacy items whose seller could not be backfilled.
+  sellerId: number | null
   quantity: number
   unitPrice: number
 }
@@ -208,6 +212,13 @@ export interface Order {
   shippingMethod: ShippingMethod | null
   paymentMethod: PaymentMethod | null
   createdAt: string
+  fulfillmentStatus: FulfillmentStatus
+  // ISO instants; each is null until the order reaches that fulfillment step.
+  shippedAt: string | null
+  outForDeliveryAt: string | null
+  deliveredAt: string | null
+  // ISO date (YYYY-MM-DD), computed by the backend from createdAt + shippingMethod.
+  estimatedDeliveryDate: string | null
 }
 
 export interface CheckoutItem {

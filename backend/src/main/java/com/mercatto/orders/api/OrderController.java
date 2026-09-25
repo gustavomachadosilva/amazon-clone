@@ -31,7 +31,7 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping("/checkout")
-    public ResponseEntity<Order> checkout(
+    public ResponseEntity<OrderResponse> checkout(
             @Valid @RequestBody CheckoutRequest request,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             Principal principal) {
@@ -44,24 +44,26 @@ public class OrderController {
                 request.address(),
                 request.shippingMethod(),
                 request.paymentMethod());
-        return ResponseEntity.ok(order);
+        return ResponseEntity.ok(OrderResponse.from(order));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Order> getById(@PathVariable Long id, Principal principal) {
+    public ResponseEntity<OrderResponse> getById(@PathVariable Long id, Principal principal) {
         AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
         return orderService.findById(id)
                 .map(order -> {
                     authenticatedUser.requireOwner(order.getBuyerId());
-                    return ResponseEntity.ok(order);
+                    return ResponseEntity.ok(OrderResponse.from(order));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping
-    public List<Order> byBuyer(Principal principal) {
+    public List<OrderResponse> byBuyer(Principal principal) {
         AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
-        return orderService.findByBuyer(authenticatedUser.userId());
+        return orderService.findByBuyer(authenticatedUser.userId()).stream()
+                .map(OrderResponse::from)
+                .toList();
     }
 
     public record CheckoutRequest(

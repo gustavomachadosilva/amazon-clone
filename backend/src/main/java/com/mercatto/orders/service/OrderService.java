@@ -49,7 +49,13 @@ public interface OrderService {
      * Sellers) so those modules never depend on orders' JPA entity shape (Contrato de
      * Modularidade regra 3 / Card #142).
      */
-    record OrderView(Long id, Long buyerId, OrderStatus status, Instant createdAt, List<OrderItemView> items) {}
+    record OrderView(
+            Long id,
+            Long buyerId,
+            OrderStatus status,
+            FulfillmentStatus fulfillmentStatus,
+            Instant createdAt,
+            List<OrderItemView> items) {}
 
     /**
      * Returns the complete orders (all their items, even items belonging to
@@ -63,4 +69,21 @@ public interface OrderService {
      * Sellers, to look up orders received for its products).
      */
     List<OrderView> findBySellerId(Long sellerId);
+
+    /**
+     * Advances the order's shipping lifecycle to {@code next}, stamping the matching
+     * timestamp ({@code shippedAt}, {@code outForDeliveryAt} or {@code deliveredAt}).
+     * <p>
+     * Seller-driven and order-level: any seller with at least one item in the order may
+     * advance it, and the new status applies to the whole order (not per item). The order
+     * row is locked for the duration of the call so concurrent advances serialize.
+     *
+     * @throws IllegalArgumentException if {@code next} is null (HTTP 400)
+     * @throws OrderNotFoundException if the order does not exist (HTTP 404)
+     * @throws OrderAccessDeniedException if {@code sellerId} owns no item in the order —
+     *         checked before any state rule, so it never leaks the order's state (HTTP 403)
+     * @throws InvalidFulfillmentTransitionException if the order is not PAID, or
+     *         {@code next} is not the immediate next {@link FulfillmentStatus} (HTTP 409)
+     */
+    OrderView advanceFulfillment(Long orderId, Long sellerId, FulfillmentStatus next);
 }

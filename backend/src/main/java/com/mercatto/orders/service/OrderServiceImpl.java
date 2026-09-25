@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -193,10 +194,41 @@ class OrderServiceImpl implements OrderService {
                 .toList();
     }
 
+    @Override
+    @Transactional
+    public OrderView advanceFulfillment(Long orderId, Long sellerId, FulfillmentStatus next) {
+        if (next == null) {
+            throw new IllegalArgumentException("Target fulfillment status is required");
+        }
+        Order order = orderRepository.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
+
+        // Ownership first: a seller with no stake in the order must not learn anything
+        // about its state from a 409.
+        boolean sellsInOrder = order.getItems().stream()
+                .anyMatch(item -> sellerId != null && sellerId.equals(item.getSellerId()));
+        if (!sellsInOrder) {
+            throw new OrderAccessDeniedException("Seller " + sellerId + " has no items in order " + orderId);
+        }
+        if (order.getStatus() != OrderStatus.PAID) {
+            throw new InvalidFulfillmentTransitionException(
+                    "Only PAID orders can be shipped; order " + orderId + " is " + order.getStatus());
+        }
+        FulfillmentStatus current = order.getFulfillmentStatus();
+        if (!current.canAdvanceTo(next)) {
+            throw new InvalidFulfillmentTransitionException(
+                    "Cannot advance order " + orderId + " from " + current + " to " + next);
+        }
+
+        order.advanceFulfillmentTo(next, Instant.now());
+        return toOrderView(orderRepository.save(order));
+    }
+
     private OrderView toOrderView(Order order) {
         List<OrderItemView> items = order.getItems().stream()
                 .map(item -> new OrderItemView(item.getProductId(), item.getSellerId(), item.getQuantity(), item.getUnitPrice()))
                 .toList();
-        return new OrderView(order.getId(), order.getBuyerId(), order.getStatus(), order.getCreatedAt(), items);
+        return new OrderView(order.getId(), order.getBuyerId(), order.getStatus(), order.getFulfillmentStatus(),
+                order.getCreatedAt(), items);
     }
 }
