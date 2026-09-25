@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, type Location } from 'react-router-dom'
 import { Blueprint, Button, Input, Select } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { STORE_NAME } from '../lib/constants'
@@ -7,6 +7,8 @@ import type { UserRole } from '../types/domain'
 
 export default function SignIn() {
   const navigate = useNavigate()
+  // Set when the user was sent here from another page (e.g. their session expired mid-use).
+  const from = (useLocation().state as { from?: Location } | null)?.from
   const auth = useAuth()
   const [mode, setMode] = useState<'signin' | 'register'>('signin')
   const [form, setForm] = useState({ name: '', email: '', pass: '', role: 'BUYER' as UserRole })
@@ -25,7 +27,11 @@ export default function SignIn() {
         setError(result)
         return
       }
-      navigate('/')
+      if (from && from.pathname !== '/signin') {
+        navigate(`${from.pathname}${from.search ?? ''}${from.hash ?? ''}`, { replace: true })
+      } else {
+        navigate('/')
+      }
     } finally {
       setIsSubmitting(false)
     }

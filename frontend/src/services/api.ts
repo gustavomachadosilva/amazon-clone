@@ -1,4 +1,5 @@
-import { readStoredToken } from './auth-token'
+import { notifyUnauthorized } from './auth-events'
+import { readStoredSessionToken, readStoredToken } from './auth-token'
 import type { UserRole } from '../types/domain'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
@@ -23,7 +24,14 @@ export class ApiRequestError extends Error {
   }
 }
 
+function isLoginRequest(path: string, method?: string): boolean {
+  return method === 'POST' && path === '/api/users/login'
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  // An expired token isn't sent at all, but the request still counts as authenticated: the
+  // user thinks they're signed in, so a 401 must end that session too.
+  const sessionToken = readStoredSessionToken()
   const token = readStoredToken()
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
@@ -41,6 +49,16 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       apiMessage = body?.message
     } catch {
       // Body empty or not JSON (e.g. login 401 returns an empty body) — fall back to no message.
+    }
+    // Skip login (a 401 there just means wrong credentials) and responses for a session that
+    // was already replaced meanwhile (e.g. the user signed in again while this was in flight).
+    if (
+      response.status === 401 &&
+      sessionToken &&
+      !isLoginRequest(path, options.method) &&
+      readStoredSessionToken() === sessionToken
+    ) {
+      notifyUnauthorized(sessionToken)
     }
     throw new ApiRequestError(response.status, apiMessage)
   }

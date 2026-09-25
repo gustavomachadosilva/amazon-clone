@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom'
 import RequireRole from './components/auth/RequireRole'
 import Layout from './components/layout/Layout'
+import { useSignOutOnUnauthorized } from './hooks/useSignOutOnUnauthorized'
 import Home from './pages/Home'
 import Search from './pages/Search'
 import Product from './pages/Product'
@@ -14,6 +15,8 @@ import Orders from './pages/Orders'
 import SellerDashboard from './pages/SellerDashboard'
 
 export default function App() {
+  useSignOutOnUnauthorized()
+
   return (
     <Routes>
       <Route element={<Layout />}>
