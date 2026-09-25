@@ -15,6 +15,7 @@ import OrderConfirmation from './pages/OrderConfirmation'
 import Orders from './pages/Orders'
 import SellerDashboard from './pages/SellerDashboard'
 import Account from './pages/Account'
+import LoginSecurity from './pages/LoginSecurity'
 
 export default function App() {
   useSignOutOnUnauthorized()
@@ -37,6 +38,14 @@ export default function App() {
           element={
             <RequireAuth>
               <Account />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/account/security"
+          element={
+            <RequireAuth>
+              <LoginSecurity />
             </RequireAuth>
           }
         />

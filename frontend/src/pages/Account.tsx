@@ -12,43 +12,26 @@ interface Shortcut {
   title: string
   description: string
   icon: ComponentType<LucideProps>
-  // Tiles without a destination yet render as disabled "Coming soon" placeholders.
-  to?: string
+  to: string
   onlyFor?: UserRole
 }
 
 const SHORTCUTS: Shortcut[] = [
   { title: 'Your Orders', description: 'Track, return or buy things again', icon: Package, to: '/orders' },
   { title: 'Your Lists', description: 'View and manage your wish lists', icon: ListChecks, to: '/lists' },
-  // ACC-5 (#166): set `to: '/account/security'` once the Login & security page exists.
-  { title: 'Login & security', description: 'Edit name, email and password', icon: ShieldCheck },
+  { title: 'Login & security', description: 'Edit name, email and password', icon: ShieldCheck, to: '/account/security' },
   { title: 'Seller Central', description: 'Manage your products, orders and metrics', icon: Store, to: '/seller', onlyFor: 'SELLER' },
 ]
 
 function ShortcutTile({ title, description, icon: Icon, to }: Shortcut) {
-  const body = (
-    <>
-      <Icon size={28} strokeWidth={1.5} aria-hidden="true" className="flex-none text-accent-700" />
-      <div className="min-w-0">
-        <h2 className="card-title text-xl">{title}</h2>
-        <p className="text-[16px] text-paper-700">{description}</p>
-        {!to && <span className="tag tag-neutral mt-2">Coming soon</span>}
-      </div>
-    </>
-  )
-
-  if (!to) {
-    return (
-      <Blueprint corners aria-disabled="true" className="flex h-full gap-3 p-4 opacity-60">
-        {body}
-      </Blueprint>
-    )
-  }
-
   return (
     <Link to={to} className="block h-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-600">
       <Blueprint corners className="prod flex h-full gap-3 bg-card p-4">
-        {body}
+        <Icon size={28} strokeWidth={1.5} aria-hidden="true" className="flex-none text-accent-700" />
+        <div className="min-w-0">
+          <h2 className="card-title text-xl">{title}</h2>
+          <p className="text-[16px] text-paper-700">{description}</p>
+        </div>
       </Blueprint>
     </Link>
   )
