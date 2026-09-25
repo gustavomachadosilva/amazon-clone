@@ -50,7 +50,9 @@ export default function WriteReview() {
       <h1>Create a review</h1>
 
       <Blueprint className="mb-4 flex items-center gap-4 p-4">
-        <Placeholder label={product.name} aspect="1/1" className="w-[64px] flex-none sm:w-[82px]" src={product.imageUrl} />
+        <div className="w-[64px] flex-none sm:w-[82px]">
+          <Placeholder label={product.name} aspect="1/1" src={product.imageUrl} />
+        </div>
         <div className="min-w-0">
           <div className="h truncate">{product.name}</div>
           <div className="text-[16px] text-paper-600">
