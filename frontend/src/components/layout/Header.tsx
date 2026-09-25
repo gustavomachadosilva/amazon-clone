@@ -19,6 +19,7 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const categories = useCategories()
   const departmentLinks = categories.filter((name) => HEADER_HIGHLIGHT_CATEGORIES.includes(name))
+  const accountPath = user ? '/account' : '/signin'
 
   const onSearchScreen = location.pathname === '/search'
   const [query, setQuery] = useState(onSearchScreen ? (searchParams.get('q') ?? '') : '')
@@ -121,7 +122,7 @@ export default function Header() {
             type="button"
             className="flex h-11 w-11 items-center justify-center"
             aria-label={user ? 'Account' : 'Sign in'}
-            onClick={() => goTo(user ? '/orders' : '/signin')}
+            onClick={() => goTo(accountPath)}
           >
             <User size={26} strokeWidth={1.5} />
           </button>
@@ -146,8 +147,8 @@ export default function Header() {
               className="cursor-pointer"
               role="link"
               tabIndex={0}
-              onClick={() => goTo(user ? '/orders' : '/signin')}
-              onKeyDown={onEnterKey(() => goTo(user ? '/orders' : '/signin'))}
+              onClick={() => goTo(accountPath)}
+              onKeyDown={onEnterKey(() => goTo(accountPath))}
             >
               <div className="text-accent-400">{user ? `Hello, ${user.name}` : 'Hello, sign in'}</div>
               <div className="h text-[19px]">Account &amp; Lists</div>
@@ -248,7 +249,7 @@ export default function Header() {
             </button>
           ))}
           <div className="mx-3 my-1 h-px bg-accent-700" />
-          <button className="navlink min-h-11 text-left" onClick={() => goTo(user ? '/orders' : '/signin')}>
+          <button className="navlink min-h-11 text-left" onClick={() => goTo(accountPath)}>
             {user ? `Hello, ${user.name}` : 'Hello, sign in'}
           </button>
           <button className="navlink min-h-11 text-left" onClick={() => goTo('/orders')}>
