@@ -31,10 +31,16 @@ class OrderReservationService {
         return orderRepository.save(order);
     }
 
+    /**
+     * Records {@code status} on the order's row without merging {@code order} back, then returns
+     * the freshly reloaded order: {@code order} was read before the payment-gateway call, so its
+     * other fields may be stale (see {@link OrderRepository#updateStatus}).
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Order updateStatus(Order order, OrderStatus status) {
-        order.setStatus(status);
-        return orderRepository.save(order);
+        orderRepository.updateStatus(order.getId(), status);
+        return orderRepository.findByIdWithItems(order.getId())
+                .orElseThrow(() -> new IllegalStateException("Order " + order.getId() + " not found after status update"));
     }
 
     /**

@@ -780,7 +780,12 @@ class OrderServiceImplTest {
         Order order = failedOrder(OrderStatus.FAILED);
         stubRetryableOrder(order);
         stubStockAvailable();
-        when(orderReservationService.claimFailedForRetry(7L, PaymentMethod.GIFT)).thenReturn(true);
+        // The claim commits the new method on the row; updateStatus returns the reloaded row, which
+        // the stub below stands in for by returning this same instance.
+        when(orderReservationService.claimFailedForRetry(7L, PaymentMethod.GIFT)).thenAnswer(invocation -> {
+            order.setPaymentMethod(PaymentMethod.GIFT);
+            return true;
+        });
         stubUpdateStatus();
         when(paymentGateway.charge(eq(7L), any(), eq("BRL")))
                 .thenReturn(new PaymentGateway.PaymentResult(true, "tx_1", "approved"));
@@ -792,10 +797,7 @@ class OrderServiceImplTest {
         verify(orderReservationService).claimFailedForRetry(7L, PaymentMethod.GIFT);
         verify(orderReservationService, never()).claimForCharging(anyLong());
         verify(paymentGateway).charge(7L, RETRY_TOTAL, "BRL");
-        // The instance merged by updateStatus must carry the new method, or the merge reverts it.
-        ArgumentCaptor<Order> updated = ArgumentCaptor.forClass(Order.class);
-        verify(orderReservationService).updateStatus(updated.capture(), eq(OrderStatus.PAID));
-        assertThat(updated.getValue().getPaymentMethod()).isEqualTo(PaymentMethod.GIFT);
+        verify(orderReservationService).updateStatus(order, OrderStatus.PAID);
         ArgumentCaptor<OrderPlacedEvent> event = ArgumentCaptor.forClass(OrderPlacedEvent.class);
         verify(eventPublisher).publishEvent(event.capture());
         assertThat(event.getValue().orderId()).isEqualTo(7L);
