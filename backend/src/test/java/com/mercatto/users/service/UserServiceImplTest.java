@@ -285,4 +285,82 @@ class UserServiceImplTest {
 
         verify(userRepository, never()).save(any());
     }
+
+    private static final String CURRENT_PASSWORD = "current-secret-123";
+    private static final String NEW_PASSWORD = "brand-new-secret-456";
+
+    private User userWithPassword(String rawPassword) {
+        return User.builder()
+                .id(1L)
+                .name("Jane Doe")
+                .email("jane@example.com")
+                .passwordHash(passwordEncoder.encode(rawPassword))
+                .role(UserRole.BUYER)
+                .build();
+    }
+
+    @Test
+    void changePasswordWithCorrectCurrent_storesHashOfNewPassword() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(userWithPassword(CURRENT_PASSWORD)));
+
+        userService.changePassword(1L, CURRENT_PASSWORD, NEW_PASSWORD);
+
+        verify(userRepository).save(userCaptor.capture());
+        String savedHash = userCaptor.getValue().getPasswordHash();
+        assertThat(savedHash).isNotEqualTo(NEW_PASSWORD);
+        assertThat(passwordEncoder.matches(NEW_PASSWORD, savedHash)).isTrue();
+        assertThat(passwordEncoder.matches(CURRENT_PASSWORD, savedHash)).isFalse();
+    }
+
+    @Test
+    void changePasswordWithWrongCurrent_throwsInvalidCurrentPasswordException() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        User user = userWithPassword(CURRENT_PASSWORD);
+        String originalHash = user.getPasswordHash();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> userService.changePassword(1L, "wrong-password", NEW_PASSWORD))
+                .isInstanceOf(InvalidCurrentPasswordException.class)
+                .hasMessage("Senha atual incorreta");
+
+        assertThat(user.getPasswordHash()).isEqualTo(originalHash);
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void changePasswordWithNullCurrent_throwsInvalidCurrentPasswordException() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(userWithPassword(CURRENT_PASSWORD)));
+
+        assertThatThrownBy(() -> userService.changePassword(1L, null, NEW_PASSWORD))
+                .isInstanceOf(InvalidCurrentPasswordException.class);
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void changePasswordWithNewEqualToCurrent_throwsIllegalArgumentException() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(userWithPassword(CURRENT_PASSWORD)));
+
+        assertThatThrownBy(() -> userService.changePassword(1L, CURRENT_PASSWORD, CURRENT_PASSWORD))
+                .isInstanceOf(IllegalArgumentException.class)
+                .isNotInstanceOf(InvalidCurrentPasswordException.class)
+                .hasMessage("A nova senha deve ser diferente da senha atual");
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void changePasswordWhenUserMissing_throwsUserNotFoundException() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.changePassword(99L, CURRENT_PASSWORD, NEW_PASSWORD))
+                .isInstanceOf(UserNotFoundException.class)
+                .hasMessage("Usuário não encontrado: 99");
+
+        verify(userRepository, never()).save(any());
+    }
 }
