@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import { ApiRequestError, ordersApi, usersApi } from './api'
+import { ApiRequestError, ordersApi, resolveApiUrl, usersApi } from './api'
 import { onUnauthorized } from './auth-events'
 import { AUTH_STORAGE_KEY } from './auth-token'
 
@@ -94,5 +94,17 @@ describe('api request 401 handling', () => {
 
     await expect(ordersApi.listByBuyer()).rejects.toBeInstanceOf(ApiRequestError)
     expect(listener).not.toHaveBeenCalled()
+  })
+})
+
+describe('resolveApiUrl', () => {
+  it('prefixes relative backend paths with the API base', () => {
+    expect(resolveApiUrl('/api/reviews/media/7')).toBe('http://localhost:8080/api/reviews/media/7')
+    expect(resolveApiUrl('api/reviews/media/7')).toBe('http://localhost:8080/api/reviews/media/7')
+  })
+
+  it('leaves absolute and blob URLs unchanged', () => {
+    expect(resolveApiUrl('https://cdn.example.com/a.jpg')).toBe('https://cdn.example.com/a.jpg')
+    expect(resolveApiUrl('blob:http://localhost:5173/abc')).toBe('blob:http://localhost:5173/abc')
   })
 })

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Blueprint, Button, Input, Placeholder, Select, StarRating, Table, TableBody, TableCell, TableRow } from '../components/ui'
 import ProductGridCard from '../components/ProductGridCard'
+import ReviewMediaThumbnails from '../components/reviews/ReviewMediaThumbnails'
+import ReviewsWithImages from '../components/reviews/ReviewsWithImages'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useLists } from '../context/ListsContext'
@@ -556,6 +558,7 @@ export default function Product() {
           ) : (
             <div className="flex flex-col gap-5">
               {helpfulError && <div className="text-xs text-accent-700">{helpfulError}</div>}
+              <ReviewsWithImages reviews={productReviews} />
               {productReviews.map((review) => (
                 <div key={review.id}>
                   <StarRating rating={review.stars} />
@@ -570,6 +573,9 @@ export default function Product() {
                     · Verified purchase
                   </div>
                   <p className="max-w-[70ch] text-[17px] text-paper-800">{review.text}</p>
+                  {review.media.length > 0 && (
+                    <ReviewMediaThumbnails media={review.media} authorName={review.authorName} />
+                  )}
                   <Button variant="ghost" onClick={() => markReviewHelpful(review.id)}>
                     Helpful ({review.helpfulCount})
                   </Button>
