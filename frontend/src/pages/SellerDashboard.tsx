@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import {
+  ApiRequestError,
   catalogApi,
   Product,
   ProductInput,
@@ -13,6 +14,7 @@ import ProductForm from '../components/ProductForm'
 import { useAuth } from '../context/AuthContext'
 import { useSignOut } from '../hooks/useSignOut'
 import { usd } from '../lib/format'
+import { nextFulfillmentAction, shipmentBadge } from '../lib/orderStatus'
 
 interface Feedback {
   type: 'success' | 'error'
@@ -42,6 +44,7 @@ export default function SellerDashboard() {
   const [orders, setOrders] = useState<SellerOrder[]>([])
   const [metrics, setMetrics] = useState<SellerMetrics | null>(null)
   const [ordersLoadError, setOrdersLoadError] = useState(false)
+  const [advancingOrderId, setAdvancingOrderId] = useState<number | null>(null)
 
   const fetchInventory = useCallback(() => {
     if (!user) return
@@ -113,6 +116,37 @@ export default function SellerDashboard() {
       fetchInventory()
     } catch {
       setFeedback({ type: 'error', message: 'Could not delete the product. Please try again.' })
+    }
+  }
+
+  async function handleAdvance(order: SellerOrder) {
+    const action = nextFulfillmentAction(order)
+    if (!user || !action) return
+
+    setFeedback(null)
+    setAdvancingOrderId(order.orderId)
+    try {
+      const updated = await sellersApi.advanceFulfillment(user.id, order.orderId, action.next)
+      setOrders((current) => current.map((o) => (o.orderId === updated.orderId ? updated : o)))
+      setFeedback({
+        type: 'success',
+        message: `Order #${order.orderId} ${action.label.replace(/^Mark as/, 'marked as')}.`,
+      })
+    } catch (e) {
+      if (e instanceof ApiRequestError && e.status === 409) {
+        // Another tab (or a co-seller on the same order) moved it first; show the current state.
+        fetchOrders()
+        setFeedback({
+          type: 'error',
+          message: `Order #${order.orderId} changed in the meantime — the list was refreshed.`,
+        })
+      } else if (e instanceof ApiRequestError && e.status === 403) {
+        setFeedback({ type: 'error', message: "You can't update this order." })
+      } else {
+        setFeedback({ type: 'error', message: 'Could not update shipping status. Please try again.' })
+      }
+    } finally {
+      setAdvancingOrderId(null)
     }
   }
 
@@ -241,7 +275,7 @@ export default function SellerDashboard() {
           <p className="text-sm text-neutral-600">No orders received yet.</p>
         ) : (
           <div className="overflow-x-auto">
-            <Table className="min-w-[640px]">
+            <Table className="min-w-[840px]">
               <TableHead>
                 <TableRow>
                   <TableHeader>Order</TableHeader>
@@ -249,24 +283,47 @@ export default function SellerDashboard() {
                   <TableHeader>Status</TableHeader>
                   <TableHeader>Items</TableHeader>
                   <TableHeader>Subtotal</TableHeader>
+                  <TableHeader>Shipping</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {orders.map((order) => (
-                  <TableRow key={order.orderId}>
-                    <TableCell>#{order.orderId}</TableCell>
-                    <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[order.status]}`}>
-                        {order.status}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {order.items.map((item) => `${item.quantity}× #${item.productId}`).join(', ')}
-                    </TableCell>
-                    <TableCell>{usd(order.subtotal)}</TableCell>
-                  </TableRow>
-                ))}
+                {orders.map((order) => {
+                  const shipment = shipmentBadge(order)
+                  const action = nextFulfillmentAction(order)
+                  return (
+                    <TableRow key={order.orderId}>
+                      <TableCell>#{order.orderId}</TableCell>
+                      <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[order.status]}`}>
+                          {order.status}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {order.items.map((item) => `${item.quantity}× #${item.productId}`).join(', ')}
+                      </TableCell>
+                      <TableCell>{usd(order.subtotal)}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {shipment ? (
+                            <span className={shipment.className}>{shipment.label}</span>
+                          ) : (
+                            <span className="text-neutral-600">—</span>
+                          )}
+                          {action && (
+                            <Button
+                              variant="secondary"
+                              onClick={() => handleAdvance(order)}
+                              disabled={advancingOrderId === order.orderId}
+                            >
+                              {action.label}
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>

@@ -160,6 +160,7 @@ export interface SellerOrder {
   orderId: number
   buyerId: number
   status: OrderStatus
+  fulfillmentStatus: FulfillmentStatus
   createdAt: string
   items: SellerOrderItem[]
   subtotal: number
@@ -175,6 +176,8 @@ export const sellersApi = {
     api.get<Page<Product>>(`/api/sellers/${sellerId}/products?page=${page}&size=${size}`),
   getOrders: (sellerId: number) => api.get<SellerOrder[]>(`/api/sellers/${sellerId}/orders`),
   getMetrics: (sellerId: number) => api.get<SellerMetrics>(`/api/sellers/${sellerId}/metrics`),
+  advanceFulfillment: (sellerId: number, orderId: number, status: FulfillmentStatus) =>
+    api.post<SellerOrder>(`/api/sellers/${sellerId}/orders/${orderId}/fulfillment`, { status }),
 }
 
 export type OrderStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'FAILED' | 'CANCELLED'

@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import { ApiRequestError, ordersApi, resolveApiUrl, reviewsApi, usersApi } from './api'
+import { ApiRequestError, ordersApi, resolveApiUrl, reviewsApi, sellersApi, usersApi } from './api'
 import { onUnauthorized } from './auth-events'
 import { AUTH_STORAGE_KEY } from './auth-token'
 
@@ -191,5 +191,21 @@ describe('ordersApi.updateAddress', () => {
     expect(url).toMatch(/\/api\/orders\/42\/address$/)
     expect(init.method).toBe('PATCH')
     expect(init.body).toBe(JSON.stringify(address))
+  })
+})
+
+describe('sellersApi.advanceFulfillment', () => {
+  it('POSTs the next status to the seller order fulfillment endpoint', async () => {
+    storeSession('valid-token')
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ orderId: 42 }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+
+    await sellersApi.advanceFulfillment(10, 42, 'SHIPPED')
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toMatch(/\/api\/sellers\/10\/orders\/42\/fulfillment$/)
+    expect(init.method).toBe('POST')
+    expect(init.body).toBe(JSON.stringify({ status: 'SHIPPED' }))
   })
 })
