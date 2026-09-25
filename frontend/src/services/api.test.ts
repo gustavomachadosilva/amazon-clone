@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import { ApiRequestError, ordersApi, usersApi } from './api'
+import { ApiRequestError, ordersApi, reviewsApi, usersApi } from './api'
 import { onUnauthorized } from './auth-events'
 import { AUTH_STORAGE_KEY } from './auth-token'
 
@@ -94,5 +94,73 @@ describe('api request 401 handling', () => {
 
     await expect(ordersApi.listByBuyer()).rejects.toBeInstanceOf(ApiRequestError)
     expect(listener).not.toHaveBeenCalled()
+  })
+})
+
+describe('reviewsApi.create', () => {
+  const payload = { stars: 5, title: 'Great', text: 'Works well' }
+
+  function respondWithReview() {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ id: 1, media: [] }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+  }
+
+  it('sends JSON with a Content-Type header when there are no files', async () => {
+    storeSession('valid-token')
+    respondWithReview()
+
+    await reviewsApi.create(7, payload)
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toMatch(/\/api\/reviews\/products\/7$/)
+    expect(init.method).toBe('POST')
+    expect(init.headers).toMatchObject({
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer valid-token',
+    })
+    expect(init.body).toBe(JSON.stringify(payload))
+  })
+
+  it('sends multipart FormData without a fixed Content-Type when there are files', async () => {
+    storeSession('valid-token')
+    respondWithReview()
+    const photo = new File(['img'], 'photo.png', { type: 'image/png' })
+    const clip = new File(['vid'], 'clip.mp4', { type: 'video/mp4' })
+
+    await reviewsApi.create(7, payload, [photo, clip])
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toMatch(/\/api\/reviews\/products\/7$/)
+    expect(init.method).toBe('POST')
+    expect(init.headers).not.toHaveProperty('Content-Type')
+    expect(init.headers).toMatchObject({ Authorization: 'Bearer valid-token' })
+    expect(init.body).toBeInstanceOf(FormData)
+
+    const form = init.body as FormData
+    const review = form.get('review') as Blob
+    expect(review).toBeInstanceOf(Blob)
+    expect(review.type).toBe('application/json')
+    // jsdom's Blob has no .text(); FileReader reads it instead.
+    const json = await new Promise<string>((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.readAsText(review)
+    })
+    expect(JSON.parse(json)).toEqual(payload)
+    expect((form.getAll('files') as File[]).map((f) => f.name)).toEqual(['photo.png', 'clip.mp4'])
+  })
+
+  it('keeps the JSON Content-Type for other callers', async () => {
+    storeSession('valid-token')
+    respondWithReview()
+
+    await usersApi.updateMe({ name: 'New' })
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit
+    expect(init.headers).toMatchObject({ 'Content-Type': 'application/json' })
   })
 })

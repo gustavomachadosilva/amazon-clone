@@ -261,6 +261,8 @@
       linear-gradient(90deg, var(--color-divider) 1px, transparent 1px);
     background-size: 14px 14px;
   }
+  /* drop target highlighted while files are dragged over it (review media picker) */
+  .ph.ph-dragover { border: 1.5px dashed var(--color-accent); background-color: var(--color-accent-100); }
   /* real product photo — fills its container; Tailwind width utilities (e.g. w-[56px]) override it */
   .ph-image { display: block; width: 100%; height: auto; object-fit: contain; }
   .ph span {

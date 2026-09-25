@@ -5,6 +5,7 @@ import { Blueprint, Button, Input, Placeholder, Textarea } from '../components/u
 import { useAuth } from '../context/AuthContext'
 import { ApiRequestError, catalogApi, reviewsApi, type Product } from '../services/api'
 import { RATING_WORD } from '../lib/constants'
+import MediaPicker from '../components/reviews/MediaPicker'
 
 export default function WriteReview() {
   const { id } = useParams<{ id: string }>()
@@ -16,6 +17,7 @@ export default function WriteReview() {
   const [rating, setRating] = useState(0)
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
+  const [files, setFiles] = useState<File[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -37,7 +39,7 @@ export default function WriteReview() {
     setSubmitting(true)
     setError('')
     try {
-      await reviewsApi.create(productId, { stars: rating, title, text })
+      await reviewsApi.create(productId, { stars: rating, title, text }, files)
       navigate(`/product/${productId}`)
     } catch (e) {
       setError(e instanceof ApiRequestError && e.apiMessage ? e.apiMessage : 'Could not submit your review. Please try again.')
@@ -62,50 +64,56 @@ export default function WriteReview() {
         </div>
       </Blueprint>
 
-      <Blueprint className="flex flex-col gap-4 p-5">
-        <div>
-          <h3 className="text-[22px]">Overall rating</h3>
-          <div className="my-2 flex gap-1">
-            {[1, 2, 3, 4, 5].map((value) => (
-              <button
-                key={value}
-                onClick={() => setRating(value)}
-                className="flex h-11 w-11 items-center justify-center border-0 bg-transparent text-accent-700"
-                aria-label={`${value} star`}
-              >
-                <Star size={26} strokeWidth={1.5} fill={value <= rating ? 'currentColor' : 'none'} />
-              </button>
-            ))}
+      <Blueprint className="p-5" aria-busy={submitting}>
+        <fieldset disabled={submitting} className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0">
+          <div>
+            <h3 className="text-[22px]">Overall rating</h3>
+            <div className="my-2 flex gap-1">
+              {[1, 2, 3, 4, 5].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={value === rating}
+                  onClick={() => setRating(value)}
+                  className="flex h-11 w-11 items-center justify-center border-0 bg-transparent text-accent-700"
+                  aria-label={`${value} star`}
+                >
+                  <Star size={26} strokeWidth={1.5} fill={value <= rating ? 'currentColor' : 'none'} />
+                </button>
+              ))}
+            </div>
+            <div className="text-[16.5px] text-paper-700">{RATING_WORD[rating]}</div>
           </div>
-          <div className="text-[16.5px] text-paper-700">{RATING_WORD[rating]}</div>
-        </div>
 
-        <Input
-          label="What is most important to know?"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
+          <Input
+            label="What is most important to know?"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
 
-        <Textarea
-          label="What did you like or dislike? What did you use this product for?"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
+          <Textarea
+            label="What did you like or dislike? What did you use this product for?"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
 
-        <div className="ph h-24">
-          <span>Add a photo or video</span>
-        </div>
+          <MediaPicker onChange={setFiles} disabled={submitting} />
 
-        {error && <div className="text-sm text-accent-800">{error}</div>}
+          {error && (
+            <div role="alert" className="text-sm text-accent-800">
+              {error}
+            </div>
+          )}
 
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button variant="primary" onClick={submit} disabled={rating === 0 || submitting}>
-            {submitting ? 'Submitting…' : 'Submit review'}
-          </Button>
-          <Button variant="secondary" onClick={() => navigate(`/product/${productId}`)}>
-            Cancel
-          </Button>
-        </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button variant="primary" onClick={submit} disabled={rating === 0 || submitting}>
+              {submitting ? (files.length > 0 ? 'Uploading…' : 'Submitting…') : 'Submit review'}
+            </Button>
+            <Button variant="secondary" onClick={() => navigate(`/product/${productId}`)}>
+              Cancel
+            </Button>
+          </div>
+        </fieldset>
       </Blueprint>
     </div>
   )
