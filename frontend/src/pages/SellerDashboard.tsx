@@ -11,6 +11,7 @@ import {
 import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui'
 import ProductForm from '../components/ProductForm'
 import { useAuth } from '../context/AuthContext'
+import { useSignOut } from '../hooks/useSignOut'
 import { usd } from '../lib/format'
 
 interface Feedback {
@@ -30,6 +31,7 @@ const STATUS_STYLES: Record<SellerOrder['status'], string> = {
 
 export default function SellerDashboard() {
   const { user } = useAuth()
+  const signOut = useSignOut()
   const [activeTab, setActiveTab] = useState<Tab>('products')
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<string[]>([])
@@ -118,11 +120,17 @@ export default function SellerDashboard() {
     <div className="p-4 md:p-6">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1>Seller Dashboard</h1>
-        {activeTab === 'products' && (
-          <Button variant="primary" onClick={openNewProductForm}>
-            New product
+        <div className="flex flex-wrap gap-2">
+          {activeTab === 'products' && (
+            <Button variant="primary" onClick={openNewProductForm}>
+              New product
+            </Button>
+          )}
+          {/* /seller renders outside Layout (no Header), so it needs its own way out. */}
+          <Button variant="secondary" onClick={signOut}>
+            Sign out
           </Button>
-        )}
+        </div>
       </div>
 
       {metrics && (
