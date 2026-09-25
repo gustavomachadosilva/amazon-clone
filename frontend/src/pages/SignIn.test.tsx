@@ -26,13 +26,14 @@ import { ApiRequestError, cartApi, usersApi } from '../services/api'
 const mockedUsersApi = vi.mocked(usersApi)
 const mockedCartApi = vi.mocked(cartApi)
 
-function renderSignIn() {
+function renderSignIn(route: Parameters<typeof renderWithProviders>[1] = { route: '/signin' }) {
   return renderWithProviders(
     <Routes>
       <Route path="/signin" element={<SignIn />} />
       <Route path="/" element={<div>Home stub</div>} />
+      <Route path="/account" element={<div>Account stub</div>} />
     </Routes>,
-    { route: '/signin' },
+    route,
   )
 }
 
@@ -61,6 +62,27 @@ describe('SignIn page', () => {
 
     await waitFor(() => expect(mockedUsersApi.login).toHaveBeenCalledWith('buyer@example.com', 'password123'))
     await waitFor(() => expect(screen.getByText('Home stub')).toBeInTheDocument())
+  })
+
+  it('returns to the page that required sign in', async () => {
+    mockedUsersApi.login.mockResolvedValue({
+      id: 1,
+      name: 'Test Buyer',
+      email: 'buyer@example.com',
+      role: 'BUYER',
+      token: 'test-token',
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    })
+    mockedCartApi.get.mockResolvedValue({ userId: 1, items: [], savedForLater: [], itemCount: 0, total: 0 })
+
+    renderSignIn({ route: { pathname: '/signin', state: { from: { pathname: '/account' } } } })
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'buyer@example.com' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
+    fireEvent.click(screen.getByText('Continue'))
+
+    expect(await screen.findByText('Account stub')).toBeInTheDocument()
+    expect(screen.queryByText('Home stub')).not.toBeInTheDocument()
   })
 
   it('rejects an invalid email client-side without calling the API', async () => {
