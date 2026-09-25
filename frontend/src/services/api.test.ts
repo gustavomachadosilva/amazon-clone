@@ -1,5 +1,13 @@
 import { vi } from 'vitest'
-import { ApiRequestError, ordersApi, resolveApiUrl, reviewsApi, sellersApi, usersApi } from './api'
+import {
+  ApiRequestError,
+  isOutOfStockError,
+  ordersApi,
+  resolveApiUrl,
+  reviewsApi,
+  sellersApi,
+  usersApi,
+} from './api'
 import { onUnauthorized } from './auth-events'
 import { AUTH_STORAGE_KEY } from './auth-token'
 
@@ -191,6 +199,42 @@ describe('ordersApi.updateAddress', () => {
     expect(url).toMatch(/\/api\/orders\/42\/address$/)
     expect(init.method).toBe('PATCH')
     expect(init.body).toBe(JSON.stringify(address))
+  })
+})
+
+describe('ordersApi.retryPayment', () => {
+  it('POSTs the chosen payment method to the order payment endpoint', async () => {
+    storeSession('valid-token')
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ id: 42 }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+
+    await ordersApi.retryPayment(42, 'GIFT')
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toMatch(/\/api\/orders\/42\/payment$/)
+    expect(init.method).toBe('POST')
+    expect(init.body).toBe(JSON.stringify({ paymentMethod: 'GIFT' }))
+  })
+})
+
+describe('isOutOfStockError', () => {
+  it('recognizes the stock conflicts of a payment retry', () => {
+    expect(
+      isOutOfStockError(new ApiRequestError(409, 'Insufficient stock for product 1: requested 2, available 0')),
+    ).toBe(true)
+    expect(isOutOfStockError(new ApiRequestError(409, 'Product 1 is no longer available'))).toBe(true)
+  })
+
+  it('rejects other conflicts and errors', () => {
+    expect(
+      isOutOfStockError(
+        new ApiRequestError(409, 'Only FAILED orders can have their payment retried; order 42 is PAID'),
+      ),
+    ).toBe(false)
+    expect(isOutOfStockError(new ApiRequestError(409))).toBe(false)
+    expect(isOutOfStockError(new ApiRequestError(500, 'Insufficient stock for product 1'))).toBe(false)
+    expect(isOutOfStockError(new Error('Insufficient stock'))).toBe(false)
   })
 })
 

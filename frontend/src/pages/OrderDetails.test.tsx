@@ -11,6 +11,7 @@ vi.mock('../services/api', async (importOriginal) => {
       ...actual.ordersApi,
       getById: vi.fn(),
       updateAddress: vi.fn(),
+      retryPayment: vi.fn(),
     },
     catalogApi: {
       ...actual.catalogApi,
@@ -358,5 +359,154 @@ describe('OrderDetails address change', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("We couldn't update the address. Please try again.")
     expect(screen.getByRole('form', { name: 'Change delivery address' })).toBeInTheDocument()
     await waitFor(() => expect(within(form).getByRole('button', { name: 'Save address' })).toBeEnabled())
+  })
+})
+
+describe('OrderDetails payment retry', () => {
+  const FAILED = { status: 'FAILED' as const, fulfillmentStatus: 'NOT_SHIPPED' as const, shippedAt: null }
+  const PAID_NOT_SHIPPED = { fulfillmentStatus: 'NOT_SHIPPED' as const, shippedAt: null }
+
+  function findRetryForm() {
+    return screen.findByRole('form', { name: 'Retry payment' })
+  }
+
+  it('pays the order with the chosen method and shows it as paid', async () => {
+    seedAuth()
+    mockedOrdersApi.getById.mockResolvedValue(makeOrder(FAILED))
+    mockedOrdersApi.retryPayment.mockResolvedValue(makeOrder({ ...PAID_NOT_SHIPPED, paymentMethod: 'GIFT' }))
+
+    renderOrderDetails()
+
+    const form = await findRetryForm()
+    expect(within(form).getByLabelText('Credit card ending in 4417')).toBeChecked()
+    fireEvent.click(within(form).getByLabelText('Gift card balance'))
+    fireEvent.click(within(form).getByRole('button', { name: 'Retry payment' }))
+
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('Payment received — your order is confirmed and will ship soon.')
+    expect(notice).toHaveFocus()
+    expect(mockedOrdersApi.retryPayment).toHaveBeenCalledWith(42, 'GIFT')
+    expect(mockedOrdersApi.getById).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('Paid')).toBeInTheDocument()
+    expect(screen.getByText(`Estimated ${formatStepDate(new Date(2026, 7, 19))}`)).toBeInTheDocument()
+    expect(screen.queryByRole('form', { name: 'Retry payment' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    const summary = screen.getByRole('complementary', { name: 'Order summary' })
+    expect(within(summary).getByText('Gift card balance')).toBeInTheDocument()
+  })
+
+  it('keeps the form with an error when the payment is declined again', async () => {
+    seedAuth()
+    mockedOrdersApi.getById.mockResolvedValue(makeOrder(FAILED))
+    mockedOrdersApi.retryPayment.mockResolvedValue(makeOrder({ ...FAILED, estimatedDeliveryDate: null }))
+
+    renderOrderDetails()
+
+    const form = await findRetryForm()
+    fireEvent.click(within(form).getByRole('button', { name: 'Retry payment' }))
+
+    expect(
+      await within(form).findByText('Your payment was declined again. Choose another payment method or try again.'),
+    ).toBeInTheDocument()
+    expect(mockedOrdersApi.retryPayment).toHaveBeenCalledWith(42, 'CARD')
+    expect(screen.getByRole('form', { name: 'Retry payment' })).toBeInTheDocument()
+    await waitFor(() => expect(within(form).getByRole('button', { name: 'Retry payment' })).toBeEnabled())
+    expect(screen.queryByText('Paid')).not.toBeInTheDocument()
+  })
+
+  it('explains when an item is out of stock, without reloading the order', async () => {
+    seedAuth()
+    mockedOrdersApi.getById.mockResolvedValue(makeOrder(FAILED))
+    mockedOrdersApi.retryPayment.mockRejectedValue(
+      new ApiRequestError(409, 'Insufficient stock for product 1: requested 2, available 0'),
+    )
+
+    renderOrderDetails()
+
+    const form = await findRetryForm()
+    fireEvent.click(within(form).getByRole('button', { name: 'Retry payment' }))
+
+    expect(
+      await within(form).findByText(
+        "Some items in this order are no longer in stock, so it can't be paid. You weren't charged.",
+      ),
+    ).toBeInTheDocument()
+    expect(mockedOrdersApi.getById).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(within(form).getByRole('button', { name: 'Retry payment' })).toBeEnabled())
+  })
+
+  it('reloads the order on another 409 and shows it as it is now', async () => {
+    seedAuth()
+    mockedOrdersApi.getById
+      .mockResolvedValueOnce(makeOrder(FAILED))
+      .mockResolvedValueOnce(makeOrder(PAID_NOT_SHIPPED))
+    mockedOrdersApi.retryPayment.mockRejectedValue(
+      new ApiRequestError(409, 'Only FAILED orders can have their payment retried; order 42 is PAID'),
+    )
+
+    renderOrderDetails()
+
+    const form = await findRetryForm()
+    fireEvent.click(within(form).getByRole('button', { name: 'Retry payment' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Payment received')
+    expect(mockedOrdersApi.getById).toHaveBeenCalledTimes(2)
+    expect(screen.getByText('Paid')).toBeInTheDocument()
+    expect(screen.queryByRole('form', { name: 'Retry payment' })).not.toBeInTheDocument()
+  })
+
+  it('does not submit twice while the payment is processing', async () => {
+    seedAuth()
+    mockedOrdersApi.getById.mockResolvedValue(makeOrder(FAILED))
+    let resolvePayment: (order: Order) => void = () => {}
+    mockedOrdersApi.retryPayment.mockReturnValue(
+      new Promise<Order>((resolve) => {
+        resolvePayment = resolve
+      }),
+    )
+
+    renderOrderDetails()
+
+    const form = await findRetryForm()
+    const button = within(form).getByRole('button', { name: 'Retry payment' })
+    fireEvent.click(button)
+    fireEvent.click(button)
+
+    expect(mockedOrdersApi.retryPayment).toHaveBeenCalledTimes(1)
+    const processing = await within(form).findByRole('button', { name: 'Processing payment…' })
+    expect(processing).toBeDisabled()
+    expect(within(form).getByLabelText('Gift card balance')).toBeDisabled()
+
+    resolvePayment(makeOrder(PAID_NOT_SHIPPED))
+    expect(await screen.findByRole('status')).toHaveTextContent('Payment received')
+    expect(mockedOrdersApi.retryPayment).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a generic error when the payment request fails', async () => {
+    seedAuth()
+    mockedOrdersApi.getById.mockResolvedValue(makeOrder(FAILED))
+    mockedOrdersApi.retryPayment.mockRejectedValue(new ApiRequestError(500))
+
+    renderOrderDetails()
+
+    const form = await findRetryForm()
+    fireEvent.click(within(form).getByRole('button', { name: 'Retry payment' }))
+
+    expect(await within(form).findByRole('alert')).toHaveTextContent(
+      "We couldn't process your payment. Please try again.",
+    )
+    expect(screen.getByRole('form', { name: 'Retry payment' })).toBeInTheDocument()
+    await waitFor(() => expect(within(form).getByRole('button', { name: 'Retry payment' })).toBeEnabled())
+  })
+
+  it('offers no payment retry on a paid order', async () => {
+    seedAuth()
+    mockedOrdersApi.getById.mockResolvedValue(makeOrder())
+
+    renderOrderDetails()
+
+    expect(await screen.findByRole('heading', { name: 'Order #42' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retry payment' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('form', { name: 'Retry payment' })).not.toBeInTheDocument()
   })
 })

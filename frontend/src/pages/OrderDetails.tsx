@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Blueprint, Button, Table, TableBody, TableCell, TableRow } from '../components/ui'
 import AddressFields from '../components/orders/AddressFields'
 import OrderItemRow from '../components/orders/OrderItemRow'
+import PaymentMethodOptions from '../components/orders/PaymentMethodOptions'
 import { useAuth } from '../context/AuthContext'
 import { useProductsByIds } from '../hooks/useProductsByIds'
 import { EMPTY_ADDRESS, normalizeAddress, validateAddress, type AddressErrors } from '../lib/address'
@@ -17,7 +18,14 @@ import {
   timelineSteps,
   HEADLINE_TONE_CLASS,
 } from '../lib/orderStatus'
-import { ApiRequestError, ordersApi, type Order, type OrderAddress } from '../services/api'
+import {
+  ApiRequestError,
+  isOutOfStockError,
+  ordersApi,
+  type Order,
+  type OrderAddress,
+  type PaymentMethod,
+} from '../services/api'
 
 type LoadKind = 'ok' | 'not-found' | 'forbidden' | 'error'
 
@@ -252,8 +260,112 @@ function OrderSummary({ order, onOrderChange }: { order: Order; onOrderChange: (
   )
 }
 
+const RETRY_FAILED_MESSAGE = "We couldn't process your payment. Please try again."
+
+interface RetryPaymentCalloutProps {
+  order: Order
+  onOrderChange: (order: Order) => void
+  // Called once the order is paid, so the page can confirm it after this callout goes away.
+  onPaid: () => void
+}
+
+// The "Payment failed" callout of a FAILED order, with a form to pay it again.
+function RetryPaymentCallout({ order, onOrderChange, onPaid }: RetryPaymentCalloutProps) {
+  const [method, setMethod] = useState<PaymentMethod>(order.paymentMethod ?? 'CARD')
+  const [submitting, setSubmitting] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
+  // State updates land after a re-render, so a quick second click could still get through the
+  // disabled button; the ref blocks it synchronously.
+  const submittingRef = useRef(false)
+
+  // Besides out of stock, a 409 means the order is no longer FAILED (paid or being processed in
+  // another tab, say). Reload it to tell which, and show the page as it is now.
+  async function handleConflict() {
+    let fresh: Order
+    try {
+      fresh = await ordersApi.getById(order.id)
+    } catch {
+      setFeedback(RETRY_FAILED_MESSAGE)
+      return
+    }
+    if (fresh.status === 'FAILED') {
+      setFeedback(RETRY_FAILED_MESSAGE)
+      return
+    }
+    onOrderChange(fresh)
+    if (fresh.status === 'PAID') onPaid()
+  }
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault()
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSubmitting(true)
+    setFeedback(null)
+    try {
+      const updated = await ordersApi.retryPayment(order.id, method)
+      onOrderChange(updated)
+      if (updated.status === 'PAID') {
+        onPaid()
+      } else {
+        setFeedback('Your payment was declined again. Choose another payment method or try again.')
+      }
+    } catch (e) {
+      if (isOutOfStockError(e)) {
+        setFeedback("Some items in this order are no longer in stock, so it can't be paid. You weren't charged.")
+      } else if (e instanceof ApiRequestError && e.status === 409) {
+        await handleConflict()
+      } else {
+        setFeedback(RETRY_FAILED_MESSAGE)
+      }
+    } finally {
+      submittingRef.current = false
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <section aria-label="Payment failed" className="callout-alert mt-4 flex-col items-stretch gap-3">
+      <div role="alert" className="flex flex-col items-start">
+        <strong>Payment failed</strong>
+        <span>We couldn't charge your payment method, so this order won't ship.</span>
+      </div>
+      <form onSubmit={submit} aria-label="Retry payment" className="flex flex-col items-start gap-3">
+        <fieldset disabled={submitting} className="min-w-0">
+          <legend className="field-label mb-2">Payment method</legend>
+          <PaymentMethodOptions name="retry-payment" value={method} onChange={setMethod} disabled={submitting} />
+        </fieldset>
+        {feedback && (
+          <p role="alert" className="font-semibold">
+            {feedback}
+          </p>
+        )}
+        <Button variant="primary" type="submit" disabled={submitting}>
+          {submitting ? 'Processing payment…' : 'Retry payment'}
+        </Button>
+      </form>
+    </section>
+  )
+}
+
+// Confirms a successful payment retry; takes focus since the form that had it is gone.
+function PaidNotice() {
+  const ref = useRef<HTMLParagraphElement>(null)
+
+  useEffect(() => {
+    ref.current?.focus()
+  }, [])
+
+  return (
+    <p ref={ref} role="status" tabIndex={-1} className="callout-ok mt-4">
+      Payment received — your order is confirmed and will ship soon.
+    </p>
+  )
+}
+
 function LoadedOrder({ order, onOrderChange }: { order: Order; onOrderChange: (order: Order) => void }) {
   const { products } = useProductsByIds(order.items.map((item) => item.productId))
+  const [paidNotice, setPaidNotice] = useState(false)
   const payment = paymentBadge(order.status)
   const shipment = shipmentBadge(order)
 
@@ -275,11 +387,9 @@ function LoadedOrder({ order, onOrderChange }: { order: Order; onOrderChange: (o
       </header>
 
       {order.status === 'FAILED' && (
-        <div role="alert" className="callout-alert mt-4 flex-col items-start">
-          <strong>Payment failed</strong>
-          <span>We couldn't charge your payment method, so this order won't ship.</span>
-        </div>
+        <RetryPaymentCallout order={order} onOrderChange={onOrderChange} onPaid={() => setPaidNotice(true)} />
       )}
+      {order.status === 'PAID' && paidNotice && <PaidNotice />}
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
         <div className="flex min-w-0 flex-col gap-4">
