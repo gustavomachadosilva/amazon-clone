@@ -23,7 +23,7 @@ export default function Placeholder({
         loading={priority ? 'eager' : 'lazy'}
         decoding="async"
         className={`ph-image ${className}`}
-        style={{ aspectRatio: aspect, objectFit: 'contain', width: '100%', height: '100%' }}
+        style={{ aspectRatio: aspect }}
       />
     )
   }

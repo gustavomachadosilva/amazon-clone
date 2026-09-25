@@ -157,6 +157,17 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void userNotFound_mapsTo404WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/user-not-found"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Usuário não encontrado: 1"))
+                .andExpect(jsonPath("$.path").value("/test/user-not-found"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
     void productNotFound_mapsTo404WithStandardBody() throws Exception {
         mockMvc.perform(get("/test/product-not-found"))
                 .andExpect(status().isNotFound())
@@ -164,6 +175,37 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.error").value("Not Found"))
                 .andExpect(jsonPath("$.message").value("Product not found: 1"))
                 .andExpect(jsonPath("$.path").value("/test/product-not-found"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void invalidReviewMedia_mapsTo400WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/invalid-review-media"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Only JPEG, PNG, WebP, MP4 or WebM files are allowed"))
+                .andExpect(jsonPath("$.path").value("/test/invalid-review-media"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void reviewMediaNotFound_mapsTo404WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/review-media-not-found"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value("Review media not found: 1"))
+                .andExpect(jsonPath("$.path").value("/test/review-media-not-found"));
+    }
+
+    @Test
+    void maxUploadSizeExceeded_mapsTo413WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/max-upload-size-exceeded"))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.status").value(413))
+                .andExpect(jsonPath("$.error").value("Payload Too Large"))
+                .andExpect(jsonPath("$.message").value("File too large: images up to 5 MB, videos up to 50 MB"))
+                .andExpect(jsonPath("$.path").value("/test/max-upload-size-exceeded"))
                 .andExpect(jsonPath("$.timestamp").exists());
     }
 

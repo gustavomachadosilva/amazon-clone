@@ -1,7 +1,16 @@
-import { readStoredToken } from './auth-token'
+import { notifyUnauthorized } from './auth-events'
+import { readStoredSessionToken, readStoredToken } from './auth-token'
 import type { UserRole } from '../types/domain'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
+
+// Resolves a backend path (e.g. a review media URL like `/api/reviews/media/7`) against the API
+// base, since the frontend has no dev proxy. Absolute http(s) and blob: URLs pass through.
+export function resolveApiUrl(path: string): string {
+  if (/^(https?:|blob:)/i.test(path)) return path
+  const base = API_BASE_URL.replace(/\/+$/, '')
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`
+}
 
 interface ApiErrorBody {
   timestamp?: string
@@ -23,12 +32,22 @@ export class ApiRequestError extends Error {
   }
 }
 
+function isLoginRequest(path: string, method?: string): boolean {
+  return method === 'POST' && path === '/api/users/login'
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  // An expired token isn't sent at all, but the request still counts as authenticated: the
+  // user thinks they're signed in, so a 401 must end that session too.
+  const sessionToken = readStoredSessionToken()
   const token = readStoredToken()
+  // A FormData body must not get a fixed Content-Type: the browser sets multipart/form-data
+  // together with the boundary it generated.
+  const isForm = options.body instanceof FormData
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isForm ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
@@ -41,6 +60,16 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       apiMessage = body?.message
     } catch {
       // Body empty or not JSON (e.g. login 401 returns an empty body) — fall back to no message.
+    }
+    // Skip login (a 401 there just means wrong credentials) and responses for a session that
+    // was already replaced meanwhile (e.g. the user signed in again while this was in flight).
+    if (
+      response.status === 401 &&
+      sessionToken &&
+      !isLoginRequest(path, options.method) &&
+      readStoredSessionToken() === sessionToken
+    ) {
+      notifyUnauthorized(sessionToken)
     }
     throw new ApiRequestError(response.status, apiMessage)
   }
@@ -58,7 +87,10 @@ export const api = {
     request<T>(path, { method: 'POST', body: JSON.stringify(body), headers }),
   put: <T,>(path: string, body: unknown) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
+  patch: <T,>(path: string, body: unknown) =>
+    request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: <T,>(path: string) => request<T>(path, { method: 'DELETE' }),
+  postForm: <T,>(path: string, form: FormData) => request<T>(path, { method: 'POST', body: form }),
 }
 
 export interface Product {
@@ -215,14 +247,34 @@ export interface UserResponse {
   role: UserRole
 }
 
+// GET /api/users/me also returns when the account was created; login/register responses don't,
+// so it lives in its own type instead of on the shared UserResponse.
+export interface UserProfile extends UserResponse {
+  createdAt: string
+}
+
 export interface LoginResponse extends UserResponse {
   token: string
   expiresAt: string
 }
 
+// Omitted fields are left unchanged by the backend.
+export interface UpdateProfilePayload {
+  name?: string
+  email?: string
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string
+  newPassword: string
+}
+
 export const usersApi = {
   login: (email: string, password: string) => api.post<LoginResponse>('/api/users/login', { email, password }),
   register: (payload: RegisterPayload) => api.post<UserResponse>('/api/users/register', payload),
+  me: () => api.get<UserProfile>('/api/users/me'),
+  updateMe: (payload: UpdateProfilePayload) => api.patch<UserProfile>('/api/users/me', payload),
+  changePassword: (payload: ChangePasswordPayload) => api.put<void>('/api/users/me/password', payload),
 }
 
 export interface CartItemView {
@@ -257,6 +309,15 @@ export const cartApi = {
   clear: (userId: number) => api.delete<CartView>(`/api/cart/${userId}`),
 }
 
+export type ReviewMediaType = 'IMAGE' | 'VIDEO'
+
+export interface ReviewMedia {
+  id: number
+  type: ReviewMediaType
+  // Relative to the API (`/api/reviews/media/{id}`) — pass it through resolveApiUrl before use.
+  url: string
+}
+
 export interface ReviewView {
   id: number
   productId: number
@@ -267,6 +328,7 @@ export interface ReviewView {
   text: string
   helpfulCount: number
   createdAt: string
+  media: ReviewMedia[]
 }
 
 export interface CreateReviewPayload {
@@ -277,8 +339,15 @@ export interface CreateReviewPayload {
 
 export const reviewsApi = {
   listByProduct: (productId: number) => api.get<ReviewView[]>(`/api/reviews/products/${productId}`),
-  create: (productId: number, payload: CreateReviewPayload) =>
-    api.post<ReviewView>(`/api/reviews/products/${productId}`, payload),
+  // With files, the backend's multipart variant takes a JSON `review` part plus repeated `files`.
+  create: (productId: number, payload: CreateReviewPayload, files: File[] = []) => {
+    const path = `/api/reviews/products/${productId}`
+    if (files.length === 0) return api.post<ReviewView>(path, payload)
+    const form = new FormData()
+    form.append('review', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
+    files.forEach((file) => form.append('files', file, file.name))
+    return api.postForm<ReviewView>(path, form)
+  },
   markHelpful: (reviewId: number) => api.post<ReviewView>(`/api/reviews/${reviewId}/helpful`, undefined),
 }
 

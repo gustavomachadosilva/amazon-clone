@@ -6,12 +6,17 @@ import com.mercatto.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 class UserServiceImpl implements UserService {
+
+    // BCrypt only hashes the first 72 bytes (not characters) of a password.
+    static final int MAX_PASSWORD_BYTES = 72;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -21,6 +26,7 @@ class UserServiceImpl implements UserService {
         if (userRepository.existsByEmail(email)) {
             throw new EmailAlreadyExistsException("E-mail já cadastrado: " + email);
         }
+        requireEncodablePassword(rawPassword);
         User user = User.builder()
                 .name(name)
                 .email(email)
@@ -54,5 +60,44 @@ class UserServiceImpl implements UserService {
         return userRepository.findById(userId)
                 .map(user -> user.getRole() == UserRole.SELLER)
                 .orElse(false);
+    }
+
+    @Override
+    @Transactional
+    public User updateProfile(Long userId, String name, String email) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("Usuário não encontrado: " + userId));
+        if (email != null && !email.equals(user.getEmail())) {
+            if (userRepository.existsByEmail(email)) {
+                throw new EmailAlreadyExistsException("E-mail já cadastrado: " + email);
+            }
+            user.setEmail(email);
+        }
+        if (name != null) {
+            user.setName(name);
+        }
+        return userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("Usuário não encontrado: " + userId));
+        if (currentPassword == null || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new InvalidCurrentPasswordException("Senha atual incorreta");
+        }
+        if (currentPassword.equals(newPassword)) {
+            throw new IllegalArgumentException("A nova senha deve ser diferente da senha atual");
+        }
+        requireEncodablePassword(newPassword);
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    private static void requireEncodablePassword(String rawPassword) {
+        if (rawPassword.getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
+            throw new IllegalArgumentException("A senha deve ter no máximo " + MAX_PASSWORD_BYTES + " bytes");
+        }
     }
 }

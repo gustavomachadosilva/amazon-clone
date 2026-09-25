@@ -1,6 +1,8 @@
 import { Route, Routes } from 'react-router-dom'
+import RequireAuth from './components/auth/RequireAuth'
 import RequireRole from './components/auth/RequireRole'
 import Layout from './components/layout/Layout'
+import { useSignOutOnUnauthorized } from './hooks/useSignOutOnUnauthorized'
 import Home from './pages/Home'
 import Search from './pages/Search'
 import Product from './pages/Product'
@@ -12,8 +14,12 @@ import Checkout from './pages/Checkout'
 import OrderConfirmation from './pages/OrderConfirmation'
 import Orders from './pages/Orders'
 import SellerDashboard from './pages/SellerDashboard'
+import Account from './pages/Account'
+import LoginSecurity from './pages/LoginSecurity'
 
 export default function App() {
+  useSignOutOnUnauthorized()
+
   return (
     <Routes>
       <Route element={<Layout />}>
@@ -27,6 +33,22 @@ export default function App() {
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/order/:id" element={<OrderConfirmation />} />
         <Route path="/orders" element={<Orders />} />
+        <Route
+          path="/account"
+          element={
+            <RequireAuth>
+              <Account />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/account/security"
+          element={
+            <RequireAuth>
+              <LoginSecurity />
+            </RequireAuth>
+          }
+        />
       </Route>
       <Route
         path="/seller"
