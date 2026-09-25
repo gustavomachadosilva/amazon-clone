@@ -225,6 +225,25 @@ class OrderControllerTest {
     }
 
     @Test
+    void getByIdOfOrderPaidLaterThroughRetry_estimatesDeliveryFromThePayment() throws Exception {
+        Order order = Order.builder()
+                .id(1L)
+                .buyerId(10L)
+                .status(OrderStatus.PAID)
+                .totalAmount(BigDecimal.TEN)
+                .shippingMethod(ShippingMethod.STANDARD)
+                // Placed (and declined) on Monday 2026-09-28, paid through a retry on Monday 2026-10-12.
+                .createdAt(Instant.parse("2026-09-28T15:00:00Z"))
+                .paidAt(Instant.parse("2026-10-12T15:00:00Z"))
+                .build();
+        when(orderService.findById(1L)).thenReturn(Optional.of(order));
+
+        mockMvc.perform(get("/api/orders/1").principal(BUYER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estimatedDeliveryDate").value("2026-10-19"));
+    }
+
+    @Test
     void getByIdOfShippedOrder_includesShippedAt() throws Exception {
         Order order = placedOrder();
         order.advanceFulfillmentTo(FulfillmentStatus.SHIPPED, Instant.parse("2026-09-29T12:00:00Z"));

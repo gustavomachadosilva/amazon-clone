@@ -5,14 +5,17 @@ import com.mercatto.orders.domain.PaymentMethod;
 import com.mercatto.orders.repository.OrderRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,12 +45,28 @@ class OrderReservationServiceTest {
         Order reloaded = Order.builder().id(7L).buyerId(10L).status(OrderStatus.PAID).build();
         when(orderRepository.findByIdWithItems(7L)).thenReturn(Optional.of(reloaded));
 
+        Order result = orderReservationService.updateStatus(stale, OrderStatus.FAILED);
+
+        assertThat(result).isSameAs(reloaded);
+        verify(orderRepository).updateStatus(7L, OrderStatus.FAILED);
+        // Never merges the stale instance: that would revert fields committed during the charge.
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void updateStatusToPaidAlsoRecordsWhenItWasPaid() {
+        Order stale = Order.builder().id(7L).buyerId(10L).status(OrderStatus.PROCESSING).build();
+        Order reloaded = Order.builder().id(7L).buyerId(10L).status(OrderStatus.PAID).build();
+        when(orderRepository.findByIdWithItems(7L)).thenReturn(Optional.of(reloaded));
+        Instant before = Instant.now();
+
         Order result = orderReservationService.updateStatus(stale, OrderStatus.PAID);
 
         assertThat(result).isSameAs(reloaded);
-        verify(orderRepository).updateStatus(7L, OrderStatus.PAID);
-        // Never merges the stale instance: that would revert fields committed during the charge.
-        verify(orderRepository, never()).save(any());
+        ArgumentCaptor<Instant> paidAt = ArgumentCaptor.forClass(Instant.class);
+        verify(orderRepository).markPaid(eq(7L), paidAt.capture());
+        assertThat(paidAt.getValue()).isBetween(before, Instant.now());
+        verify(orderRepository, never()).updateStatus(any(), any());
     }
 
     @Test

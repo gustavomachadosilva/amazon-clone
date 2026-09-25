@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,6 +43,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Modifying(clearAutomatically = true)
     @Query("update Order o set o.status = :status where o.id = :id")
     int updateStatus(@Param("id") Long id, @Param("status") OrderStatus status);
+
+    // Same column-only write as updateStatus, for the PAID outcome: also records when it was paid.
+    @Modifying(clearAutomatically = true)
+    @Query("update Order o set o.status = com.mercatto.orders.service.OrderStatus.PAID, o.paidAt = :paidAt "
+            + "where o.id = :id")
+    int markPaid(@Param("id") Long id, @Param("paidAt") Instant paidAt);
 
     @Query("select distinct o from Order o left join fetch o.items where o.id = :id")
     Optional<Order> findByIdWithItems(@Param("id") Long id);

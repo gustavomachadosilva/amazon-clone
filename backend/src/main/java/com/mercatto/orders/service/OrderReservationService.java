@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+
 /**
  * Persists order-state changes that must survive independently of the
  * caller's own transaction outcome. On Postgres, a unique-constraint
@@ -34,11 +36,16 @@ class OrderReservationService {
     /**
      * Records {@code status} on the order's row without merging {@code order} back, then returns
      * the freshly reloaded order: {@code order} was read before the payment-gateway call, so its
-     * other fields may be stale (see {@link OrderRepository#updateStatus}).
+     * other fields may be stale (see {@link OrderRepository#updateStatus}). PAID also records
+     * the payment time, which the delivery estimate counts from.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Order updateStatus(Order order, OrderStatus status) {
-        orderRepository.updateStatus(order.getId(), status);
+        if (status == OrderStatus.PAID) {
+            orderRepository.markPaid(order.getId(), Instant.now());
+        } else {
+            orderRepository.updateStatus(order.getId(), status);
+        }
         return orderRepository.findByIdWithItems(order.getId())
                 .orElseThrow(() -> new IllegalStateException("Order " + order.getId() + " not found after status update"));
     }

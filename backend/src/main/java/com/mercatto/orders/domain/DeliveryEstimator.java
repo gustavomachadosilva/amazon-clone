@@ -6,7 +6,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 
 /**
- * Computes an order's estimated delivery date from when it was placed and its
+ * Computes an order's estimated delivery date from when it was paid and its
  * shipping method, counting business days only (skips Sat/Sun, no holiday
  * calendar) — mirrors the frontend's {@code lib/deliveryDate.ts addBusinessDays}.
  */
@@ -22,15 +22,15 @@ public final class DeliveryEstimator {
     }
 
     /**
-     * Returns {@code null} when {@code createdAt} is unknown. A null (legacy) shipping
+     * Returns {@code null} when {@code from} is unknown. A null (legacy) shipping
      * method and PICKUP are estimated like STANDARD.
      */
-    public static LocalDate estimate(Instant createdAt, ShippingMethod method) {
-        if (createdAt == null) {
+    public static LocalDate estimate(Instant from, ShippingMethod method) {
+        if (from == null) {
             return null;
         }
         int businessDays = method == ShippingMethod.EXPRESS ? EXPRESS_BUSINESS_DAYS : STANDARD_BUSINESS_DAYS;
-        LocalDate date = createdAt.atZone(ZONE).toLocalDate();
+        LocalDate date = from.atZone(ZONE).toLocalDate();
         int added = 0;
         while (added < businessDays) {
             date = date.plusDays(1);
