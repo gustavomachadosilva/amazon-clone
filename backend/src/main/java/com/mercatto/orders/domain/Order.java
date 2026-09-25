@@ -99,6 +99,13 @@ public class Order {
     @Setter(AccessLevel.NONE)
     private FulfillmentStatus fulfillmentStatus = FulfillmentStatus.NOT_SHIPPED;
 
+    // When the payment was approved, which can be days after createdAt when a FAILED order is paid
+    // through a retry. Written only by OrderRepository.markPaid; null for unpaid orders and for
+    // orders paid before this column existed.
+    @Column(name = "paid_at")
+    @Setter(AccessLevel.NONE)
+    private Instant paidAt;
+
     @Column(name = "shipped_at")
     @Setter(AccessLevel.NONE)
     private Instant shippedAt;

@@ -71,6 +71,11 @@ public record OrderResponse(
                 order.getShippedAt(),
                 order.getOutForDeliveryAt(),
                 order.getDeliveredAt(),
-                DeliveryEstimator.estimate(order.getCreatedAt(), order.getShippingMethod()));
+                // Counted from the payment, not the order: a FAILED order paid days later through a
+                // retry would otherwise be promised a date already in the past. Orders paid before
+                // paid_at existed have none, and were paid at checkout.
+                DeliveryEstimator.estimate(
+                        order.getPaidAt() != null ? order.getPaidAt() : order.getCreatedAt(),
+                        order.getShippingMethod()));
     }
 }
