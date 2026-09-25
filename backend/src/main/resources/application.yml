@@ -1,5 +1,9 @@
 server:
   port: ${BACKEND_PORT:8080}
+  tomcat:
+    # Let Tomcat drain an oversized upload so the client receives our 413 JSON body instead
+    # of a reset connection.
+    max-swallow-size: -1
 
 spring:
   application:
@@ -16,10 +20,23 @@ spring:
         hbm2ddl:
           create_namespaces: true
     open-in-view: false
+  servlet:
+    multipart:
+      # Per-file cap matches the largest allowed media (videos, 50 MB); per-request cap fits
+      # 5 such files plus the JSON part. Finer rules (5 MB images, allowed types) are enforced
+      # by the Reviews module and answered with 400.
+      max-file-size: 50MB
+      max-request-size: 260MB
 
 jwt:
   secret: ${JWT_SECRET:replace-me}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+mercatto:
+  media:
+    # Where review photos/videos are written (LocalDiskReviewMediaStorage). In Docker this is
+    # the review_media volume.
+    dir: ${MEDIA_DIR:./data/review-media}
 
 stripe:
   api-key: ${STRIPE_API_KEY:}

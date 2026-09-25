@@ -85,6 +85,11 @@ class JwtAuthenticationFilter extends OncePerRequestFilter {
         if ("GET".equals(method) && path.startsWith("/api/reviews/products/")) {
             return true;
         }
+        // Review photos/videos are loaded straight by <img>/<video> tags, which cannot send the
+        // Authorization header. Only GET is public; uploading stays behind the token.
+        if ("GET".equals(method) && path.startsWith("/api/reviews/media/")) {
+            return true;
+        }
         return "GET".equals(method)
                 && (path.startsWith("/api/catalog/products") || path.startsWith("/api/catalog/categories"));
     }
