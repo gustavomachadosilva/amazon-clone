@@ -64,6 +64,10 @@ class CheckoutFlowIntegrationTest extends PostgresIntegrationTest {
         assertThat(order.get("status")).isEqualTo("PAID");
         assertThat(asMoney(order.get("totalAmount"))).isEqualByComparingTo(new BigDecimal("70.20"));
         assertThat(asLong(order.get("buyerId"))).isEqualTo(buyer.id());
+        assertThat(order.get("fulfillmentStatus")).isEqualTo("NOT_SHIPPED");
+        assertThat(order.get("shippedAt")).isNull();
+        assertThat(order.get("estimatedDeliveryDate")).isNotNull();
+        assertThat(order).doesNotContainKey("idempotencyKey");
 
         // Synchronous AFTER_COMMIT listener: already applied by the time the response returned.
         assertThat(stockOf(keyboard)).isEqualTo(7);

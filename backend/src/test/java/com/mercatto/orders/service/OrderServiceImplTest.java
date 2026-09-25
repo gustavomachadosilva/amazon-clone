@@ -11,6 +11,10 @@ import com.mercatto.orders.event.OrderPlacedEvent;
 import com.mercatto.orders.repository.OrderRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -19,8 +23,10 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -123,6 +129,11 @@ class OrderServiceImplTest {
         Order result = orderService.checkout(10L, List.of(new OrderService.CheckoutItem(1L, 2)), null, testAddress(), ShippingMethod.STANDARD, PaymentMethod.CARD);
 
         assertThat(result.getStatus()).isEqualTo(OrderStatus.PAID);
+        // A new order is born NOT_SHIPPED with no shipping timestamps.
+        assertThat(result.getFulfillmentStatus()).isEqualTo(FulfillmentStatus.NOT_SHIPPED);
+        assertThat(result.getShippedAt()).isNull();
+        assertThat(result.getOutForDeliveryAt()).isNull();
+        assertThat(result.getDeliveredAt()).isNull();
         verify(paymentGateway).charge(any(), any(), any());
         verify(orderReservationService).reserve(any(Order.class));
         verify(orderReservationService).updateStatus(any(Order.class), eq(OrderStatus.PAID));
@@ -435,7 +446,186 @@ class OrderServiceImplTest {
 
         List<OrderService.OrderView> result = orderService.findBySellerId(10L);
 
-        assertThat(result).containsExactly(new OrderService.OrderView(5L, 20L, OrderStatus.PAID, order.getCreatedAt(),
+        assertThat(result).containsExactly(new OrderService.OrderView(5L, 20L, OrderStatus.PAID,
+                FulfillmentStatus.NOT_SHIPPED, order.getCreatedAt(),
                 List.of(new OrderService.OrderItemView(1L, 10L, 2, BigDecimal.TEN))));
+    }
+
+    @Test
+    void findBySellerIdMapsFulfillmentStatus() {
+        Order order = Order.builder().id(5L).buyerId(20L).status(OrderStatus.PAID)
+                .fulfillmentStatus(FulfillmentStatus.OUT_FOR_DELIVERY).build();
+        order.addItem(OrderItem.builder().productId(1L).sellerId(10L).quantity(1).unitPrice(BigDecimal.TEN).build());
+        when(orderRepository.findOrderIdsByItemsSellerId(10L)).thenReturn(List.of(5L));
+        when(orderRepository.findByIdInWithItems(List.of(5L))).thenReturn(List.of(order));
+
+        List<OrderService.OrderView> result = orderService.findBySellerId(10L);
+
+        assertThat(result).extracting(OrderService.OrderView::fulfillmentStatus)
+                .containsExactly(FulfillmentStatus.OUT_FOR_DELIVERY);
+    }
+
+    // --- advanceFulfillment ---------------------------------------------------------------
+
+    private static Order paidOrder(FulfillmentStatus fulfillmentStatus, Long... sellerIds) {
+        Order order = Order.builder()
+                .id(7L)
+                .buyerId(20L)
+                .status(OrderStatus.PAID)
+                .fulfillmentStatus(fulfillmentStatus)
+                .totalAmount(BigDecimal.TEN)
+                .build();
+        long productId = 1L;
+        for (Long sellerId : sellerIds) {
+            order.addItem(OrderItem.builder()
+                    .productId(productId++).sellerId(sellerId).quantity(1).unitPrice(BigDecimal.TEN).build());
+        }
+        return order;
+    }
+
+    private void stubLockedOrder(Order order) {
+        when(orderRepository.findByIdForUpdate(order.getId())).thenReturn(Optional.of(order));
+    }
+
+    private void stubSaveReturnsArgument() {
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
+    @Test
+    void advanceFulfillmentFromNotShippedToShippedSetsOnlyShippedAtAndSaves() {
+        Order order = paidOrder(FulfillmentStatus.NOT_SHIPPED, 10L);
+        stubLockedOrder(order);
+        stubSaveReturnsArgument();
+        Instant before = Instant.now();
+
+        OrderService.OrderView view = orderService.advanceFulfillment(7L, 10L, FulfillmentStatus.SHIPPED);
+
+        assertThat(view.fulfillmentStatus()).isEqualTo(FulfillmentStatus.SHIPPED);
+        assertThat(view.id()).isEqualTo(7L);
+        assertThat(order.getFulfillmentStatus()).isEqualTo(FulfillmentStatus.SHIPPED);
+        assertThat(order.getShippedAt()).isNotNull().isAfterOrEqualTo(before);
+        assertThat(order.getOutForDeliveryAt()).isNull();
+        assertThat(order.getDeliveredAt()).isNull();
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void advanceFulfillmentFromShippedToOutForDeliverySetsOutForDeliveryAt() {
+        Order order = paidOrder(FulfillmentStatus.SHIPPED, 10L);
+        stubLockedOrder(order);
+        stubSaveReturnsArgument();
+
+        OrderService.OrderView view = orderService.advanceFulfillment(7L, 10L, FulfillmentStatus.OUT_FOR_DELIVERY);
+
+        assertThat(view.fulfillmentStatus()).isEqualTo(FulfillmentStatus.OUT_FOR_DELIVERY);
+        assertThat(order.getOutForDeliveryAt()).isNotNull();
+        assertThat(order.getDeliveredAt()).isNull();
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void advanceFulfillmentFromOutForDeliveryToDeliveredSetsDeliveredAt() {
+        Order order = paidOrder(FulfillmentStatus.OUT_FOR_DELIVERY, 10L);
+        stubLockedOrder(order);
+        stubSaveReturnsArgument();
+
+        OrderService.OrderView view = orderService.advanceFulfillment(7L, 10L, FulfillmentStatus.DELIVERED);
+
+        assertThat(view.fulfillmentStatus()).isEqualTo(FulfillmentStatus.DELIVERED);
+        assertThat(order.getDeliveredAt()).isNotNull();
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void advanceFulfillmentIsAllowedForAnySellerWithAnItemInAMultiSellerOrder() {
+        Order order = paidOrder(FulfillmentStatus.NOT_SHIPPED, 10L, 30L);
+        stubLockedOrder(order);
+        stubSaveReturnsArgument();
+
+        OrderService.OrderView view = orderService.advanceFulfillment(7L, 30L, FulfillmentStatus.SHIPPED);
+
+        assertThat(view.fulfillmentStatus()).isEqualTo(FulfillmentStatus.SHIPPED);
+        verify(orderRepository).save(order);
+    }
+
+    static Stream<Arguments> invalidTransitions() {
+        return Stream.of(
+                Arguments.of(FulfillmentStatus.NOT_SHIPPED, FulfillmentStatus.OUT_FOR_DELIVERY),
+                Arguments.of(FulfillmentStatus.NOT_SHIPPED, FulfillmentStatus.DELIVERED),
+                Arguments.of(FulfillmentStatus.SHIPPED, FulfillmentStatus.DELIVERED),
+                Arguments.of(FulfillmentStatus.SHIPPED, FulfillmentStatus.NOT_SHIPPED),
+                Arguments.of(FulfillmentStatus.DELIVERED, FulfillmentStatus.SHIPPED),
+                Arguments.of(FulfillmentStatus.SHIPPED, FulfillmentStatus.SHIPPED),
+                Arguments.of(FulfillmentStatus.DELIVERED, FulfillmentStatus.DELIVERED));
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidTransitions")
+    void advanceFulfillmentRejectsAnythingButTheImmediateNextState(FulfillmentStatus current, FulfillmentStatus next) {
+        Order order = paidOrder(current, 10L);
+        stubLockedOrder(order);
+
+        assertThatThrownBy(() -> orderService.advanceFulfillment(7L, 10L, next))
+                .isInstanceOf(InvalidFulfillmentTransitionException.class)
+                .hasMessageContaining(current.name())
+                .hasMessageContaining(next.name());
+
+        assertThat(order.getFulfillmentStatus()).isEqualTo(current);
+        verify(orderRepository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = OrderStatus.class, names = "PAID", mode = EnumSource.Mode.EXCLUDE)
+    void advanceFulfillmentRejectsOrdersThatAreNotPaid(OrderStatus status) {
+        Order order = paidOrder(FulfillmentStatus.NOT_SHIPPED, 10L);
+        order.setStatus(status);
+        stubLockedOrder(order);
+
+        assertThatThrownBy(() -> orderService.advanceFulfillment(7L, 10L, FulfillmentStatus.SHIPPED))
+                .isInstanceOf(InvalidFulfillmentTransitionException.class);
+
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void advanceFulfillmentRejectsSellerWithoutItemsBeforeCheckingOrderState() {
+        // Not PAID and an invalid transition too: ownership must be checked first (403, not 409).
+        Order order = paidOrder(FulfillmentStatus.NOT_SHIPPED, 10L);
+        order.setStatus(OrderStatus.PENDING);
+        stubLockedOrder(order);
+
+        assertThatThrownBy(() -> orderService.advanceFulfillment(7L, 99L, FulfillmentStatus.DELIVERED))
+                .isInstanceOf(OrderAccessDeniedException.class);
+
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void advanceFulfillmentRejectsSellerWhenOrderItemsHaveNoSellerId() {
+        Order order = paidOrder(FulfillmentStatus.NOT_SHIPPED, (Long) null);
+        stubLockedOrder(order);
+
+        assertThatThrownBy(() -> orderService.advanceFulfillment(7L, 10L, FulfillmentStatus.SHIPPED))
+                .isInstanceOf(OrderAccessDeniedException.class);
+
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void advanceFulfillmentThrowsWhenOrderDoesNotExist() {
+        when(orderRepository.findByIdForUpdate(7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> orderService.advanceFulfillment(7L, 10L, FulfillmentStatus.SHIPPED))
+                .isInstanceOf(OrderNotFoundException.class);
+
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void advanceFulfillmentRejectsNullTargetStatus() {
+        assertThatThrownBy(() -> orderService.advanceFulfillment(7L, 10L, null))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verifyNoInteractions(orderRepository);
     }
 }

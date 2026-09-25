@@ -2,6 +2,8 @@ package com.mercatto.orders.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mercatto.orders.domain.Order;
+import com.mercatto.orders.domain.OrderItem;
+import com.mercatto.orders.service.FulfillmentStatus;
 import com.mercatto.orders.service.OrderStatus;
 import com.mercatto.orders.domain.PaymentMethod;
 import com.mercatto.orders.domain.ShippingAddress;
@@ -21,11 +23,13 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -96,7 +100,9 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.address.state").value("WA"))
                 .andExpect(jsonPath("$.address.zip").value("98104"))
                 .andExpect(jsonPath("$.shippingMethod").value("STANDARD"))
-                .andExpect(jsonPath("$.paymentMethod").value("CARD"));
+                .andExpect(jsonPath("$.paymentMethod").value("CARD"))
+                .andExpect(jsonPath("$.fulfillmentStatus").value("NOT_SHIPPED"))
+                .andExpect(jsonPath("$.idempotencyKey").doesNotExist());
 
         ArgumentCaptor<ShippingAddress> addressCaptor = ArgumentCaptor.forClass(ShippingAddress.class);
         verify(orderService).checkout(
@@ -162,14 +168,103 @@ class OrderControllerTest {
         verifyNoInteractions(orderService);
     }
 
+    private static Order placedOrder() {
+        Order order = Order.builder()
+                .id(1L)
+                .buyerId(10L)
+                .idempotencyKey("secret-key")
+                .status(OrderStatus.PAID)
+                .totalAmount(new BigDecimal("39.80"))
+                .address(testAddress())
+                .shippingMethod(ShippingMethod.STANDARD)
+                .paymentMethod(PaymentMethod.CARD)
+                .createdAt(Instant.parse("2026-09-28T15:00:00Z"))
+                .build();
+        order.addItem(OrderItem.builder()
+                .id(5L).productId(3L).sellerId(40L).quantity(2).unitPrice(new BigDecimal("19.90")).build());
+        return order;
+    }
+
     @Test
-    void getByIdAsOwner_returns200() throws Exception {
-        Order order = Order.builder().id(1L).buyerId(10L).status(OrderStatus.PAID).totalAmount(BigDecimal.TEN).build();
+    void getByIdAsOwner_returnsOrderResponseDto() throws Exception {
+        when(orderService.findById(1L)).thenReturn(Optional.of(placedOrder()));
+
+        mockMvc.perform(get("/api/orders/1").principal(BUYER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.buyerId").value(10))
+                .andExpect(jsonPath("$.status").value("PAID"))
+                .andExpect(jsonPath("$.fulfillmentStatus").value("NOT_SHIPPED"))
+                .andExpect(jsonPath("$.totalAmount").value(39.80))
+                .andExpect(jsonPath("$.address.fullName").value("Ada Lovelace"))
+                .andExpect(jsonPath("$.address.street").value("1578 Union Street, Apt 92"))
+                .andExpect(jsonPath("$.address.city").value("Seattle"))
+                .andExpect(jsonPath("$.address.state").value("WA"))
+                .andExpect(jsonPath("$.address.zip").value("98104"))
+                .andExpect(jsonPath("$.shippingMethod").value("STANDARD"))
+                .andExpect(jsonPath("$.paymentMethod").value("CARD"))
+                .andExpect(jsonPath("$.items[0].id").value(5))
+                .andExpect(jsonPath("$.items[0].productId").value(3))
+                .andExpect(jsonPath("$.items[0].sellerId").value(40))
+                .andExpect(jsonPath("$.items[0].quantity").value(2))
+                .andExpect(jsonPath("$.items[0].unitPrice").value(19.90))
+                .andExpect(jsonPath("$.createdAt").value("2026-09-28T15:00:00Z"))
+                .andExpect(jsonPath("$.shippedAt").value(nullValue()))
+                .andExpect(jsonPath("$.outForDeliveryAt").value(nullValue()))
+                .andExpect(jsonPath("$.deliveredAt").value(nullValue()))
+                // Monday 2026-09-28, STANDARD = 5 business days.
+                .andExpect(jsonPath("$.estimatedDeliveryDate").value("2026-10-05"))
+                .andExpect(jsonPath("$.idempotencyKey").doesNotExist());
+    }
+
+    @Test
+    void getByIdOfShippedOrder_includesShippedAt() throws Exception {
+        Order order = placedOrder();
+        order.advanceFulfillmentTo(FulfillmentStatus.SHIPPED, Instant.parse("2026-09-29T12:00:00Z"));
         when(orderService.findById(1L)).thenReturn(Optional.of(order));
 
         mockMvc.perform(get("/api/orders/1").principal(BUYER))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1));
+                .andExpect(jsonPath("$.fulfillmentStatus").value("SHIPPED"))
+                .andExpect(jsonPath("$.shippedAt").value("2026-09-29T12:00:00Z"))
+                .andExpect(jsonPath("$.outForDeliveryAt").value(nullValue()));
+    }
+
+    @Test
+    void getByIdOfLegacyOrderWithoutAddressOrMethods_returnsNulls() throws Exception {
+        Order order = Order.builder()
+                .id(1L)
+                .buyerId(10L)
+                .status(OrderStatus.PAID)
+                .totalAmount(BigDecimal.TEN)
+                .createdAt(Instant.parse("2026-09-28T15:00:00Z"))
+                .build();
+        when(orderService.findById(1L)).thenReturn(Optional.of(order));
+
+        mockMvc.perform(get("/api/orders/1").principal(BUYER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.address").value(nullValue()))
+                .andExpect(jsonPath("$.shippingMethod").value(nullValue()))
+                .andExpect(jsonPath("$.paymentMethod").value(nullValue()))
+                .andExpect(jsonPath("$.fulfillmentStatus").value("NOT_SHIPPED"))
+                // Null shipping method is estimated like STANDARD.
+                .andExpect(jsonPath("$.estimatedDeliveryDate").value("2026-10-05"));
+    }
+
+    @Test
+    void listByBuyer_returnsArrayOfOrderResponseDtos() throws Exception {
+        when(orderService.findByBuyer(10L)).thenReturn(List.of(placedOrder()));
+
+        mockMvc.perform(get("/api/orders").principal(BUYER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].fulfillmentStatus").value("NOT_SHIPPED"))
+                .andExpect(jsonPath("$[0].estimatedDeliveryDate").value("2026-10-05"))
+                .andExpect(jsonPath("$[0].items[0].sellerId").value(40))
+                .andExpect(jsonPath("$[0].idempotencyKey").doesNotExist());
+
+        verify(orderService).findByBuyer(10L);
     }
 
     @Test

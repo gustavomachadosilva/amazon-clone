@@ -94,6 +94,11 @@ function makeOrder(overrides: Partial<Order> = {}): Order {
     shippingMethod: null,
     paymentMethod: null,
     createdAt: new Date().toISOString(),
+    fulfillmentStatus: 'NOT_SHIPPED',
+    shippedAt: null,
+    outForDeliveryAt: null,
+    deliveredAt: null,
+    estimatedDeliveryDate: null,
     ...overrides,
   }
 }

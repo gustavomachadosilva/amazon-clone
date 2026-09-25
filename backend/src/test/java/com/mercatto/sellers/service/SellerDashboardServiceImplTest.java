@@ -1,6 +1,7 @@
 package com.mercatto.sellers.service;
 
 import com.mercatto.catalog.service.ProductService;
+import com.mercatto.orders.service.FulfillmentStatus;
 import com.mercatto.orders.service.OrderService;
 import com.mercatto.orders.service.OrderStatus;
 import com.mercatto.sellers.service.SellerDashboardService.SellerOrderItemView;
@@ -34,7 +35,7 @@ class SellerDashboardServiceImplTest {
     @Test
     void getReceivedOrdersDelegatesToOrderServiceBySellerId() {
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
-        OrderService.OrderView order = new OrderService.OrderView(100L, 20L, OrderStatus.PAID, createdAt,
+        OrderService.OrderView order = new OrderService.OrderView(100L, 20L, OrderStatus.PAID, FulfillmentStatus.NOT_SHIPPED, createdAt,
                 List.of(new OrderService.OrderItemView(1L, 10L, 3, BigDecimal.TEN)));
         when(orderService.findBySellerId(10L)).thenReturn(List.of(order));
 
@@ -48,7 +49,7 @@ class SellerDashboardServiceImplTest {
     @Test
     void getReceivedOrdersOnlyIncludesItemsBelongingToTheSeller() {
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
-        OrderService.OrderView order = new OrderService.OrderView(100L, 20L, OrderStatus.PAID, createdAt,
+        OrderService.OrderView order = new OrderService.OrderView(100L, 20L, OrderStatus.PAID, FulfillmentStatus.NOT_SHIPPED, createdAt,
                 List.of(
                         new OrderService.OrderItemView(1L, 10L, 2, BigDecimal.TEN),
                         new OrderService.OrderItemView(99L, 77L, 5, BigDecimal.valueOf(50))));
@@ -66,7 +67,7 @@ class SellerDashboardServiceImplTest {
         // Order placed before the product was later deleted from the catalog: sellerId is
         // denormalized onto the order item at checkout time, so the order still shows up.
         Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
-        OrderService.OrderView order = new OrderService.OrderView(100L, 20L, OrderStatus.PAID, createdAt,
+        OrderService.OrderView order = new OrderService.OrderView(100L, 20L, OrderStatus.PAID, FulfillmentStatus.NOT_SHIPPED, createdAt,
                 List.of(new OrderService.OrderItemView(1L, 10L, 1, BigDecimal.TEN)));
         when(orderService.findBySellerId(10L)).thenReturn(List.of(order));
 

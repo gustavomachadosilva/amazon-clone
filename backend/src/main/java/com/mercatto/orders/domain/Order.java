@@ -15,12 +15,15 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import com.mercatto.orders.service.FulfillmentStatus;
 import com.mercatto.orders.service.OrderStatus;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -85,12 +88,53 @@ public class Order {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    // Shipping lifecycle, separate from the payment status above. Only changed through
+    // advanceFulfillmentTo (no setters) so the status and its timestamp stay in sync.
+    // The column default lets ddl-auto add this NOT NULL column to existing rows, which
+    // then read as NOT_SHIPPED.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fulfillment_status", nullable = false, length = 32)
+    @ColumnDefault("'NOT_SHIPPED'")
+    @Builder.Default
+    @Setter(AccessLevel.NONE)
+    private FulfillmentStatus fulfillmentStatus = FulfillmentStatus.NOT_SHIPPED;
+
+    @Column(name = "shipped_at")
+    @Setter(AccessLevel.NONE)
+    private Instant shippedAt;
+
+    @Column(name = "out_for_delivery_at")
+    @Setter(AccessLevel.NONE)
+    private Instant outForDeliveryAt;
+
+    @Column(name = "delivered_at")
+    @Setter(AccessLevel.NONE)
+    private Instant deliveredAt;
+
     @PrePersist
     void onCreate() {
         this.createdAt = Instant.now();
         if (this.status == null) {
             this.status = OrderStatus.PENDING;
         }
+        if (this.fulfillmentStatus == null) {
+            this.fulfillmentStatus = FulfillmentStatus.NOT_SHIPPED;
+        }
+    }
+
+    /**
+     * Moves the order to {@code next} and records when it happened. Transition rules
+     * (immediate next state only, PAID orders only) are enforced by the caller,
+     * {@code OrderService.advanceFulfillment}.
+     */
+    public void advanceFulfillmentTo(FulfillmentStatus next, Instant at) {
+        switch (next) {
+            case SHIPPED -> this.shippedAt = at;
+            case OUT_FOR_DELIVERY -> this.outForDeliveryAt = at;
+            case DELIVERED -> this.deliveredAt = at;
+            case NOT_SHIPPED -> throw new IllegalArgumentException("Cannot advance fulfillment to NOT_SHIPPED");
+        }
+        this.fulfillmentStatus = next;
     }
 
     public void addItem(OrderItem item) {
