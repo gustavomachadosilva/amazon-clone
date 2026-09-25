@@ -40,6 +40,12 @@ class PaymentGatewayConfigTest {
     }
 
     @Test
+    void invalidMockDeclineModeIsIgnoredWhenStripeIsConfigured() {
+        assertThat(config.paymentGateway("sk_test_fake_key_for_unit_test", "sometimes"))
+                .isInstanceOf(StripePaymentGateway.class);
+    }
+
+    @Test
     void mockDeclineAlwaysYieldsAMockThatDeclines() {
         PaymentGateway gateway = config.paymentGateway("", "always");
 

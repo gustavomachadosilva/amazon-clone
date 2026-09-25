@@ -136,4 +136,34 @@ describe('SellerDashboard orders tab', () => {
 
     await waitFor(() => expect(button).toBeDisabled())
   })
+
+  // Behaviour guard only: fireEvent flushes the re-render between clicks, so jsdom can't reproduce
+  // the browser race (second click before the disabled re-render) that the ref guard closes.
+  it('sends a single request on a double click', async () => {
+    mockedSellersApi.advanceFulfillment.mockReturnValue(new Promise(() => {}))
+    await renderOrdersTab([makeOrder()])
+
+    const button = within(rowFor(42)).getByRole('button', { name: 'Mark as shipped' })
+    fireEvent.click(button)
+    fireEvent.click(button)
+
+    await waitFor(() => expect(button).toBeDisabled())
+    expect(mockedSellersApi.advanceFulfillment).toHaveBeenCalledTimes(1)
+  })
+
+  it("keeps another order's button disabled while its own update is still pending", async () => {
+    let finishFirst: (order: SellerOrder) => void = () => {}
+    mockedSellersApi.advanceFulfillment
+      .mockReturnValueOnce(new Promise((resolve) => (finishFirst = resolve)))
+      .mockReturnValueOnce(new Promise(() => {}))
+    await renderOrdersTab([makeOrder(), makeOrder({ orderId: 43 })])
+
+    fireEvent.click(within(rowFor(42)).getByRole('button', { name: 'Mark as shipped' }))
+    const second = within(rowFor(43)).getByRole('button', { name: 'Mark as shipped' })
+    fireEvent.click(second)
+    finishFirst(makeOrder({ fulfillmentStatus: 'SHIPPED' }))
+
+    expect(await within(rowFor(42)).findByRole('button', { name: 'Mark as out for delivery' })).toBeEnabled()
+    expect(second).toBeDisabled()
+  })
 })

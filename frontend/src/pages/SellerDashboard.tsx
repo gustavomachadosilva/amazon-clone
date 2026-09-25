@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import {
   ApiRequestError,
@@ -44,7 +44,11 @@ export default function SellerDashboard() {
   const [orders, setOrders] = useState<SellerOrder[]>([])
   const [metrics, setMetrics] = useState<SellerMetrics | null>(null)
   const [ordersLoadError, setOrdersLoadError] = useState(false)
-  const [advancingOrderId, setAdvancingOrderId] = useState<number | null>(null)
+  // Per order, so finishing one update doesn't re-enable another order's button mid-request. The ref
+  // is the synchronous guard (a double click lands before the re-render that disables the button);
+  // the state drives the disabled attribute.
+  const advancingRef = useRef(new Set<number>())
+  const [advancingOrderIds, setAdvancingOrderIds] = useState<ReadonlySet<number>>(new Set())
 
   const fetchInventory = useCallback(() => {
     if (!user) return
@@ -121,10 +125,11 @@ export default function SellerDashboard() {
 
   async function handleAdvance(order: SellerOrder) {
     const action = nextFulfillmentAction(order)
-    if (!user || !action) return
+    if (!user || !action || advancingRef.current.has(order.orderId)) return
 
+    advancingRef.current.add(order.orderId)
+    setAdvancingOrderIds(new Set(advancingRef.current))
     setFeedback(null)
-    setAdvancingOrderId(order.orderId)
     try {
       const updated = await sellersApi.advanceFulfillment(user.id, order.orderId, action.next)
       setOrders((current) => current.map((o) => (o.orderId === updated.orderId ? updated : o)))
@@ -146,7 +151,8 @@ export default function SellerDashboard() {
         setFeedback({ type: 'error', message: 'Could not update shipping status. Please try again.' })
       }
     } finally {
-      setAdvancingOrderId(null)
+      advancingRef.current.delete(order.orderId)
+      setAdvancingOrderIds(new Set(advancingRef.current))
     }
   }
 
@@ -314,7 +320,7 @@ export default function SellerDashboard() {
                             <Button
                               variant="secondary"
                               onClick={() => handleAdvance(order)}
-                              disabled={advancingOrderId === order.orderId}
+                              disabled={advancingOrderIds.has(order.orderId)}
                             >
                               {action.label}
                             </Button>
