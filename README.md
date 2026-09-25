@@ -69,6 +69,49 @@ Postgres runs the SQL in `backend/src/main/resources/db/init/` on first boot, cr
 > no macOS) antes de rodar `mvn`. O CI (`.github/workflows/ci.yml`) já usa Temurin 21 e
 > não é afetado.
 
+### Pagamento simulado (MockPaymentGateway) e refazer pagamento
+
+Sem uma chave Stripe real (`STRIPE_API_KEY` vazia ou `replace-me`, o padrão — o
+`docker-compose.yml` nem repassa essa variável ao backend), o checkout usa o
+`orders.service.MockPaymentGateway`, que não faz chamada de rede. Por padrão ele **aprova** toda
+cobrança; para reproduzir um pagamento recusado localmente, defina `PAYMENT_MOCK_DECLINE` no
+`.env` (propriedade `payment.mock.decline`):
+
+| Valor | Comportamento |
+|---|---|
+| `none` (padrão) | aprova toda cobrança |
+| `always` | recusa toda cobrança (o pedido sempre termina `FAILED`) |
+| `first-attempt` | recusa a **primeira** cobrança de cada pedido e aprova as seguintes |
+
+Um valor desconhecido impede o backend de subir. Com uma chave Stripe real configurada a
+variável é ignorada (com um aviso no log). A memória do `first-attempt` ("este pedido já foi
+recusado uma vez") fica em memória, por JVM: reiniciar o backend a zera.
+
+Para ver o fluxo de pedido recusado → novo pagamento → pago:
+
+1. `PAYMENT_MOCK_DECLINE=first-attempt` no `.env` e `docker compose up --build`.
+2. Faça um checkout (`POST /api/orders/checkout`): a resposta vem `200` com `"status": "FAILED"`
+   e o estoque não é baixado.
+3. Refaça o pagamento como o comprador dono do pedido:
+   ```bash
+   curl -X POST http://localhost:8080/api/orders/{id}/payment \
+     -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+     -d '{"paymentMethod": "CARD"}'
+   ```
+   Agora a cobrança é aprovada: o pedido fica `PAID` e o estoque é baixado (uma única vez).
+
+Contrato de `POST /api/orders/{id}/payment` (body `{ "paymentMethod": "CARD" | "STORE" | "GIFT" }`,
+que substitui a forma de pagamento gravada no pedido; o valor cobrado é o `totalAmount` original):
+
+- `200` com o pedido (`OrderResponse`): `PAID` se aprovado; `FAILED` se recusado de novo (pode
+  tentar outra vez).
+- `400` sem body, sem `paymentMethod` ou com valor inválido.
+- `403` se o pedido não é do usuário autenticado.
+- `404` se o pedido não existe.
+- `409` se o pedido não está `FAILED` (ex.: já `PAID`), se outro retry do mesmo pedido já está em
+  andamento (duplo clique — só um deles cobra), ou se algum item não tem mais estoque suficiente
+  (nada é cobrado).
+
 ### Testes de integração (Testcontainers)
 
 `mvn test` também roda a suíte em `backend/src/test/java/com/mercatto/integration/`, que sobe a

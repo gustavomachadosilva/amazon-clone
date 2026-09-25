@@ -103,4 +103,28 @@ public interface OrderService {
      *         (HTTP 409)
      */
     Order updateShippingAddress(Long orderId, Long buyerId, ShippingAddress address);
+
+    /**
+     * Retries the payment of one of the buyer's FAILED orders (e.g. declined by the gateway),
+     * charging it again with {@code paymentMethod}, which replaces the one recorded on the order.
+     * The original {@code totalAmount} is charged — items are not repriced. Before charging, the
+     * stock of every item is re-validated against Catalog. The order is claimed atomically
+     * (FAILED to PROCESSING) before the gateway call, so two concurrent retries (a double click)
+     * never charge twice: the loser gets a 409.
+     * <p>
+     * If the gateway approves, the order becomes PAID and stock is decremented exactly as after
+     * a checkout ({@link com.mercatto.orders.event.OrderPlacedEvent}). If it declines again, the
+     * order goes back to FAILED and is returned normally (HTTP 200, same as checkout), so it can
+     * be retried again. A gateway error also leaves it FAILED and is rethrown.
+     *
+     * @throws IllegalArgumentException if {@code paymentMethod} is null (HTTP 400)
+     * @throws OrderNotFoundException if the order does not exist (HTTP 404)
+     * @throws OrderAccessDeniedException if {@code buyerId} does not own the order — checked
+     *         before any state rule, so it never leaks the order's state (HTTP 403)
+     * @throws OrderPaymentNotRetryableException if the order is not FAILED, or a concurrent
+     *         retry already claimed it (HTTP 409)
+     * @throws InsufficientStockException if an item's product no longer has enough stock or no
+     *         longer exists (HTTP 409); nothing is charged
+     */
+    Order retryPayment(Long orderId, Long buyerId, PaymentMethod paymentMethod);
 }

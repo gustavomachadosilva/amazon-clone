@@ -77,6 +77,22 @@ public class OrderController {
         return ResponseEntity.ok(OrderResponse.from(order));
     }
 
+    /**
+     * Retries the payment of the caller's FAILED order (#174). Responds 200 with the order even
+     * when the gateway declines again (status FAILED, retryable), like checkout.
+     */
+    @PostMapping("/{id}/payment")
+    public ResponseEntity<OrderResponse> retryPayment(
+            @PathVariable Long id,
+            @Valid @RequestBody RetryPaymentRequest request,
+            Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        Order order = orderService.retryPayment(id, authenticatedUser.userId(), request.paymentMethod());
+        return ResponseEntity.ok(OrderResponse.from(order));
+    }
+
+    public record RetryPaymentRequest(@NotNull PaymentMethod paymentMethod) {}
+
     public record CheckoutRequest(
             @NotEmpty @Valid List<OrderService.CheckoutItem> items,
             @NotNull @Valid ShippingAddress address,
