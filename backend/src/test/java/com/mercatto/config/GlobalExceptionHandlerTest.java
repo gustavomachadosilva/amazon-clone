@@ -124,6 +124,17 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void orderPaymentNotRetryable_mapsTo409WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/order-payment-not-retryable"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value("Only FAILED orders can have their payment retried; order 1 is PAID"))
+                .andExpect(jsonPath("$.path").value("/test/order-payment-not-retryable"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
     void emailAlreadyExists_mapsTo409WithStandardBody() throws Exception {
         mockMvc.perform(get("/test/email-already-exists"))
                 .andExpect(status().isConflict())

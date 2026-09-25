@@ -6,6 +6,7 @@ import com.mercatto.orders.service.InvalidFulfillmentTransitionException;
 import com.mercatto.orders.service.OrderAccessDeniedException;
 import com.mercatto.orders.service.OrderAddressNotEditableException;
 import com.mercatto.orders.service.OrderNotFoundException;
+import com.mercatto.orders.service.OrderPaymentNotRetryableException;
 import com.mercatto.reviews.service.InvalidReviewMediaException;
 import com.mercatto.reviews.service.ReviewMediaNotFoundException;
 import com.mercatto.users.service.EmailAlreadyExistsException;
@@ -64,6 +65,11 @@ public class ThrowingTestController {
     @GetMapping("/order-address-not-editable")
     public String orderAddressNotEditable() {
         throw new OrderAddressNotEditableException("Order already shipped");
+    }
+
+    @GetMapping("/order-payment-not-retryable")
+    public String orderPaymentNotRetryable() {
+        throw new OrderPaymentNotRetryableException("Only FAILED orders can have their payment retried; order 1 is PAID");
     }
 
     @GetMapping("/email-already-exists")

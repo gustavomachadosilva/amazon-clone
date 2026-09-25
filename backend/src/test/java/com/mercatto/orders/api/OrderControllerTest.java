@@ -10,7 +10,9 @@ import com.mercatto.orders.domain.ShippingAddress;
 import com.mercatto.orders.domain.ShippingMethod;
 import com.mercatto.orders.service.OrderAccessDeniedException;
 import com.mercatto.orders.service.OrderAddressNotEditableException;
+import com.mercatto.orders.service.InsufficientStockException;
 import com.mercatto.orders.service.OrderNotFoundException;
+import com.mercatto.orders.service.OrderPaymentNotRetryableException;
 import com.mercatto.orders.service.OrderService;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.AuthenticatedUser;
@@ -18,6 +20,7 @@ import com.mercatto.users.service.TokenService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -398,5 +401,122 @@ class OrderControllerTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.message").value("Order already shipped"));
+    }
+
+    // --- POST /api/orders/{id}/payment ----------------------------------------------------
+
+    @Test
+    void retryPaymentAsOwner_returns200WithTheUpdatedOrder() throws Exception {
+        Order order = placedOrder();
+        order.setPaymentMethod(PaymentMethod.GIFT);
+        when(orderService.retryPayment(1L, 10L, PaymentMethod.GIFT)).thenReturn(order);
+
+        mockMvc.perform(post("/api/orders/1/payment")
+                        .contentType("application/json")
+                        .principal(BUYER)
+                        .content("{\"paymentMethod\": \"GIFT\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.status").value("PAID"))
+                .andExpect(jsonPath("$.paymentMethod").value("GIFT"))
+                .andExpect(jsonPath("$.totalAmount").value(39.80))
+                .andExpect(jsonPath("$.items[0].id").value(5))
+                .andExpect(jsonPath("$.idempotencyKey").doesNotExist());
+
+        ArgumentCaptor<Long> orderId = ArgumentCaptor.forClass(Long.class);
+        ArgumentCaptor<Long> buyerId = ArgumentCaptor.forClass(Long.class);
+        ArgumentCaptor<PaymentMethod> method = ArgumentCaptor.forClass(PaymentMethod.class);
+        verify(orderService).retryPayment(orderId.capture(), buyerId.capture(), method.capture());
+        assertThat(orderId.getValue()).isEqualTo(1L);
+        assertThat(buyerId.getValue()).isEqualTo(10L);
+        assertThat(method.getValue()).isEqualTo(PaymentMethod.GIFT);
+    }
+
+    @Test
+    void retryPaymentDeclinedAgain_returns200WithFailedStatus() throws Exception {
+        Order order = placedOrder();
+        order.setStatus(OrderStatus.FAILED);
+        when(orderService.retryPayment(1L, 10L, PaymentMethod.CARD)).thenReturn(order);
+
+        mockMvc.perform(post("/api/orders/1/payment")
+                        .contentType("application/json")
+                        .principal(BUYER)
+                        .content("{\"paymentMethod\": \"CARD\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("FAILED"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"paymentMethod\": null}", "{\"paymentMethod\": \"BITCOIN\"}"})
+    void retryPaymentWithInvalidPayload_returns400(String payload) throws Exception {
+        mockMvc.perform(post("/api/orders/1/payment")
+                        .contentType("application/json")
+                        .principal(BUYER)
+                        .content(payload))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(orderService);
+    }
+
+    @Test
+    void retryPaymentWithoutBody_returns400() throws Exception {
+        mockMvc.perform(post("/api/orders/1/payment")
+                        .contentType("application/json")
+                        .principal(BUYER))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(orderService);
+    }
+
+    @Test
+    void retryPaymentAsOtherBuyer_returns403() throws Exception {
+        when(orderService.retryPayment(1L, 20L, PaymentMethod.CARD))
+                .thenThrow(new OrderAccessDeniedException("User 20 does not own order 1"));
+
+        mockMvc.perform(post("/api/orders/1/payment")
+                        .contentType("application/json")
+                        .principal(OTHER_BUYER)
+                        .content("{\"paymentMethod\": \"CARD\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void retryPaymentWhenNotFound_returns404() throws Exception {
+        when(orderService.retryPayment(1L, 10L, PaymentMethod.CARD))
+                .thenThrow(new OrderNotFoundException("Order not found: 1"));
+
+        mockMvc.perform(post("/api/orders/1/payment")
+                        .contentType("application/json")
+                        .principal(BUYER)
+                        .content("{\"paymentMethod\": \"CARD\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void retryPaymentOfAnOrderThatIsNotFailed_returns409() throws Exception {
+        when(orderService.retryPayment(1L, 10L, PaymentMethod.CARD))
+                .thenThrow(new OrderPaymentNotRetryableException(
+                        "Only FAILED orders can have their payment retried; order 1 is PAID"));
+
+        mockMvc.perform(post("/api/orders/1/payment")
+                        .contentType("application/json")
+                        .principal(BUYER)
+                        .content("{\"paymentMethod\": \"CARD\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.message").value("Only FAILED orders can have their payment retried; order 1 is PAID"));
+    }
+
+    @Test
+    void retryPaymentWhenStockRanOut_returns409() throws Exception {
+        when(orderService.retryPayment(1L, 10L, PaymentMethod.CARD))
+                .thenThrow(new InsufficientStockException("Insufficient stock for product 3: requested 2, available 1"));
+
+        mockMvc.perform(post("/api/orders/1/payment")
+                        .contentType("application/json")
+                        .principal(BUYER)
+                        .content("{\"paymentMethod\": \"CARD\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Insufficient stock for product 3: requested 2, available 1"));
     }
 }

@@ -1,6 +1,7 @@
 package com.mercatto.orders.service;
 
 import com.mercatto.orders.domain.Order;
+import com.mercatto.orders.domain.PaymentMethod;
 import com.mercatto.orders.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -46,5 +47,16 @@ class OrderReservationService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean claimForCharging(Long orderId) {
         return orderRepository.claimForCharging(orderId) == 1;
+    }
+
+    /**
+     * Claims a FAILED order for a buyer-initiated payment retry (moving it to PROCESSING and
+     * recording {@code paymentMethod}), with the same compare-and-swap semantics and own
+     * transaction as {@link #claimForCharging}: of two concurrent retries of the same order
+     * (e.g. a double click), only one wins and goes on to charge the payment gateway.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean claimFailedForRetry(Long orderId, PaymentMethod paymentMethod) {
+        return orderRepository.claimFailedForRetry(orderId, paymentMethod) == 1;
     }
 }

@@ -142,7 +142,15 @@ class OrderServiceImpl implements OrderService {
             return orderRepository.findByIdWithItems(order.getId())
                     .orElseThrow(() -> new IllegalStateException("Order " + order.getId() + " not found during checkout"));
         }
+        return chargeClaimed(order);
+    }
 
+    /**
+     * Charges an order this request has already claimed (moved to PROCESSING through one of
+     * {@link OrderReservationService}'s compare-and-swap claims) and records the outcome. Must
+     * run inside a transaction: {@link OrderPlacedEvent} is consumed AFTER_COMMIT.
+     */
+    private Order chargeClaimed(Order order) {
         PaymentGateway.PaymentResult payment;
         try {
             payment = paymentGateway.charge(order.getId(), order.getTotalAmount(), "BRL");
@@ -251,6 +259,60 @@ class OrderServiceImpl implements OrderService {
         // off, so load them here for callers that map the order after the transaction ends.
         Hibernate.initialize(saved.getItems());
         return saved;
+    }
+
+    /**
+     * Not {@code findByIdForUpdate}: holding a row lock here would deadlock against the
+     * REQUIRES_NEW claim below, which updates the same row in its own transaction. Concurrency is
+     * instead settled by that claim's compare-and-swap (FAILED to PROCESSING): of two concurrent
+     * retries only one wins and charges; the other gets a 409 without touching the gateway.
+     */
+    @Override
+    @Transactional
+    public Order retryPayment(Long orderId, Long buyerId, PaymentMethod paymentMethod) {
+        if (paymentMethod == null) {
+            throw new IllegalArgumentException("Payment method is required");
+        }
+        Order order = orderRepository.findByIdWithItems(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
+
+        // Ownership first: another user must not learn anything about the order's state from a 409.
+        if (buyerId == null || !buyerId.equals(order.getBuyerId())) {
+            throw new OrderAccessDeniedException("User " + buyerId + " does not own order " + orderId);
+        }
+        if (order.getStatus() != OrderStatus.FAILED) {
+            throw new OrderPaymentNotRetryableException(
+                    "Only FAILED orders can have their payment retried; order " + orderId + " is " + order.getStatus());
+        }
+
+        // Same read-then-decide check as checkout (and the same accepted residual race): stock may
+        // have run out since the order was placed, and it must be rejected before charging.
+        validateStockForRetry(order);
+
+        if (!orderReservationService.claimFailedForRetry(orderId, paymentMethod)) {
+            throw new OrderPaymentNotRetryableException(
+                    "Payment of order " + orderId + " is already being processed or was already paid");
+        }
+        // Mirror the committed claim on this instance: updateStatus merges it back, so it must
+        // carry the new payment method or the merge would revert it.
+        order.setPaymentMethod(paymentMethod);
+        order.setStatus(OrderStatus.PROCESSING);
+        return chargeClaimed(order);
+    }
+
+    private void validateStockForRetry(Order order) {
+        Map<Long, Integer> requestedQuantities = order.getItems().stream()
+                .collect(Collectors.groupingBy(OrderItem::getProductId, Collectors.summingInt(OrderItem::getQuantity)));
+
+        requestedQuantities.forEach((productId, requestedQuantity) -> {
+            ProductService.ProductSummary product = productService.findById(productId)
+                    .orElseThrow(() -> new InsufficientStockException("Product " + productId + " is no longer available"));
+            if (requestedQuantity > product.stockQuantity()) {
+                throw new InsufficientStockException(
+                        "Insufficient stock for product " + productId + ": requested "
+                                + requestedQuantity + ", available " + product.stockQuantity());
+            }
+        });
     }
 
     private OrderView toOrderView(Order order) {

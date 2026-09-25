@@ -1,6 +1,7 @@
 package com.mercatto.orders.service;
 
 import com.mercatto.orders.domain.Order;
+import com.mercatto.orders.domain.PaymentMethod;
 import com.mercatto.orders.repository.OrderRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,5 +44,14 @@ class OrderReservationServiceTest {
         ArgumentCaptor<Order> savedCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(savedCaptor.capture());
         assertThat(savedCaptor.getValue().getStatus()).isEqualTo(OrderStatus.FAILED);
+    }
+
+    @Test
+    void claimFailedForRetrySucceedsOnlyWhenExactlyOneRowWasClaimed() {
+        when(orderRepository.claimFailedForRetry(7L, PaymentMethod.GIFT)).thenReturn(1);
+        when(orderRepository.claimFailedForRetry(8L, PaymentMethod.GIFT)).thenReturn(0);
+
+        assertThat(orderReservationService.claimFailedForRetry(7L, PaymentMethod.GIFT)).isTrue();
+        assertThat(orderReservationService.claimFailedForRetry(8L, PaymentMethod.GIFT)).isFalse();
     }
 }

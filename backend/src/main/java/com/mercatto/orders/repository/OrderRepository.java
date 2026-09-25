@@ -1,6 +1,7 @@
 package com.mercatto.orders.repository;
 
 import com.mercatto.orders.domain.Order;
+import com.mercatto.orders.domain.PaymentMethod;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -24,6 +25,15 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("update Order o set o.status = com.mercatto.orders.service.OrderStatus.PROCESSING "
             + "where o.id = :id and o.status in (com.mercatto.orders.service.OrderStatus.PENDING, com.mercatto.orders.service.OrderStatus.FAILED)")
     int claimForCharging(@Param("id") Long id);
+
+    // Claim gate for a buyer-initiated payment retry (#174): same compare-and-swap as
+    // claimForCharging, but only from FAILED (a PENDING order is still inside its checkout) and
+    // it records the payment method chosen for the retry in the same atomic update.
+    @Modifying
+    @Query("update Order o set o.status = com.mercatto.orders.service.OrderStatus.PROCESSING, "
+            + "o.paymentMethod = :paymentMethod "
+            + "where o.id = :id and o.status = com.mercatto.orders.service.OrderStatus.FAILED")
+    int claimFailedForRetry(@Param("id") Long id, @Param("paymentMethod") PaymentMethod paymentMethod);
 
     @Query("select distinct o from Order o left join fetch o.items where o.id = :id")
     Optional<Order> findByIdWithItems(@Param("id") Long id);

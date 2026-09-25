@@ -33,6 +33,7 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       JWT_SECRET: ${JWT_SECRET:-replace-me}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      PAYMENT_MOCK_DECLINE: ${PAYMENT_MOCK_DECLINE:-none}
       MEDIA_DIR: /app/data/review-media
     ports:
       - "${BACKEND_PORT:-8080}:8080"

@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -735,5 +736,204 @@ class OrderServiceImplTest {
                 .isInstanceOf(IllegalArgumentException.class);
 
         verifyNoInteractions(orderRepository);
+    }
+
+    // --- retryPayment ---------------------------------------------------------------------
+
+    private static final BigDecimal RETRY_TOTAL = new BigDecimal("30.00");
+
+    /** A FAILED order of BUYER_ID paid by CARD: product 1 x2 and product 2 x1. */
+    private static Order failedOrder(OrderStatus status) {
+        Order order = Order.builder()
+                .id(7L)
+                .buyerId(BUYER_ID)
+                .status(status)
+                .totalAmount(RETRY_TOTAL)
+                .paymentMethod(PaymentMethod.CARD)
+                .build();
+        order.addItem(OrderItem.builder().productId(1L).sellerId(30L).quantity(2).unitPrice(BigDecimal.TEN).build());
+        order.addItem(OrderItem.builder().productId(2L).sellerId(30L).quantity(1).unitPrice(BigDecimal.TEN).build());
+        return order;
+    }
+
+    private void stubRetryableOrder(Order order) {
+        when(orderRepository.findByIdWithItems(7L)).thenReturn(Optional.of(order));
+    }
+
+    private void stubStockAvailable() {
+        // Prices differ from the order's unit prices on purpose: the retry must not reprice.
+        when(productService.findById(1L)).thenReturn(Optional.of(product(1L, new BigDecimal("99.00"), 5)));
+        when(productService.findById(2L)).thenReturn(Optional.of(product(2L, new BigDecimal("99.00"), 1)));
+    }
+
+    private void stubUpdateStatus() {
+        when(orderReservationService.updateStatus(any(Order.class), any(OrderStatus.class)))
+                .thenAnswer(invocation -> {
+                    Order order = invocation.getArgument(0);
+                    order.setStatus(invocation.getArgument(1));
+                    return order;
+                });
+    }
+
+    @Test
+    void retryPaymentChargesTheOriginalTotalWithTheNewMethodAndPublishesOrderPlaced() {
+        Order order = failedOrder(OrderStatus.FAILED);
+        stubRetryableOrder(order);
+        stubStockAvailable();
+        when(orderReservationService.claimFailedForRetry(7L, PaymentMethod.GIFT)).thenReturn(true);
+        stubUpdateStatus();
+        when(paymentGateway.charge(eq(7L), any(), eq("BRL")))
+                .thenReturn(new PaymentGateway.PaymentResult(true, "tx_1", "approved"));
+
+        Order result = orderService.retryPayment(7L, BUYER_ID, PaymentMethod.GIFT);
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.PAID);
+        assertThat(result.getPaymentMethod()).isEqualTo(PaymentMethod.GIFT);
+        verify(orderReservationService).claimFailedForRetry(7L, PaymentMethod.GIFT);
+        verify(orderReservationService, never()).claimForCharging(anyLong());
+        verify(paymentGateway).charge(7L, RETRY_TOTAL, "BRL");
+        // The instance merged by updateStatus must carry the new method, or the merge reverts it.
+        ArgumentCaptor<Order> updated = ArgumentCaptor.forClass(Order.class);
+        verify(orderReservationService).updateStatus(updated.capture(), eq(OrderStatus.PAID));
+        assertThat(updated.getValue().getPaymentMethod()).isEqualTo(PaymentMethod.GIFT);
+        ArgumentCaptor<OrderPlacedEvent> event = ArgumentCaptor.forClass(OrderPlacedEvent.class);
+        verify(eventPublisher).publishEvent(event.capture());
+        assertThat(event.getValue().orderId()).isEqualTo(7L);
+        assertThat(event.getValue().items())
+                .extracting(OrderPlacedEvent.Item::productId, OrderPlacedEvent.Item::quantity)
+                .containsExactlyInAnyOrder(tuple(1L, 2), tuple(2L, 1));
+    }
+
+    @Test
+    void retryPaymentDeclinedAgainLeavesTheOrderFailedWithoutPublishing() {
+        Order order = failedOrder(OrderStatus.FAILED);
+        stubRetryableOrder(order);
+        stubStockAvailable();
+        when(orderReservationService.claimFailedForRetry(7L, PaymentMethod.CARD)).thenReturn(true);
+        stubUpdateStatus();
+        when(paymentGateway.charge(anyLong(), any(), anyString()))
+                .thenReturn(new PaymentGateway.PaymentResult(false, null, "declined"));
+
+        Order result = orderService.retryPayment(7L, BUYER_ID, PaymentMethod.CARD);
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.FAILED);
+        verify(orderReservationService).updateStatus(any(Order.class), eq(OrderStatus.FAILED));
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void retryPaymentMarksTheOrderFailedAndRethrowsWhenTheGatewayThrows() {
+        Order order = failedOrder(OrderStatus.FAILED);
+        stubRetryableOrder(order);
+        stubStockAvailable();
+        when(orderReservationService.claimFailedForRetry(7L, PaymentMethod.CARD)).thenReturn(true);
+        when(paymentGateway.charge(anyLong(), any(), anyString())).thenThrow(new IllegalStateException("gateway timeout"));
+
+        assertThatThrownBy(() -> orderService.retryPayment(7L, BUYER_ID, PaymentMethod.CARD))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("gateway timeout");
+
+        verify(orderReservationService).updateStatus(any(Order.class), eq(OrderStatus.FAILED));
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void retryPaymentThrowsWhenOrderDoesNotExist() {
+        when(orderRepository.findByIdWithItems(7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> orderService.retryPayment(7L, BUYER_ID, PaymentMethod.CARD))
+                .isInstanceOf(OrderNotFoundException.class);
+
+        verifyNoInteractions(orderReservationService, productService, paymentGateway, eventPublisher);
+    }
+
+    @Test
+    void retryPaymentRejectsNonOwnerBeforeCheckingOrderState() {
+        // PAID too: ownership must be checked first (403, not 409).
+        stubRetryableOrder(failedOrder(OrderStatus.PAID));
+
+        assertThatThrownBy(() -> orderService.retryPayment(7L, 99L, PaymentMethod.CARD))
+                .isInstanceOf(OrderAccessDeniedException.class);
+
+        verifyNoInteractions(orderReservationService, productService, paymentGateway, eventPublisher);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = OrderStatus.class, names = "FAILED", mode = EnumSource.Mode.EXCLUDE)
+    void retryPaymentRejectsOrdersThatAreNotFailed(OrderStatus status) {
+        Order order = failedOrder(status);
+        stubRetryableOrder(order);
+
+        assertThatThrownBy(() -> orderService.retryPayment(7L, BUYER_ID, PaymentMethod.GIFT))
+                .isInstanceOf(OrderPaymentNotRetryableException.class);
+
+        assertThat(order.getPaymentMethod()).isEqualTo(PaymentMethod.CARD);
+        verifyNoInteractions(orderReservationService, productService, paymentGateway, eventPublisher);
+    }
+
+    @Test
+    void retryPaymentRejectsInsufficientStockWithoutClaimingOrCharging() {
+        stubRetryableOrder(failedOrder(OrderStatus.FAILED));
+        when(productService.findById(1L)).thenReturn(Optional.of(product(1L, BigDecimal.TEN, 1)));
+        lenient().when(productService.findById(2L)).thenReturn(Optional.of(product(2L, BigDecimal.TEN, 5)));
+
+        assertThatThrownBy(() -> orderService.retryPayment(7L, BUYER_ID, PaymentMethod.CARD))
+                .isInstanceOf(InsufficientStockException.class)
+                .hasMessageContaining("product 1");
+
+        verifyNoInteractions(orderReservationService, paymentGateway, eventPublisher);
+    }
+
+    @Test
+    void retryPaymentSumsQuantitiesOfTheSameProductAcrossLines() {
+        Order order = Order.builder().id(7L).buyerId(BUYER_ID).status(OrderStatus.FAILED)
+                .totalAmount(RETRY_TOTAL).paymentMethod(PaymentMethod.CARD).build();
+        order.addItem(OrderItem.builder().productId(1L).quantity(2).unitPrice(BigDecimal.TEN).build());
+        order.addItem(OrderItem.builder().productId(1L).quantity(2).unitPrice(BigDecimal.TEN).build());
+        stubRetryableOrder(order);
+        // Each line alone fits in stock 3, but together they need 4.
+        when(productService.findById(1L)).thenReturn(Optional.of(product(1L, BigDecimal.TEN, 3)));
+
+        assertThatThrownBy(() -> orderService.retryPayment(7L, BUYER_ID, PaymentMethod.CARD))
+                .isInstanceOf(InsufficientStockException.class)
+                .hasMessageContaining("requested 4, available 3");
+
+        verifyNoInteractions(orderReservationService, paymentGateway, eventPublisher);
+    }
+
+    @Test
+    void retryPaymentRejectsAnItemWhoseProductWasDeleted() {
+        stubRetryableOrder(failedOrder(OrderStatus.FAILED));
+        when(productService.findById(1L)).thenReturn(Optional.empty());
+        lenient().when(productService.findById(2L)).thenReturn(Optional.of(product(2L, BigDecimal.TEN, 5)));
+
+        assertThatThrownBy(() -> orderService.retryPayment(7L, BUYER_ID, PaymentMethod.CARD))
+                .isInstanceOf(InsufficientStockException.class)
+                .hasMessage("Product 1 is no longer available");
+
+        verifyNoInteractions(orderReservationService, paymentGateway, eventPublisher);
+    }
+
+    @Test
+    void retryPaymentDoesNotChargeWhenAConcurrentRetryAlreadyClaimedTheOrder() {
+        Order order = failedOrder(OrderStatus.FAILED);
+        stubRetryableOrder(order);
+        stubStockAvailable();
+        when(orderReservationService.claimFailedForRetry(7L, PaymentMethod.CARD)).thenReturn(false);
+
+        assertThatThrownBy(() -> orderService.retryPayment(7L, BUYER_ID, PaymentMethod.CARD))
+                .isInstanceOf(OrderPaymentNotRetryableException.class)
+                .hasMessageContaining("already being processed");
+
+        verify(orderReservationService, never()).updateStatus(any(), any());
+        verifyNoInteractions(paymentGateway, eventPublisher);
+    }
+
+    @Test
+    void retryPaymentRejectsNullPaymentMethod() {
+        assertThatThrownBy(() -> orderService.retryPayment(7L, BUYER_ID, null))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verifyNoInteractions(orderRepository, orderReservationService, productService, paymentGateway);
     }
 }
