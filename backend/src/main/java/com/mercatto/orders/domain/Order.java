@@ -137,6 +137,14 @@ public class Order {
         this.fulfillmentStatus = next;
     }
 
+    /**
+     * Replaces the shipping address snapshot. Editability rules (owner only, not yet shipped,
+     * not cancelled) are enforced by the caller, {@code OrderService.updateShippingAddress}.
+     */
+    public void changeShippingAddress(ShippingAddress address) {
+        this.address = address;
+    }
+
     public void addItem(OrderItem item) {
         item.setOrder(this);
         items.add(item);

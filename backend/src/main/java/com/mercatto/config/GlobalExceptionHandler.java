@@ -5,6 +5,7 @@ import com.mercatto.lists.service.WishListNotFoundException;
 import com.mercatto.orders.service.InsufficientStockException;
 import com.mercatto.orders.service.InvalidFulfillmentTransitionException;
 import com.mercatto.orders.service.OrderAccessDeniedException;
+import com.mercatto.orders.service.OrderAddressNotEditableException;
 import com.mercatto.orders.service.OrderNotFoundException;
 import com.mercatto.reviews.service.InvalidReviewMediaException;
 import com.mercatto.reviews.service.ReviewMediaNotFoundException;
@@ -63,6 +64,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(InvalidFulfillmentTransitionException.class)
     public ResponseEntity<ApiError> handleInvalidFulfillmentTransition(InvalidFulfillmentTransitionException ex,
                                                                        HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(OrderAddressNotEditableException.class)
+    public ResponseEntity<ApiError> handleOrderAddressNotEditable(OrderAddressNotEditableException ex,
+                                                                  HttpServletRequest request) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 

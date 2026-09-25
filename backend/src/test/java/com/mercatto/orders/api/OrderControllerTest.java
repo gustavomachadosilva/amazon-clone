@@ -8,6 +8,9 @@ import com.mercatto.orders.service.OrderStatus;
 import com.mercatto.orders.domain.PaymentMethod;
 import com.mercatto.orders.domain.ShippingAddress;
 import com.mercatto.orders.domain.ShippingMethod;
+import com.mercatto.orders.service.OrderAccessDeniedException;
+import com.mercatto.orders.service.OrderAddressNotEditableException;
+import com.mercatto.orders.service.OrderNotFoundException;
 import com.mercatto.orders.service.OrderService;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.AuthenticatedUser;
@@ -38,6 +41,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -282,5 +286,117 @@ class OrderControllerTest {
 
         mockMvc.perform(get("/api/orders/1").principal(BUYER))
                 .andExpect(status().isNotFound());
+    }
+
+    // --- PATCH /api/orders/{id}/address ----------------------------------------------------
+
+    private static final String NEW_ADDRESS_JSON = """
+            {"fullName": "Grace Hopper", "street": "200 Navy Way", "city": "Arlington",
+             "state": "VA", "zip": "22202"}
+            """;
+
+    @Test
+    void updateAddressAsOwner_returns200WithTheNewAddress() throws Exception {
+        Order order = placedOrder();
+        order.setAddress(ShippingAddress.builder()
+                .fullName("Grace Hopper").street("200 Navy Way").city("Arlington").state("VA").zip("22202").build());
+        when(orderService.updateShippingAddress(eq(1L), eq(10L), any(ShippingAddress.class))).thenReturn(order);
+
+        mockMvc.perform(patch("/api/orders/1/address")
+                        .contentType("application/json")
+                        .principal(BUYER)
+                        .content(NEW_ADDRESS_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.fulfillmentStatus").value("NOT_SHIPPED"))
+                .andExpect(jsonPath("$.address.fullName").value("Grace Hopper"))
+                .andExpect(jsonPath("$.address.street").value("200 Navy Way"))
+                .andExpect(jsonPath("$.address.city").value("Arlington"))
+                .andExpect(jsonPath("$.address.state").value("VA"))
+                .andExpect(jsonPath("$.address.zip").value("22202"))
+                .andExpect(jsonPath("$.items[0].id").value(5))
+                .andExpect(jsonPath("$.idempotencyKey").doesNotExist());
+
+        ArgumentCaptor<ShippingAddress> addressCaptor = ArgumentCaptor.forClass(ShippingAddress.class);
+        verify(orderService).updateShippingAddress(eq(1L), eq(10L), addressCaptor.capture());
+        assertThat(addressCaptor.getValue().getFullName()).isEqualTo("Grace Hopper");
+        assertThat(addressCaptor.getValue().getStreet()).isEqualTo("200 Navy Way");
+        assertThat(addressCaptor.getValue().getCity()).isEqualTo("Arlington");
+        assertThat(addressCaptor.getValue().getState()).isEqualTo("VA");
+        assertThat(addressCaptor.getValue().getZip()).isEqualTo("22202");
+    }
+
+    static Stream<String> invalidAddressPayloads() {
+        return Stream.of(
+                // blank field
+                """
+                {"fullName": "", "street": "200 Navy Way", "city": "Arlington", "state": "VA", "zip": "22202"}
+                """,
+                // missing field
+                """
+                {"fullName": "Grace Hopper", "street": "200 Navy Way", "city": "Arlington", "state": "VA"}
+                """,
+                // empty object
+                "{}");
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidAddressPayloads")
+    void updateAddressWithInvalidPayload_returns400(String payload) throws Exception {
+        mockMvc.perform(patch("/api/orders/1/address")
+                        .contentType("application/json")
+                        .principal(BUYER)
+                        .content(payload))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(orderService);
+    }
+
+    @Test
+    void updateAddressWithoutBody_returns400() throws Exception {
+        mockMvc.perform(patch("/api/orders/1/address")
+                        .contentType("application/json")
+                        .principal(BUYER))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(orderService);
+    }
+
+    @Test
+    void updateAddressAsOtherBuyer_returns403() throws Exception {
+        when(orderService.updateShippingAddress(eq(1L), eq(20L), any(ShippingAddress.class)))
+                .thenThrow(new OrderAccessDeniedException("User 20 does not own order 1"));
+
+        mockMvc.perform(patch("/api/orders/1/address")
+                        .contentType("application/json")
+                        .principal(OTHER_BUYER)
+                        .content(NEW_ADDRESS_JSON))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void updateAddressWhenNotFound_returns404() throws Exception {
+        when(orderService.updateShippingAddress(eq(1L), eq(10L), any(ShippingAddress.class)))
+                .thenThrow(new OrderNotFoundException("Order not found: 1"));
+
+        mockMvc.perform(patch("/api/orders/1/address")
+                        .contentType("application/json")
+                        .principal(BUYER)
+                        .content(NEW_ADDRESS_JSON))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void updateAddressOfShippedOrder_returns409() throws Exception {
+        when(orderService.updateShippingAddress(eq(1L), eq(10L), any(ShippingAddress.class)))
+                .thenThrow(new OrderAddressNotEditableException("Order already shipped"));
+
+        mockMvc.perform(patch("/api/orders/1/address")
+                        .contentType("application/json")
+                        .principal(BUYER)
+                        .content(NEW_ADDRESS_JSON))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.message").value("Order already shipped"));
     }
 }

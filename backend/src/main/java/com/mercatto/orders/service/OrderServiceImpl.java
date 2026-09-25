@@ -10,6 +10,7 @@ import com.mercatto.orders.domain.ShippingMethod;
 import com.mercatto.orders.event.OrderPlacedEvent;
 import com.mercatto.orders.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -222,6 +223,34 @@ class OrderServiceImpl implements OrderService {
 
         order.advanceFulfillmentTo(next, Instant.now());
         return toOrderView(orderRepository.save(order));
+    }
+
+    @Override
+    @Transactional
+    public Order updateShippingAddress(Long orderId, Long buyerId, ShippingAddress address) {
+        if (address == null) {
+            throw new IllegalArgumentException("Shipping address is required");
+        }
+        Order order = orderRepository.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
+
+        // Ownership first: another user must not learn anything about the order's state from a 409.
+        if (buyerId == null || !buyerId.equals(order.getBuyerId())) {
+            throw new OrderAccessDeniedException("User " + buyerId + " does not own order " + orderId);
+        }
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new OrderAddressNotEditableException("Order is cancelled");
+        }
+        if (order.getFulfillmentStatus() != FulfillmentStatus.NOT_SHIPPED) {
+            throw new OrderAddressNotEditableException("Order already shipped");
+        }
+
+        order.changeShippingAddress(address);
+        Order saved = orderRepository.save(order);
+        // findByIdForUpdate cannot join-fetch the items (see OrderRepository) and open-in-view is
+        // off, so load them here for callers that map the order after the transaction ends.
+        Hibernate.initialize(saved.getItems());
+        return saved;
     }
 
     private OrderView toOrderView(Order order) {

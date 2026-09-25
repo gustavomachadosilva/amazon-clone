@@ -113,6 +113,17 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void orderAddressNotEditable_mapsTo409WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/order-address-not-editable"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value("Order already shipped"))
+                .andExpect(jsonPath("$.path").value("/test/order-address-not-editable"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
     void emailAlreadyExists_mapsTo409WithStandardBody() throws Exception {
         mockMvc.perform(get("/test/email-already-exists"))
                 .andExpect(status().isConflict())

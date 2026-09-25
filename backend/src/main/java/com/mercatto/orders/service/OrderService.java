@@ -86,4 +86,21 @@ public interface OrderService {
      *         {@code next} is not the immediate next {@link FulfillmentStatus} (HTTP 409)
      */
     OrderView advanceFulfillment(Long orderId, Long sellerId, FulfillmentStatus next);
+
+    /**
+     * Replaces the shipping address of one of the buyer's orders, as long as it has not
+     * shipped yet. Allowed while {@code fulfillmentStatus} is NOT_SHIPPED and the order status
+     * is PENDING, PROCESSING, FAILED or PAID; a CANCELLED order is never editable. The order
+     * row is locked for the duration of the call so it serializes with a concurrent
+     * {@link #advanceFulfillment}. The returned order has its items initialized, so it can be
+     * mapped outside the transaction.
+     *
+     * @throws IllegalArgumentException if {@code address} is null (HTTP 400)
+     * @throws OrderNotFoundException if the order does not exist (HTTP 404)
+     * @throws OrderAccessDeniedException if {@code buyerId} does not own the order — checked
+     *         before any state rule, so it never leaks the order's state (HTTP 403)
+     * @throws OrderAddressNotEditableException if the order is CANCELLED or already shipped
+     *         (HTTP 409)
+     */
+    Order updateShippingAddress(Long orderId, Long buyerId, ShippingAddress address);
 }
