@@ -4,6 +4,14 @@ import type { UserRole } from '../types/domain'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
 
+// Resolves a backend path (e.g. a review media URL like `/api/reviews/media/7`) against the API
+// base, since the frontend has no dev proxy. Absolute http(s) and blob: URLs pass through.
+export function resolveApiUrl(path: string): string {
+  if (/^(https?:|blob:)/i.test(path)) return path
+  const base = API_BASE_URL.replace(/\/+$/, '')
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`
+}
+
 interface ApiErrorBody {
   timestamp?: string
   status?: number
@@ -306,7 +314,7 @@ export type ReviewMediaType = 'IMAGE' | 'VIDEO'
 export interface ReviewMedia {
   id: number
   type: ReviewMediaType
-  // Relative to the API base, e.g. /api/reviews/media/{id}
+  // Relative to the API (`/api/reviews/media/{id}`) — pass it through resolveApiUrl before use.
   url: string
 }
 
