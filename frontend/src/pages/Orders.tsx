@@ -55,29 +55,29 @@ export default function Orders() {
             })
             return (
               <Blueprint key={order.id} className="p-0">
-                <div className="grid grid-cols-2 gap-3 bg-surface p-4 text-xs sm:grid-cols-[1fr_1fr_1fr_auto] sm:gap-4">
-                  <div>
-                    <div className="uppercase tracking-[.1em] text-paper-600">Order placed</div>
-                    <div>{new Date(order.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                <div className="grid grid-cols-2 gap-3 bg-surface p-4 text-[16.5px] sm:grid-cols-[1fr_1fr_1fr_auto] sm:gap-4">
+                  <div className="min-w-0">
+                    <div className="field-label">Order placed</div>
+                    <div className="break-words">{new Date(order.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
                   </div>
-                  <div>
-                    <div className="uppercase tracking-[.1em] text-paper-600">Total</div>
+                  <div className="min-w-0">
+                    <div className="field-label">Total</div>
                     <div className="readout font-semibold">{usd(order.totalAmount)}</div>
                   </div>
-                  <div>
-                    <div className="uppercase tracking-[.1em] text-paper-600">Ship to</div>
+                  <div className="min-w-0">
+                    <div className="field-label">Ship to</div>
                     {order.address ? (
                       <>
-                        <div>{order.address.fullName}</div>
-                        <div className="text-paper-600">
+                        <div className="break-words">{order.address.fullName}</div>
+                        <div className="break-words text-paper-600">
                           {order.address.street}, {order.address.city} {order.address.state} {order.address.zip}
                         </div>
                       </>
                     ) : (
-                      <div className="text-paper-600">Not available</div>
+                      <div className="break-words text-paper-600">Not available</div>
                     )}
                   </div>
-                  <div className="sm:text-right">Order #{order.id}</div>
+                  <div className="min-w-0 break-words sm:text-right">Order #{order.id}</div>
                 </div>
                 <div className="p-4">
                   <div className="h mb-3 text-[24px] text-accent-700">
@@ -96,9 +96,9 @@ export default function Orders() {
                         >
                           <Placeholder label={product?.name ?? `Product #${item.productId}`} aspect="1/1" src={product?.imageUrl} />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <div
-                            className="cursor-pointer"
+                            className="cursor-pointer break-words font-medium"
                             role="link"
                             tabIndex={0}
                             onClick={() => navigate(`/product/${item.productId}`)}
@@ -106,7 +106,7 @@ export default function Orders() {
                           >
                             {product?.name ?? `Product #${item.productId}`}
                           </div>
-                          <div className="text-xs text-paper-600">
+                          <div className="text-[15px] text-paper-600">
                             Qty {item.quantity} · <span className="readout">{usd(item.unitPrice)}</span>
                           </div>
                         </div>
