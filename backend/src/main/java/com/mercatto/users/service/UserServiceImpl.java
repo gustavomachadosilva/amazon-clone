@@ -73,4 +73,19 @@ class UserServiceImpl implements UserService {
         }
         return userRepository.save(user);
     }
+
+    @Override
+    @Transactional
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("Usuário não encontrado: " + userId));
+        if (currentPassword == null || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new InvalidCurrentPasswordException("Senha atual incorreta");
+        }
+        if (currentPassword.equals(newPassword)) {
+            throw new IllegalArgumentException("A nova senha deve ser diferente da senha atual");
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
 }

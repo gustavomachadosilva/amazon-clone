@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -53,6 +54,13 @@ public class UserController {
         Long userId = ((AuthenticatedUser) principal).userId();
         User user = userService.updateProfile(userId, request.name(), request.email());
         return ResponseEntity.ok(UserResponse.from(user));
+    }
+
+    @PutMapping("/me/password")
+    public ResponseEntity<Void> changeMyPassword(@Valid @RequestBody ChangePasswordRequest request, Principal principal) {
+        Long userId = ((AuthenticatedUser) principal).userId();
+        userService.changePassword(userId, request.currentPassword(), request.newPassword());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
@@ -91,6 +99,14 @@ public class UserController {
     public record UpdateProfileRequest(
             @Pattern(regexp = ".*\\S.*", message = "must not be blank") @Size(max = 255) String name,
             @Pattern(regexp = ".*\\S.*", message = "must not be blank") @Email @Size(max = 255) String email) {}
+
+    /**
+     * {@code newPassword} follows the same rules as {@link RegisterRequest#password()}. A wrong
+     * {@code currentPassword} yields 400 (never 401, which would log the user out on the frontend).
+     */
+    public record ChangePasswordRequest(
+            @NotBlank String currentPassword,
+            @NotBlank @Size(min = 8, max = 72) String newPassword) {}
 
     public record LoginResponse(Long id, String name, String email, UserRole role, String token, Instant expiresAt) {
         static LoginResponse from(User user, TokenService.IssuedToken issuedToken) {

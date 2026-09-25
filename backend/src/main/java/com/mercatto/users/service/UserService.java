@@ -31,4 +31,15 @@ public interface UserService {
      * @throws EmailAlreadyExistsException if {@code email} is already used by another user
      */
     User updateProfile(Long userId, String name, String email);
+
+    /**
+     * Changes the password of the given user after checking {@code currentPassword} against the
+     * stored hash. The new password is stored hashed, never in clear text.
+     *
+     * @throws UserNotFoundException if no user exists with {@code userId}
+     * @throws InvalidCurrentPasswordException if {@code currentPassword} is {@code null} or does
+     *         not match the stored password (mapped to 400, never 401)
+     * @throws IllegalArgumentException if {@code newPassword} is equal to {@code currentPassword}
+     */
+    void changePassword(Long userId, String currentPassword, String newPassword);
 }
