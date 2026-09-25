@@ -41,10 +41,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   // user thinks they're signed in, so a 401 must end that session too.
   const sessionToken = readStoredSessionToken()
   const token = readStoredToken()
+  // A FormData body must not get a fixed Content-Type: the browser sets multipart/form-data
+  // together with the boundary it generated.
+  const isForm = options.body instanceof FormData
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isForm ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
@@ -87,6 +90,7 @@ export const api = {
   patch: <T,>(path: string, body: unknown) =>
     request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: <T,>(path: string) => request<T>(path, { method: 'DELETE' }),
+  postForm: <T,>(path: string, form: FormData) => request<T>(path, { method: 'POST', body: form }),
 }
 
 export interface Product {
@@ -335,8 +339,15 @@ export interface CreateReviewPayload {
 
 export const reviewsApi = {
   listByProduct: (productId: number) => api.get<ReviewView[]>(`/api/reviews/products/${productId}`),
-  create: (productId: number, payload: CreateReviewPayload) =>
-    api.post<ReviewView>(`/api/reviews/products/${productId}`, payload),
+  // With files, the backend's multipart variant takes a JSON `review` part plus repeated `files`.
+  create: (productId: number, payload: CreateReviewPayload, files: File[] = []) => {
+    const path = `/api/reviews/products/${productId}`
+    if (files.length === 0) return api.post<ReviewView>(path, payload)
+    const form = new FormData()
+    form.append('review', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
+    files.forEach((file) => form.append('files', file, file.name))
+    return api.postForm<ReviewView>(path, form)
+  },
   markHelpful: (reviewId: number) => api.post<ReviewView>(`/api/reviews/${reviewId}/helpful`, undefined),
 }
 
