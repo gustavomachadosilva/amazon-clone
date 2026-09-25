@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Order } from '../services/api'
 import { formatDeliveryDate, getStandardDeliveryLabel } from './deliveryDate'
 import {
+  canChangeAddress,
   deliveryHeadline,
   formatStepDate,
   parseLocalDate,
@@ -58,6 +59,18 @@ describe('shipmentBadge', () => {
     expect(shipmentBadge(makeOrder({ fulfillmentStatus: 'SHIPPED' }))?.label).toBe('Shipped')
     expect(shipmentBadge(makeOrder({ fulfillmentStatus: 'OUT_FOR_DELIVERY' }))?.label).toBe('Out for delivery')
     expect(shipmentBadge(makeOrder({ fulfillmentStatus: 'DELIVERED' }))?.label).toBe('Delivered')
+  })
+})
+
+describe('canChangeAddress', () => {
+  it('allows changes only before shipment and never for cancelled orders', () => {
+    expect(canChangeAddress(makeOrder())).toBe(true)
+    expect(canChangeAddress(makeOrder({ status: 'PENDING' }))).toBe(true)
+    expect(canChangeAddress(makeOrder({ status: 'FAILED' }))).toBe(true)
+    expect(canChangeAddress(makeOrder({ status: 'CANCELLED' }))).toBe(false)
+    expect(canChangeAddress(makeOrder({ fulfillmentStatus: 'SHIPPED' }))).toBe(false)
+    expect(canChangeAddress(makeOrder({ fulfillmentStatus: 'OUT_FOR_DELIVERY' }))).toBe(false)
+    expect(canChangeAddress(makeOrder({ fulfillmentStatus: 'DELIVERED' }))).toBe(false)
   })
 })
 

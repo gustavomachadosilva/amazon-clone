@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from '../context/AuthContext'
@@ -196,5 +196,22 @@ describe('Checkout page', () => {
     expect(secondKey).toBe(firstKey)
 
     await waitFor(() => expect(screen.getByText('Order confirmation stub')).toBeInTheDocument())
+  })
+
+  it('blocks checkout until the address is complete', async () => {
+    seedAuth()
+    mockedCartApi.get.mockResolvedValue(makeCartView({ items: [CART_ITEM], itemCount: 2, total: 20 }))
+    mockedCatalogApi.getById.mockResolvedValue(makeProduct())
+
+    renderCheckout()
+
+    await waitFor(() => expect(screen.getAllByText('Widget').length).toBeGreaterThan(0))
+
+    fireEvent.change(screen.getByLabelText('Full name'), { target: { value: '   ' } })
+    fireEvent.click(screen.getByText('Place your order'))
+
+    expect(await screen.findByText('Enter a full name.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Full name')).toHaveAttribute('aria-invalid', 'true')
+    expect(mockedOrdersApi.checkout).not.toHaveBeenCalled()
   })
 })

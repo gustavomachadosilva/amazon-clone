@@ -242,6 +242,9 @@ export const ordersApi = {
     ),
   getById: (id: number) => api.get<Order>(`/api/orders/${id}`),
   listByBuyer: () => api.get<Order[]>('/api/orders'),
+  // Only allowed while the order hasn't shipped; the backend answers 409 otherwise.
+  updateAddress: (id: number, address: OrderAddress) =>
+    api.patch<Order>(`/api/orders/${id}/address`, address),
 }
 
 export interface RegisterPayload {
