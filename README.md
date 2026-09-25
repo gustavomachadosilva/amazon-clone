@@ -69,6 +69,16 @@ Postgres runs the SQL in `backend/src/main/resources/db/init/` on first boot, cr
 > no macOS) antes de rodar `mvn`. O CI (`.github/workflows/ci.yml`) já usa Temurin 21 e
 > não é afetado.
 
+### Testes de integração (Testcontainers)
+
+`mvn test` também roda a suíte em `backend/src/test/java/com/mercatto/integration/`, que sobe a
+aplicação inteira contra um PostgreSQL 16 real via Testcontainers (fluxo de checkout
+pedido pago → evento → estoque decrementado, schemas por módulo, `AFTER_COMMIT`). É preciso ter
+o **Docker rodando**; sem ele essas classes são puladas (skipped), não falham. Com Colima em vez
+do Docker Desktop, exporte antes:
+`DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` e
+`TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock`.
+
 ## Seed de dados (ambiente de desenvolvimento)
 
 Para que `Home.tsx` e `SellerDashboard.tsx` nunca renderizem vazios em um ambiente novo, o backend
