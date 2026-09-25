@@ -5,12 +5,15 @@ import com.mercatto.orders.domain.PaymentMethod;
 import com.mercatto.orders.repository.OrderRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,16 +37,17 @@ class OrderReservationServiceTest {
     }
 
     @Test
-    void updateStatusSetsTheGivenStatusAndSavesTheOrder() {
-        Order order = Order.builder().buyerId(10L).status(OrderStatus.PENDING).build();
-        when(orderRepository.save(order)).thenReturn(order);
+    void updateStatusWritesOnlyTheStatusAndReturnsTheReloadedOrder() {
+        Order stale = Order.builder().id(7L).buyerId(10L).status(OrderStatus.PROCESSING).build();
+        Order reloaded = Order.builder().id(7L).buyerId(10L).status(OrderStatus.PAID).build();
+        when(orderRepository.findByIdWithItems(7L)).thenReturn(Optional.of(reloaded));
 
-        Order result = orderReservationService.updateStatus(order, OrderStatus.FAILED);
+        Order result = orderReservationService.updateStatus(stale, OrderStatus.PAID);
 
-        assertThat(result.getStatus()).isEqualTo(OrderStatus.FAILED);
-        ArgumentCaptor<Order> savedCaptor = ArgumentCaptor.forClass(Order.class);
-        verify(orderRepository).save(savedCaptor.capture());
-        assertThat(savedCaptor.getValue().getStatus()).isEqualTo(OrderStatus.FAILED);
+        assertThat(result).isSameAs(reloaded);
+        verify(orderRepository).updateStatus(7L, OrderStatus.PAID);
+        // Never merges the stale instance: that would revert fields committed during the charge.
+        verify(orderRepository, never()).save(any());
     }
 
     @Test

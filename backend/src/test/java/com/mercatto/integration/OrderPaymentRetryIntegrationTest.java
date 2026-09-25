@@ -3,6 +3,8 @@ package com.mercatto.integration;
 import com.mercatto.orders.service.PaymentGateway;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -10,6 +12,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -214,5 +217,42 @@ class OrderPaymentRetryIntegrationTest extends PostgresIntegrationTest {
         assertThat(stockOf(product)).isEqualTo(3);
         // One declined checkout charge + exactly one retry charge.
         verify(paymentGateway, times(2)).charge(anyLong(), any(), anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void addressChangedWhileTheRetryIsBeingChargedIsKept() {
+        TestUser seller = seller();
+        TestUser buyer = buyer();
+        Long product = createProduct(seller, "30.00", 5);
+        when(paymentGateway.charge(anyLong(), any(), anyString())).thenReturn(declined());
+        Long orderId = placeFailedOrder(buyer, product, 2);
+
+        // While the retry is at the gateway, the buyer saves a new address through its own request
+        // (on another thread, as the browser would send it). The shared template's HttpURLConnection
+        // cannot send PATCH, hence the JDK-client-backed one (see OrderAddressUpdateIntegrationTest).
+        TestRestTemplate patchClient = new TestRestTemplate(new RestTemplateBuilder()
+                .rootUri(rest.getRootUri())
+                .requestFactory(JdkClientHttpRequestFactory.class));
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(buyer.token());
+        Map<String, Object> newAddress = Map.of(
+                "fullName", "Grace Hopper", "street", "200 Navy Way", "city", "Arlington", "state", "VA", "zip", "22202");
+        when(paymentGateway.charge(anyLong(), any(), anyString())).thenAnswer(invocation -> {
+            ResponseEntity<Map<String, Object>> patched = CompletableFuture.supplyAsync(() -> patchClient.exchange(
+                    "/api/orders/" + orderId + "/address", HttpMethod.PATCH, new HttpEntity<>(newAddress, headers), MAP))
+                    .get(30, TimeUnit.SECONDS);
+            assertThat(patched.getStatusCode()).isEqualTo(HttpStatus.OK);
+            return approved();
+        });
+
+        ResponseEntity<Map<String, Object>> retried = retryPayment(buyer, orderId, "CARD");
+
+        assertThat(retried.getBody().get("status")).isEqualTo("PAID");
+        Map<String, Object> persisted = getOrder(buyer, orderId).getBody();
+        assertThat(persisted.get("status")).isEqualTo("PAID");
+        assertThat((Map<String, Object>) persisted.get("address")).containsEntry("fullName", "Grace Hopper");
+        assertThat((Map<String, Object>) retried.getBody().get("address")).containsEntry("fullName", "Grace Hopper");
     }
 }

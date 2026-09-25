@@ -293,10 +293,6 @@ class OrderServiceImpl implements OrderService {
             throw new OrderPaymentNotRetryableException(
                     "Payment of order " + orderId + " is already being processed or was already paid");
         }
-        // Mirror the committed claim on this instance: updateStatus merges it back, so it must
-        // carry the new payment method or the merge would revert it.
-        order.setPaymentMethod(paymentMethod);
-        order.setStatus(OrderStatus.PROCESSING);
         return chargeClaimed(order);
     }
 

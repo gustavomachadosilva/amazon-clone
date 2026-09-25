@@ -2,6 +2,7 @@ package com.mercatto.orders.repository;
 
 import com.mercatto.orders.domain.Order;
 import com.mercatto.orders.domain.PaymentMethod;
+import com.mercatto.orders.service.OrderStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -34,6 +35,13 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             + "o.paymentMethod = :paymentMethod "
             + "where o.id = :id and o.status = com.mercatto.orders.service.OrderStatus.FAILED")
     int claimFailedForRetry(@Param("id") Long id, @Param("paymentMethod") PaymentMethod paymentMethod);
+
+    // Writes only the status column: the PAID/FAILED update after a charge holds an Order read
+    // before the gateway call, and merging that whole stale copy would revert anything committed
+    // meanwhile (e.g. a shipping address the buyer changed while the payment was in flight).
+    @Modifying(clearAutomatically = true)
+    @Query("update Order o set o.status = :status where o.id = :id")
+    int updateStatus(@Param("id") Long id, @Param("status") OrderStatus status);
 
     @Query("select distinct o from Order o left join fetch o.items where o.id = :id")
     Optional<Order> findByIdWithItems(@Param("id") Long id);
