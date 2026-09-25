@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { Button, Input } from '../ui'
 import { ApiRequestError, usersApi } from '../../services/api'
 
-// Mirrors the backend rule for new passwords (bcrypt only uses the first 72 bytes).
+// Mirrors the backend rule for new passwords. bcrypt only uses the first 72 *bytes*, so the
+// upper bound is measured in UTF-8 bytes: accented letters and emoji take 2-4 bytes each.
 const MIN_LENGTH = 8
-const MAX_LENGTH = 72
+const MAX_BYTES = 72
+const utf8 = new TextEncoder()
 
 type Field = 'current' | 'next' | 'confirm'
 type FieldErrors = Partial<Record<Field, string>>
@@ -15,7 +17,8 @@ function validate({ current, next, confirm }: typeof EMPTY): FieldErrors {
   const errors: FieldErrors = {}
   if (!current) errors.current = 'Enter your current password.'
   if (next.length < MIN_LENGTH) errors.next = `Password must be at least ${MIN_LENGTH} characters.`
-  else if (next.length > MAX_LENGTH) errors.next = `Password must be ${MAX_LENGTH} characters or fewer.`
+  else if (utf8.encode(next).length > MAX_BYTES)
+    errors.next = 'Password is too long. Use fewer characters (accented letters and emoji count as more than one).'
   else if (current && next === current) errors.next = 'Your new password must be different from the current one.'
   if (confirm !== next) errors.confirm = 'Passwords do not match.'
   return errors
@@ -46,8 +49,8 @@ export default function PasswordForm() {
       setValues(EMPTY)
       setSuccess(true)
     } catch (e) {
-      // Client-side validation already rules out the other 400 causes (length, same password),
-      // so a 400 here means the current password didn't match.
+      // Client-side validation already rules out the other 400 causes (length in bytes, same
+      // password), so a 400 here means the current password didn't match.
       if (e instanceof ApiRequestError && e.status === 400) {
         setFieldErrors({ current: 'Your current password is incorrect.' })
       } else if (e instanceof ApiRequestError && e.status === 401) {

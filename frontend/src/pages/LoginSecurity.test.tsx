@@ -284,6 +284,28 @@ describe('Login & security page', () => {
       expect(mockedUsersApi.changePassword).not.toHaveBeenCalled()
     })
 
+    it('measures the 72-character limit in bytes, like bcrypt', async () => {
+      seedAuth()
+      await renderPage()
+
+      // 40 characters but 80 bytes in UTF-8: must be caught here, not reported as a wrong
+      // current password after the backend rejects it.
+      fillPassword('oldpassword', 'é'.repeat(40))
+
+      expect(passwordForm().getByText(/Password is too long/)).toBeInTheDocument()
+      expect(mockedUsersApi.changePassword).not.toHaveBeenCalled()
+    })
+
+    it('accepts a multi-byte password that fits in 72 bytes', async () => {
+      seedAuth()
+      mockedUsersApi.changePassword.mockResolvedValue(undefined)
+      await renderPage()
+
+      fillPassword('oldpassword', 'é'.repeat(36))
+
+      expect(await passwordForm().findByRole('status')).toHaveTextContent('Your password has been changed.')
+    })
+
     it('tells the user to sign in again when the session has expired', async () => {
       seedAuth()
       mockedUsersApi.changePassword.mockRejectedValue(new ApiRequestError(401))

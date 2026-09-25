@@ -363,4 +363,41 @@ class UserServiceImplTest {
 
         verify(userRepository, never()).save(any());
     }
+
+    @Test
+    void changePasswordWithNewPasswordOver72Bytes_throwsIllegalArgumentException() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(userWithPassword(CURRENT_PASSWORD)));
+        // 40 characters (passes the @Size(max = 72) check) but 80 bytes in UTF-8.
+        String multiByte = "é".repeat(40);
+
+        assertThatThrownBy(() -> userService.changePassword(1L, CURRENT_PASSWORD, multiByte))
+                .isInstanceOf(IllegalArgumentException.class)
+                .isNotInstanceOf(InvalidCurrentPasswordException.class)
+                .hasMessage("A senha deve ter no máximo 72 bytes");
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void changePasswordWithNewPasswordOfExactly72Bytes_succeeds() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(userWithPassword(CURRENT_PASSWORD)));
+
+        userService.changePassword(1L, CURRENT_PASSWORD, "é".repeat(36));
+
+        verify(userRepository).save(any());
+    }
+
+    @Test
+    void registerWithPasswordOver72Bytes_throwsIllegalArgumentException() {
+        UserServiceImpl userService = new UserServiceImpl(userRepository, passwordEncoder);
+        when(userRepository.existsByEmail("jane@example.com")).thenReturn(false);
+
+        assertThatThrownBy(() -> userService.register("Jane", "jane@example.com", "é".repeat(40), UserRole.BUYER))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("A senha deve ter no máximo 72 bytes");
+
+        verify(userRepository, never()).save(any());
+    }
 }
