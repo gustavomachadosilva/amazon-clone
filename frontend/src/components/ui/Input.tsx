@@ -13,12 +13,15 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 ) {
   const generatedId = useId()
   const inputId = id ?? generatedId
+  // Ties the visible hint/error to the input so screen readers read it along with the label.
+  const hintId = error || helperText ? `${inputId}-hint` : undefined
   const inputElement = (
     <input
       ref={ref}
       id={inputId}
       className={`input ${className}`.trim()}
       aria-invalid={error ? 'true' : undefined}
+      aria-describedby={hintId}
       {...props}
     />
   )
@@ -32,10 +35,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       {label && <label htmlFor={inputId}>{label}</label>}
       {inputElement}
       {helperText && !error && (
-        <span className="text-xs text-neutral-600 mt-1 block">{helperText}</span>
+        <span id={hintId} className="text-xs text-neutral-600 mt-1 block">{helperText}</span>
       )}
       {error && (
-        <span className="text-xs text-accent-800 mt-1 block" role="alert">
+        <span id={hintId} className="text-xs text-accent-800 mt-1 block" role="alert">
           {error}
         </span>
       )}

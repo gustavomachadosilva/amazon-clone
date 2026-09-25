@@ -9,6 +9,8 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<string | null>
   register: (name: string, email: string, password: string, role: UserRole) => Promise<string | null>
   signOut: () => void
+  // Applies profile edits to the signed-in user, keeping the current token and expiry.
+  updateUser: (changes: Partial<Pick<AuthUser, 'name' | 'email'>>) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -75,7 +77,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
-  return <AuthContext.Provider value={{ user, signIn, register, signOut }}>{children}</AuthContext.Provider>
+  function updateUser(changes: Partial<Pick<AuthUser, 'name' | 'email'>>) {
+    setUser((prev) => (prev ? { ...prev, ...changes } : prev))
+  }
+
+  return <AuthContext.Provider value={{ user, signIn, register, signOut, updateUser }}>{children}</AuthContext.Provider>
 }
 
 // eslint-disable-next-line react-refresh/only-export-components -- hook colocalizado com o Provider; separar em arquivo próprio é refatoração fora do escopo deste card

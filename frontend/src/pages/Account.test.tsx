@@ -120,9 +120,7 @@ describe('Account page', () => {
     expect(screen.getByRole('link', { name: /Your Orders/ })).toHaveAttribute('href', '/orders')
     expect(screen.getByRole('link', { name: /Your Lists/ })).toHaveAttribute('href', '/lists')
     expect(screen.queryByText('Seller Central')).not.toBeInTheDocument()
-    expect(screen.getByText('Login & security')).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /Login & security/ })).not.toBeInTheDocument()
-    expect(screen.getByText('Coming soon')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Login & security/ })).toHaveAttribute('href', '/account/security')
   })
 
   it('shows the Seller badge and Seller Central shortcut to sellers', async () => {

@@ -58,6 +58,8 @@ export const api = {
     request<T>(path, { method: 'POST', body: JSON.stringify(body), headers }),
   put: <T,>(path: string, body: unknown) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
+  patch: <T,>(path: string, body: unknown) =>
+    request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: <T,>(path: string) => request<T>(path, { method: 'DELETE' }),
 }
 
@@ -226,10 +228,23 @@ export interface LoginResponse extends UserResponse {
   expiresAt: string
 }
 
+// Omitted fields are left unchanged by the backend.
+export interface UpdateProfilePayload {
+  name?: string
+  email?: string
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string
+  newPassword: string
+}
+
 export const usersApi = {
   login: (email: string, password: string) => api.post<LoginResponse>('/api/users/login', { email, password }),
   register: (payload: RegisterPayload) => api.post<UserResponse>('/api/users/register', payload),
   me: () => api.get<UserProfile>('/api/users/me'),
+  updateMe: (payload: UpdateProfilePayload) => api.patch<UserProfile>('/api/users/me', payload),
+  changePassword: (payload: ChangePasswordPayload) => api.put<void>('/api/users/me/password', payload),
 }
 
 export interface CartItemView {
