@@ -1,6 +1,7 @@
 package com.mercatto.sellers.service;
 
 import com.mercatto.catalog.service.ProductService;
+import com.mercatto.orders.service.FulfillmentStatus;
 import com.mercatto.orders.service.OrderStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,8 +26,8 @@ public interface SellerDashboardService {
      * checkout, and a subtotal computed from just those items (not the
      * order's overall total, which may include other sellers' revenue).
      */
-    record SellerOrderView(Long orderId, Long buyerId, OrderStatus status, Instant createdAt,
-                            List<SellerOrderItemView> items, BigDecimal subtotal) {}
+    record SellerOrderView(Long orderId, Long buyerId, OrderStatus status, FulfillmentStatus fulfillmentStatus,
+                            Instant createdAt, List<SellerOrderItemView> items, BigDecimal subtotal) {}
 
     record SellerMetricsView(BigDecimal totalRevenue, List<ProductService.ProductSummary> lowStockProducts) {}
 
@@ -35,4 +36,14 @@ public interface SellerDashboardService {
     List<SellerOrderView> getReceivedOrders(Long sellerId);
 
     SellerMetricsView getMetrics(Long sellerId);
+
+    /**
+     * Advances the fulfillment status of an order the seller has items in, by delegating to
+     * Orders' public {@link com.mercatto.orders.service.OrderService#advanceFulfillment}. The
+     * transition rules live in Orders; its exceptions pass through unchanged
+     * ({@code IllegalArgumentException}, {@code OrderNotFoundException},
+     * {@code OrderAccessDeniedException}, {@code InvalidFulfillmentTransitionException}).
+     * The result is scoped to this seller's items, like {@link #getReceivedOrders}.
+     */
+    SellerOrderView advanceFulfillment(Long sellerId, Long orderId, FulfillmentStatus next);
 }

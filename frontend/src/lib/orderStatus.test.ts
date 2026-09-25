@@ -5,6 +5,7 @@ import {
   canChangeAddress,
   deliveryHeadline,
   formatStepDate,
+  nextFulfillmentAction,
   parseLocalDate,
   paymentBadge,
   shipmentBadge,
@@ -59,6 +60,33 @@ describe('shipmentBadge', () => {
     expect(shipmentBadge(makeOrder({ fulfillmentStatus: 'SHIPPED' }))?.label).toBe('Shipped')
     expect(shipmentBadge(makeOrder({ fulfillmentStatus: 'OUT_FOR_DELIVERY' }))?.label).toBe('Out for delivery')
     expect(shipmentBadge(makeOrder({ fulfillmentStatus: 'DELIVERED' }))?.label).toBe('Delivered')
+  })
+})
+
+describe('nextFulfillmentAction', () => {
+  it('offers the immediate next shipping step for paid orders', () => {
+    expect(nextFulfillmentAction({ status: 'PAID', fulfillmentStatus: 'NOT_SHIPPED' })).toEqual({
+      next: 'SHIPPED',
+      label: 'Mark as shipped',
+    })
+    expect(nextFulfillmentAction({ status: 'PAID', fulfillmentStatus: 'SHIPPED' })).toEqual({
+      next: 'OUT_FOR_DELIVERY',
+      label: 'Mark as out for delivery',
+    })
+    expect(nextFulfillmentAction({ status: 'PAID', fulfillmentStatus: 'OUT_FOR_DELIVERY' })).toEqual({
+      next: 'DELIVERED',
+      label: 'Mark as delivered',
+    })
+  })
+
+  it('has nothing to offer once delivered', () => {
+    expect(nextFulfillmentAction({ status: 'PAID', fulfillmentStatus: 'DELIVERED' })).toBeNull()
+  })
+
+  it('has nothing to offer for unpaid orders', () => {
+    expect(nextFulfillmentAction({ status: 'PENDING', fulfillmentStatus: 'NOT_SHIPPED' })).toBeNull()
+    expect(nextFulfillmentAction({ status: 'FAILED', fulfillmentStatus: 'NOT_SHIPPED' })).toBeNull()
+    expect(nextFulfillmentAction({ status: 'CANCELLED', fulfillmentStatus: 'NOT_SHIPPED' })).toBeNull()
   })
 })
 

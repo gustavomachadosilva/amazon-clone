@@ -1,5 +1,13 @@
 import { vi } from 'vitest'
-import { ApiRequestError, isOutOfStockError, ordersApi, resolveApiUrl, reviewsApi, usersApi } from './api'
+import {
+  ApiRequestError,
+  isOutOfStockError,
+  ordersApi,
+  resolveApiUrl,
+  reviewsApi,
+  sellersApi,
+  usersApi,
+} from './api'
 import { onUnauthorized } from './auth-events'
 import { AUTH_STORAGE_KEY } from './auth-token'
 
@@ -227,5 +235,21 @@ describe('isOutOfStockError', () => {
     expect(isOutOfStockError(new ApiRequestError(409))).toBe(false)
     expect(isOutOfStockError(new ApiRequestError(500, 'Insufficient stock for product 1'))).toBe(false)
     expect(isOutOfStockError(new Error('Insufficient stock'))).toBe(false)
+  })
+})
+
+describe('sellersApi.advanceFulfillment', () => {
+  it('POSTs the next status to the seller order fulfillment endpoint', async () => {
+    storeSession('valid-token')
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ orderId: 42 }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+
+    await sellersApi.advanceFulfillment(10, 42, 'SHIPPED')
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toMatch(/\/api\/sellers\/10\/orders\/42\/fulfillment$/)
+    expect(init.method).toBe('POST')
+    expect(init.body).toBe(JSON.stringify({ status: 'SHIPPED' }))
   })
 })
