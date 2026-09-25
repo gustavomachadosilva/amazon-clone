@@ -2,8 +2,9 @@ server:
   port: ${BACKEND_PORT:8080}
   tomcat:
     # Let Tomcat drain an oversized upload so the client receives our 413 JSON body instead
-    # of a reset connection.
-    max-swallow-size: -1
+    # of a reset connection. Bounded (just above spring.servlet.multipart.max-request-size) so an
+    # endless body -- even on a request rejected with 401 -- can't tie up a worker thread forever.
+    max-swallow-size: 300MB
 
 spring:
   application:

@@ -40,6 +40,7 @@ public interface UserService {
      * @throws InvalidCurrentPasswordException if {@code currentPassword} is {@code null} or does
      *         not match the stored password (mapped to 400, never 401)
      * @throws IllegalArgumentException if {@code newPassword} is equal to {@code currentPassword}
+     *         or is longer than 72 bytes in UTF-8 (BCrypt's limit)
      */
     void changePassword(Long userId, String currentPassword, String newPassword);
 }

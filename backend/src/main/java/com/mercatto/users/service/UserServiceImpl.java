@@ -8,11 +8,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 class UserServiceImpl implements UserService {
+
+    // BCrypt only hashes the first 72 bytes (not characters) of a password.
+    static final int MAX_PASSWORD_BYTES = 72;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -22,6 +26,7 @@ class UserServiceImpl implements UserService {
         if (userRepository.existsByEmail(email)) {
             throw new EmailAlreadyExistsException("E-mail já cadastrado: " + email);
         }
+        requireEncodablePassword(rawPassword);
         User user = User.builder()
                 .name(name)
                 .email(email)
@@ -85,7 +90,14 @@ class UserServiceImpl implements UserService {
         if (currentPassword.equals(newPassword)) {
             throw new IllegalArgumentException("A nova senha deve ser diferente da senha atual");
         }
+        requireEncodablePassword(newPassword);
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+    }
+
+    private static void requireEncodablePassword(String rawPassword) {
+        if (rawPassword.getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
+            throw new IllegalArgumentException("A senha deve ter no máximo " + MAX_PASSWORD_BYTES + " bytes");
+        }
     }
 }
