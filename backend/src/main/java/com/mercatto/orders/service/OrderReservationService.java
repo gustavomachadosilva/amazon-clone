@@ -1,11 +1,14 @@
 package com.mercatto.orders.service;
 
 import com.mercatto.orders.domain.Order;
+import com.mercatto.orders.domain.PaymentMethod;
 import com.mercatto.orders.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
 
 /**
  * Persists order-state changes that must survive independently of the
@@ -30,10 +33,21 @@ class OrderReservationService {
         return orderRepository.save(order);
     }
 
+    /**
+     * Records {@code status} on the order's row without merging {@code order} back, then returns
+     * the freshly reloaded order: {@code order} was read before the payment-gateway call, so its
+     * other fields may be stale (see {@link OrderRepository#updateStatus}). PAID also records
+     * the payment time, which the delivery estimate counts from.
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Order updateStatus(Order order, OrderStatus status) {
-        order.setStatus(status);
-        return orderRepository.save(order);
+        if (status == OrderStatus.PAID) {
+            orderRepository.markPaid(order.getId(), Instant.now());
+        } else {
+            orderRepository.updateStatus(order.getId(), status);
+        }
+        return orderRepository.findByIdWithItems(order.getId())
+                .orElseThrow(() -> new IllegalStateException("Order " + order.getId() + " not found after status update"));
     }
 
     /**
@@ -46,5 +60,16 @@ class OrderReservationService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean claimForCharging(Long orderId) {
         return orderRepository.claimForCharging(orderId) == 1;
+    }
+
+    /**
+     * Claims a FAILED order for a buyer-initiated payment retry (moving it to PROCESSING and
+     * recording {@code paymentMethod}), with the same compare-and-swap semantics and own
+     * transaction as {@link #claimForCharging}: of two concurrent retries of the same order
+     * (e.g. a double click), only one wins and goes on to charge the payment gateway.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean claimFailedForRetry(Long orderId, PaymentMethod paymentMethod) {
+        return orderRepository.claimFailedForRetry(orderId, paymentMethod) == 1;
     }
 }

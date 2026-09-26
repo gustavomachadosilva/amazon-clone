@@ -2,6 +2,11 @@ package com.mercatto.config;
 
 import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.orders.service.InsufficientStockException;
+import com.mercatto.orders.service.InvalidFulfillmentTransitionException;
+import com.mercatto.orders.service.OrderAccessDeniedException;
+import com.mercatto.orders.service.OrderAddressNotEditableException;
+import com.mercatto.orders.service.OrderNotFoundException;
+import com.mercatto.orders.service.OrderPaymentNotRetryableException;
 import com.mercatto.reviews.service.InvalidReviewMediaException;
 import com.mercatto.reviews.service.ReviewMediaNotFoundException;
 import com.mercatto.users.service.EmailAlreadyExistsException;
@@ -40,6 +45,31 @@ public class ThrowingTestController {
     @GetMapping("/insufficient-stock")
     public String insufficientStock() {
         throw new InsufficientStockException("not enough stock");
+    }
+
+    @GetMapping("/order-not-found")
+    public String orderNotFound() {
+        throw new OrderNotFoundException("Order not found: 1");
+    }
+
+    @GetMapping("/order-access-denied")
+    public String orderAccessDenied() {
+        throw new OrderAccessDeniedException("Seller 2 has no items in order 1");
+    }
+
+    @GetMapping("/invalid-fulfillment-transition")
+    public String invalidFulfillmentTransition() {
+        throw new InvalidFulfillmentTransitionException("Cannot advance order 1 from NOT_SHIPPED to DELIVERED");
+    }
+
+    @GetMapping("/order-address-not-editable")
+    public String orderAddressNotEditable() {
+        throw new OrderAddressNotEditableException("Order already shipped");
+    }
+
+    @GetMapping("/order-payment-not-retryable")
+    public String orderPaymentNotRetryable() {
+        throw new OrderPaymentNotRetryableException("Only FAILED orders can have their payment retried; order 1 is PAID");
     }
 
     @GetMapping("/email-already-exists")

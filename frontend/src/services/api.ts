@@ -160,6 +160,7 @@ export interface SellerOrder {
   orderId: number
   buyerId: number
   status: OrderStatus
+  fulfillmentStatus: FulfillmentStatus
   createdAt: string
   items: SellerOrderItem[]
   subtotal: number
@@ -175,13 +176,19 @@ export const sellersApi = {
     api.get<Page<Product>>(`/api/sellers/${sellerId}/products?page=${page}&size=${size}`),
   getOrders: (sellerId: number) => api.get<SellerOrder[]>(`/api/sellers/${sellerId}/orders`),
   getMetrics: (sellerId: number) => api.get<SellerMetrics>(`/api/sellers/${sellerId}/metrics`),
+  advanceFulfillment: (sellerId: number, orderId: number, status: FulfillmentStatus) =>
+    api.post<SellerOrder>(`/api/sellers/${sellerId}/orders/${orderId}/fulfillment`, { status }),
 }
 
 export type OrderStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'FAILED' | 'CANCELLED'
 
+export type FulfillmentStatus = 'NOT_SHIPPED' | 'SHIPPED' | 'OUT_FOR_DELIVERY' | 'DELIVERED'
+
 export interface OrderItem {
   id: number
   productId: number
+  // Null only on legacy items whose seller could not be backfilled.
+  sellerId: number | null
   quantity: number
   unitPrice: number
 }
@@ -208,6 +215,13 @@ export interface Order {
   shippingMethod: ShippingMethod | null
   paymentMethod: PaymentMethod | null
   createdAt: string
+  fulfillmentStatus: FulfillmentStatus
+  // ISO instants; each is null until the order reaches that fulfillment step.
+  shippedAt: string | null
+  outForDeliveryAt: string | null
+  deliveredAt: string | null
+  // ISO date (YYYY-MM-DD), computed by the backend from createdAt + shippingMethod.
+  estimatedDeliveryDate: string | null
 }
 
 export interface CheckoutItem {
@@ -231,6 +245,23 @@ export const ordersApi = {
     ),
   getById: (id: number) => api.get<Order>(`/api/orders/${id}`),
   listByBuyer: () => api.get<Order[]>('/api/orders'),
+  // Only allowed while the order hasn't shipped; the backend answers 409 otherwise.
+  updateAddress: (id: number, address: OrderAddress) =>
+    api.patch<Order>(`/api/orders/${id}/address`, address),
+  // Only for FAILED orders. A second decline still answers 200 with the order left FAILED; a 409
+  // means an item went out of stock (see isOutOfStockError) or the order isn't retryable anymore.
+  retryPayment: (id: number, paymentMethod: PaymentMethod) =>
+    api.post<Order>(`/api/orders/${id}/payment`, { paymentMethod }),
+}
+
+// The 409s a payment retry can get share a status, so the out-of-stock case is told apart by the
+// messages from the stock check OrderServiceImpl runs before retrying.
+export function isOutOfStockError(e: unknown): boolean {
+  return (
+    e instanceof ApiRequestError &&
+    e.status === 409 &&
+    /insufficient stock|no longer available/i.test(e.apiMessage ?? '')
+  )
 }
 
 export interface RegisterPayload {

@@ -80,6 +80,61 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void orderNotFound_mapsTo404WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/order-not-found"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Order not found: 1"))
+                .andExpect(jsonPath("$.path").value("/test/order-not-found"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void orderAccessDenied_mapsTo403WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/order-access-denied"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value("Seller 2 has no items in order 1"))
+                .andExpect(jsonPath("$.path").value("/test/order-access-denied"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void invalidFulfillmentTransition_mapsTo409WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/invalid-fulfillment-transition"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value("Cannot advance order 1 from NOT_SHIPPED to DELIVERED"))
+                .andExpect(jsonPath("$.path").value("/test/invalid-fulfillment-transition"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void orderAddressNotEditable_mapsTo409WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/order-address-not-editable"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value("Order already shipped"))
+                .andExpect(jsonPath("$.path").value("/test/order-address-not-editable"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void orderPaymentNotRetryable_mapsTo409WithStandardBody() throws Exception {
+        mockMvc.perform(get("/test/order-payment-not-retryable"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value("Only FAILED orders can have their payment retried; order 1 is PAID"))
+                .andExpect(jsonPath("$.path").value("/test/order-payment-not-retryable"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
     void emailAlreadyExists_mapsTo409WithStandardBody() throws Exception {
         mockMvc.perform(get("/test/email-already-exists"))
                 .andExpect(status().isConflict())

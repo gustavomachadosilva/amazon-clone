@@ -38,12 +38,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Modularidade that {@code ArchitectureBoundaryTest} enforces (it also scans test classes).
  *
  * <p>{@code stripe.api-key} is forced blank so {@code PaymentGatewayConfig} always wires the
- * in-memory {@code MockPaymentGateway}, even if {@code STRIPE_API_KEY} is set in the shell.
+ * in-memory {@code MockPaymentGateway}, even if {@code STRIPE_API_KEY} is set in the shell;
+ * likewise {@code payment.mock.decline} is forced to {@code none} so a {@code PAYMENT_MOCK_DECLINE}
+ * in the shell never makes that mock decline.
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "stripe.api-key=",
+                "payment.mock.decline=none",
                 "jwt.secret=integration-test-secret",
                 "logging.level.com.mercatto=INFO"
         })

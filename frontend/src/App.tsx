@@ -13,6 +13,7 @@ import SignIn from './pages/SignIn'
 import Checkout from './pages/Checkout'
 import OrderConfirmation from './pages/OrderConfirmation'
 import Orders from './pages/Orders'
+import OrderDetails from './pages/OrderDetails'
 import SellerDashboard from './pages/SellerDashboard'
 import Account from './pages/Account'
 import LoginSecurity from './pages/LoginSecurity'
@@ -33,6 +34,14 @@ export default function App() {
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/order/:id" element={<OrderConfirmation />} />
         <Route path="/orders" element={<Orders />} />
+        <Route
+          path="/orders/:id"
+          element={
+            <RequireAuth>
+              <OrderDetails />
+            </RequireAuth>
+          }
+        />
         <Route
           path="/account"
           element={

@@ -3,6 +3,11 @@ package com.mercatto.config;
 import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.lists.service.WishListNotFoundException;
 import com.mercatto.orders.service.InsufficientStockException;
+import com.mercatto.orders.service.InvalidFulfillmentTransitionException;
+import com.mercatto.orders.service.OrderAccessDeniedException;
+import com.mercatto.orders.service.OrderAddressNotEditableException;
+import com.mercatto.orders.service.OrderNotFoundException;
+import com.mercatto.orders.service.OrderPaymentNotRetryableException;
 import com.mercatto.reviews.service.InvalidReviewMediaException;
 import com.mercatto.reviews.service.ReviewMediaNotFoundException;
 import com.mercatto.reviews.service.ReviewNotFoundException;
@@ -55,6 +60,34 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(InsufficientStockException.class)
     public ResponseEntity<ApiError> handleInsufficientStock(InsufficientStockException ex, HttpServletRequest request) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidFulfillmentTransitionException.class)
+    public ResponseEntity<ApiError> handleInvalidFulfillmentTransition(InvalidFulfillmentTransitionException ex,
+                                                                       HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(OrderAddressNotEditableException.class)
+    public ResponseEntity<ApiError> handleOrderAddressNotEditable(OrderAddressNotEditableException ex,
+                                                                  HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(OrderPaymentNotRetryableException.class)
+    public ResponseEntity<ApiError> handleOrderPaymentNotRetryable(OrderPaymentNotRetryableException ex,
+                                                                   HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity<ApiError> handleOrderNotFound(OrderNotFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(OrderAccessDeniedException.class)
+    public ResponseEntity<ApiError> handleOrderAccessDenied(OrderAccessDeniedException ex, HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN, ex.getMessage(), request);
     }
 
     @ExceptionHandler(ProductNotFoundException.class)

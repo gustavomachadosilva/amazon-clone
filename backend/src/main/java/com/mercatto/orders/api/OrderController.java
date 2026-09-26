@@ -13,6 +13,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,7 +32,7 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping("/checkout")
-    public ResponseEntity<Order> checkout(
+    public ResponseEntity<OrderResponse> checkout(
             @Valid @RequestBody CheckoutRequest request,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             Principal principal) {
@@ -44,25 +45,53 @@ public class OrderController {
                 request.address(),
                 request.shippingMethod(),
                 request.paymentMethod());
-        return ResponseEntity.ok(order);
+        return ResponseEntity.ok(OrderResponse.from(order));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Order> getById(@PathVariable Long id, Principal principal) {
+    public ResponseEntity<OrderResponse> getById(@PathVariable Long id, Principal principal) {
         AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
         return orderService.findById(id)
                 .map(order -> {
                     authenticatedUser.requireOwner(order.getBuyerId());
-                    return ResponseEntity.ok(order);
+                    return ResponseEntity.ok(OrderResponse.from(order));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping
-    public List<Order> byBuyer(Principal principal) {
+    public List<OrderResponse> byBuyer(Principal principal) {
         AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
-        return orderService.findByBuyer(authenticatedUser.userId());
+        return orderService.findByBuyer(authenticatedUser.userId()).stream()
+                .map(OrderResponse::from)
+                .toList();
     }
+
+    @PatchMapping("/{id}/address")
+    public ResponseEntity<OrderResponse> updateAddress(
+            @PathVariable Long id,
+            @Valid @RequestBody ShippingAddress address,
+            Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        Order order = orderService.updateShippingAddress(id, authenticatedUser.userId(), address);
+        return ResponseEntity.ok(OrderResponse.from(order));
+    }
+
+    /**
+     * Retries the payment of the caller's FAILED order (#174). Responds 200 with the order even
+     * when the gateway declines again (status FAILED, retryable), like checkout.
+     */
+    @PostMapping("/{id}/payment")
+    public ResponseEntity<OrderResponse> retryPayment(
+            @PathVariable Long id,
+            @Valid @RequestBody RetryPaymentRequest request,
+            Principal principal) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
+        Order order = orderService.retryPayment(id, authenticatedUser.userId(), request.paymentMethod());
+        return ResponseEntity.ok(OrderResponse.from(order));
+    }
+
+    public record RetryPaymentRequest(@NotNull PaymentMethod paymentMethod) {}
 
     public record CheckoutRequest(
             @NotEmpty @Valid List<OrderService.CheckoutItem> items,

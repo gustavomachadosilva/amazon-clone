@@ -42,6 +42,12 @@ mercatto:
 stripe:
   api-key: ${STRIPE_API_KEY:}
 
+payment:
+  mock:
+    # Deterministic declines of MockPaymentGateway (only used without a Stripe key):
+    # none (approve all) | always | first-attempt (decline each order's first charge).
+    decline: ${PAYMENT_MOCK_DECLINE:none}
+
 logging:
   level:
     com.mercatto: DEBUG

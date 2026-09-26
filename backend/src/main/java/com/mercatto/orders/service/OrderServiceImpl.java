@@ -10,6 +10,7 @@ import com.mercatto.orders.domain.ShippingMethod;
 import com.mercatto.orders.event.OrderPlacedEvent;
 import com.mercatto.orders.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -140,7 +142,15 @@ class OrderServiceImpl implements OrderService {
             return orderRepository.findByIdWithItems(order.getId())
                     .orElseThrow(() -> new IllegalStateException("Order " + order.getId() + " not found during checkout"));
         }
+        return chargeClaimed(order);
+    }
 
+    /**
+     * Charges an order this request has already claimed (moved to PROCESSING through one of
+     * {@link OrderReservationService}'s compare-and-swap claims) and records the outcome. Must
+     * run inside a transaction: {@link OrderPlacedEvent} is consumed AFTER_COMMIT.
+     */
+    private Order chargeClaimed(Order order) {
         PaymentGateway.PaymentResult payment;
         try {
             payment = paymentGateway.charge(order.getId(), order.getTotalAmount(), "BRL");
@@ -193,10 +203,119 @@ class OrderServiceImpl implements OrderService {
                 .toList();
     }
 
+    @Override
+    @Transactional
+    public OrderView advanceFulfillment(Long orderId, Long sellerId, FulfillmentStatus next) {
+        if (next == null) {
+            throw new IllegalArgumentException("Target fulfillment status is required");
+        }
+        Order order = orderRepository.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
+
+        // Ownership first: a seller with no stake in the order must not learn anything
+        // about its state from a 409.
+        boolean sellsInOrder = order.getItems().stream()
+                .anyMatch(item -> sellerId != null && sellerId.equals(item.getSellerId()));
+        if (!sellsInOrder) {
+            throw new OrderAccessDeniedException("Seller " + sellerId + " has no items in order " + orderId);
+        }
+        if (order.getStatus() != OrderStatus.PAID) {
+            throw new InvalidFulfillmentTransitionException(
+                    "Only PAID orders can be shipped; order " + orderId + " is " + order.getStatus());
+        }
+        FulfillmentStatus current = order.getFulfillmentStatus();
+        if (!current.canAdvanceTo(next)) {
+            throw new InvalidFulfillmentTransitionException(
+                    "Cannot advance order " + orderId + " from " + current + " to " + next);
+        }
+
+        order.advanceFulfillmentTo(next, Instant.now());
+        return toOrderView(orderRepository.save(order));
+    }
+
+    @Override
+    @Transactional
+    public Order updateShippingAddress(Long orderId, Long buyerId, ShippingAddress address) {
+        if (address == null) {
+            throw new IllegalArgumentException("Shipping address is required");
+        }
+        Order order = orderRepository.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
+
+        // Ownership first: another user must not learn anything about the order's state from a 409.
+        if (buyerId == null || !buyerId.equals(order.getBuyerId())) {
+            throw new OrderAccessDeniedException("User " + buyerId + " does not own order " + orderId);
+        }
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new OrderAddressNotEditableException("Order is cancelled");
+        }
+        if (order.getFulfillmentStatus() != FulfillmentStatus.NOT_SHIPPED) {
+            throw new OrderAddressNotEditableException("Order already shipped");
+        }
+
+        order.changeShippingAddress(address);
+        Order saved = orderRepository.save(order);
+        // findByIdForUpdate cannot join-fetch the items (see OrderRepository) and open-in-view is
+        // off, so load them here for callers that map the order after the transaction ends.
+        Hibernate.initialize(saved.getItems());
+        return saved;
+    }
+
+    /**
+     * Not {@code findByIdForUpdate}: holding a row lock here would deadlock against the
+     * REQUIRES_NEW claim below, which updates the same row in its own transaction. Concurrency is
+     * instead settled by that claim's compare-and-swap (FAILED to PROCESSING): of two concurrent
+     * retries only one wins and charges; the other gets a 409 without touching the gateway.
+     */
+    @Override
+    @Transactional
+    public Order retryPayment(Long orderId, Long buyerId, PaymentMethod paymentMethod) {
+        if (paymentMethod == null) {
+            throw new IllegalArgumentException("Payment method is required");
+        }
+        Order order = orderRepository.findByIdWithItems(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
+
+        // Ownership first: another user must not learn anything about the order's state from a 409.
+        if (buyerId == null || !buyerId.equals(order.getBuyerId())) {
+            throw new OrderAccessDeniedException("User " + buyerId + " does not own order " + orderId);
+        }
+        if (order.getStatus() != OrderStatus.FAILED) {
+            throw new OrderPaymentNotRetryableException(
+                    "Only FAILED orders can have their payment retried; order " + orderId + " is " + order.getStatus());
+        }
+
+        // Same read-then-decide check as checkout (and the same accepted residual race): stock may
+        // have run out since the order was placed, and it must be rejected before charging.
+        validateStockForRetry(order);
+
+        if (!orderReservationService.claimFailedForRetry(orderId, paymentMethod)) {
+            throw new OrderPaymentNotRetryableException(
+                    "Payment of order " + orderId + " is already being processed or was already paid");
+        }
+        return chargeClaimed(order);
+    }
+
+    private void validateStockForRetry(Order order) {
+        Map<Long, Integer> requestedQuantities = order.getItems().stream()
+                .collect(Collectors.groupingBy(OrderItem::getProductId, Collectors.summingInt(OrderItem::getQuantity)));
+
+        requestedQuantities.forEach((productId, requestedQuantity) -> {
+            ProductService.ProductSummary product = productService.findById(productId)
+                    .orElseThrow(() -> new InsufficientStockException("Product " + productId + " is no longer available"));
+            if (requestedQuantity > product.stockQuantity()) {
+                throw new InsufficientStockException(
+                        "Insufficient stock for product " + productId + ": requested "
+                                + requestedQuantity + ", available " + product.stockQuantity());
+            }
+        });
+    }
+
     private OrderView toOrderView(Order order) {
         List<OrderItemView> items = order.getItems().stream()
                 .map(item -> new OrderItemView(item.getProductId(), item.getSellerId(), item.getQuantity(), item.getUnitPrice()))
                 .toList();
-        return new OrderView(order.getId(), order.getBuyerId(), order.getStatus(), order.getCreatedAt(), items);
+        return new OrderView(order.getId(), order.getBuyerId(), order.getStatus(), order.getFulfillmentStatus(),
+                order.getCreatedAt(), items);
     }
 }

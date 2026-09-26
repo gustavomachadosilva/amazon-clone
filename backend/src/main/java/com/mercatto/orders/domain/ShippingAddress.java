@@ -12,7 +12,8 @@ import lombok.Setter;
  * Snapshot of the buyer's shipping address at checkout time, embedded
  * directly on {@link Order}. The same type is reused both for JPA
  * persistence (via {@code @Embedded} on {@code Order}) and for request
- * validation (via {@code @Valid} on {@code OrderController.CheckoutRequest}).
+ * validation (via {@code @Valid} on {@code OrderController.CheckoutRequest} and on the
+ * {@code PATCH /api/orders/{id}/address} body).
  */
 @Embeddable
 @Getter
