@@ -1,6 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react'
-import { Link } from 'react-router-dom'
-import { Package, ShieldCheck, Store, type LucideProps } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { Package, Store, type LucideProps } from 'lucide-react'
+import AccountInfoSection from '../components/account/AccountInfoSection'
 import AccountListsSection from '../components/account/AccountListsSection'
 import { Blueprint, Button } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
@@ -19,7 +20,6 @@ interface Shortcut {
 
 const SHORTCUTS: Shortcut[] = [
   { title: 'Your Orders', description: 'Track, return or buy things again', icon: Package, to: '/orders' },
-  { title: 'Login & security', description: 'Edit name, email and password', icon: ShieldCheck, to: '/account/security' },
   { title: 'Seller Central', description: 'Manage your products, orders and metrics', icon: Store, to: '/seller', onlyFor: 'SELLER' },
 ]
 
@@ -94,29 +94,6 @@ function ProfileCard({ status, profile, onRetry, onSignOut }: ProfileCardProps) 
   )
 }
 
-interface SectionShellProps {
-  id: string
-  title: string
-  description: string
-  linkLabel: string
-  to: string
-}
-
-// Structural shell for the account-information section; its real content lands in #211.
-function SectionShell({ id, title, description, linkLabel, to }: SectionShellProps) {
-  return (
-    <Blueprint as="section" aria-labelledby={id} className="flex flex-col bg-card p-4 md:p-6">
-      <h2 id={id} className="card-title mb-2">
-        {title}
-      </h2>
-      <p className="text-[16px] text-paper-700">{description}</p>
-      <Link to={to} className="btn btn-secondary mt-4 self-start">
-        {linkLabel}
-      </Link>
-    </Blueprint>
-  )
-}
-
 function ShortcutTile({ title, description, icon: Icon, to }: Shortcut) {
   return (
     <Link
@@ -137,6 +114,7 @@ function ShortcutTile({ title, description, icon: Icon, to }: Shortcut) {
 export default function Account() {
   const { user } = useAuth()
   const signOut = useSignOut()
+  const { hash } = useLocation()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [status, setStatus] = useState<ProfileStatus>('loading')
   const [retryTick, setRetryTick] = useState(0)
@@ -158,6 +136,11 @@ export default function Account() {
     }
   }, [retryTick])
 
+  // React Router doesn't scroll to a #fragment on its own (e.g. after the /account/security redirect).
+  useEffect(() => {
+    if (hash === '#account-info') document.getElementById('account-info')?.scrollIntoView?.({ block: 'start' })
+  }, [hash])
+
   function retry() {
     setStatus('loading')
     setRetryTick((tick) => tick + 1)
@@ -165,6 +148,8 @@ export default function Account() {
 
   // Shortcuts depend only on the signed-in role, so they show even while the profile loads.
   const shortcuts = SHORTCUTS.filter((shortcut) => !shortcut.onlyFor || shortcut.onlyFor === user?.role)
+  // The session already carries name and email, so the section works before /me answers (or if it fails).
+  const current = profile ?? user
 
   return (
     <div className="mx-auto max-w-[1320px] px-4 py-4 md:px-6 md:py-6">
@@ -174,20 +159,23 @@ export default function Account() {
         <ProfileCard status={status} profile={profile} onRetry={retry} onSignOut={signOut} />
 
         <div className="flex min-w-0 flex-col gap-6">
-          <SectionShell
-            id="account-info-heading"
-            title="Your account information"
-            description="Update your name, email and password."
-            linkLabel="Edit account details"
-            to="/account/security"
-          />
+          {current && (
+            <AccountInfoSection
+              name={current.name}
+              email={current.email}
+              onProfileSaved={(updated) => {
+                setProfile(updated)
+                setStatus('ok')
+              }}
+            />
+          )}
           <AccountListsSection />
 
           <section aria-labelledby="shortcuts-heading">
             <h2 id="shortcuts-heading" className="card-title mb-3">
               Shortcuts
             </h2>
-            {/* auto-fit: every role fills the row (2 or 3 columns on desktop, 1 on a phone) — no hole. */}
+            {/* auto-fit: every role fills the row (1 or 2 columns on desktop, 1 on a phone) — no hole. */}
             <ul
               aria-label="Account shortcuts"
               className="grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-4"
