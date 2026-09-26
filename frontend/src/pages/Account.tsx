@@ -1,6 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react'
-import { Link } from 'react-router-dom'
-import { ListChecks, Package, ShieldCheck, Store, type LucideProps } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { ListChecks, Package, Store, type LucideProps } from 'lucide-react'
+import AccountInfoSection from '../components/account/AccountInfoSection'
 import { Blueprint, Button } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { useSignOut } from '../hooks/useSignOut'
@@ -19,7 +20,6 @@ interface Shortcut {
 const SHORTCUTS: Shortcut[] = [
   { title: 'Your Orders', description: 'Track, return or buy things again', icon: Package, to: '/orders' },
   { title: 'Your Lists', description: 'View and manage your wish lists', icon: ListChecks, to: '/lists' },
-  { title: 'Login & security', description: 'Edit name, email and password', icon: ShieldCheck, to: '/account/security' },
   { title: 'Seller Central', description: 'Manage your products, orders and metrics', icon: Store, to: '/seller', onlyFor: 'SELLER' },
 ]
 
@@ -137,6 +137,7 @@ function ShortcutTile({ title, description, icon: Icon, to }: Shortcut) {
 export default function Account() {
   const { user } = useAuth()
   const signOut = useSignOut()
+  const { hash } = useLocation()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [status, setStatus] = useState<ProfileStatus>('loading')
   const [retryTick, setRetryTick] = useState(0)
@@ -158,6 +159,11 @@ export default function Account() {
     }
   }, [retryTick])
 
+  // React Router doesn't scroll to a #fragment on its own (e.g. after the /account/security redirect).
+  useEffect(() => {
+    if (hash === '#account-info') document.getElementById('account-info')?.scrollIntoView?.({ block: 'start' })
+  }, [hash])
+
   function retry() {
     setStatus('loading')
     setRetryTick((tick) => tick + 1)
@@ -165,6 +171,8 @@ export default function Account() {
 
   // Shortcuts depend only on the signed-in role, so they show even while the profile loads.
   const shortcuts = SHORTCUTS.filter((shortcut) => !shortcut.onlyFor || shortcut.onlyFor === user?.role)
+  // The session already carries name and email, so the section works before /me answers (or if it fails).
+  const current = profile ?? user
 
   return (
     <div className="mx-auto max-w-[1320px] px-4 py-4 md:px-6 md:py-6">
@@ -174,13 +182,16 @@ export default function Account() {
         <ProfileCard status={status} profile={profile} onRetry={retry} onSignOut={signOut} />
 
         <div className="flex min-w-0 flex-col gap-6">
-          <SectionShell
-            id="account-info-heading"
-            title="Your account information"
-            description="Update your name, email and password."
-            linkLabel="Edit account details"
-            to="/account/security"
-          />
+          {current && (
+            <AccountInfoSection
+              name={current.name}
+              email={current.email}
+              onProfileSaved={(updated) => {
+                setProfile(updated)
+                setStatus('ok')
+              }}
+            />
+          )}
           <SectionShell
             id="lists-heading"
             title="Your Lists"
