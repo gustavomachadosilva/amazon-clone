@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ImageZoomViewer, Placeholder } from './ui'
+import { fullSizeImageUrl } from '../lib/productImage'
 
 interface ProductMainImageProps {
   name: string
@@ -7,7 +8,8 @@ interface ProductMainImageProps {
 }
 
 // Main photo on the product page. With a real image it opens the fullscreen zoom viewer; the
-// striped placeholder shown for products without one stays static.
+// striped placeholder shown for products without one stays static. The page keeps the small
+// thumbnail; the full-resolution original is only downloaded once the viewer opens.
 export default function ProductMainImage({ name, imageUrl }: ProductMainImageProps) {
   const [viewerOpen, setViewerOpen] = useState(false)
 
@@ -30,6 +32,7 @@ export default function ProductMainImage({ name, imageUrl }: ProductMainImagePro
       {viewerOpen && (
         <ImageZoomViewer
           src={imageUrl}
+          fullSrc={fullSizeImageUrl(imageUrl)}
           alt={name}
           label={`Photo of ${name}`}
           onClose={() => setViewerOpen(false)}
