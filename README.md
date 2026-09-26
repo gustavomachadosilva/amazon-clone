@@ -122,6 +122,10 @@ do Docker Desktop, exporte antes:
 `DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` e
 `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock`.
 
+A avaliação da busca (`SearchEvalIT`: consultas de referência, métricas e latência) fica fora do
+`mvn test` e roda sozinha com `mvn test -Dtest=SearchEvalIT`; metodologia e baseline em
+[`docs/search-recommendation-baseline.md`](docs/search-recommendation-baseline.md).
+
 ## Seed de dados (ambiente de desenvolvimento)
 
 Para que `Home.tsx` e `SellerDashboard.tsx` nunca renderizem vazios em um ambiente novo, o backend

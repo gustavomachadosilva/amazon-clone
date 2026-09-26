@@ -1,0 +1,769 @@
+{
+  "version": 1,
+  "description": "Fictional buyers, orders, reviews and lists over the seed catalog, for evaluating recommendations (#223, #224, #225). Integration-test fixture only: never loaded into the production seed. Loaded through the public HTTP APIs by RecommendationDatasetLoader. Products are referenced by exact seed name. Clusters: gamer-* (Video Games, Headphones & Earbuds, Computer Components), beauty-* (Makeup, Skin Care Products), home-* (Bedding, Home Decor Products, Kitchen & Dining); mixed-1 adds cross-cluster noise.",
+  "buyers": [
+    "gamer-1",
+    "gamer-2",
+    "gamer-3",
+    "beauty-1",
+    "beauty-2",
+    "beauty-3",
+    "home-1",
+    "home-2",
+    "home-3",
+    "mixed-1"
+  ],
+  "orders": [
+    {
+      "buyer": "gamer-1",
+      "items": [
+        {
+          "product": "PlayStation 5 Console (PS5)",
+          "quantity": 1
+        },
+        {
+          "product": "PlayStation DualSense Wireless Controller – Midnight Black",
+          "quantity": 1
+        },
+        {
+          "product": "MARVEL’S SPIDER-MAN 2 – PS5 Launch Edition",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "gamer-1",
+      "items": [
+        {
+          "product": "Bose QuietComfort 45 Wireless Bluetooth Noise Cancelling Headphones, Over-Ear Headphones with Microphone, Personalized Noise Cancellation and Sound, White Smoke",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "gamer-1",
+      "items": [
+        {
+          "product": "JBL Tune 710BT Wireless Over-Ear Bluetooth Headphones with Microphone, 50H Battery, Hands-Free Calls, Portable (Blue)",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "gamer-2",
+      "items": [
+        {
+          "product": "PlayStation 5 Console (PS5)",
+          "quantity": 1
+        },
+        {
+          "product": "PlayStation DualSense Wireless Controller – Midnight Black",
+          "quantity": 1
+        },
+        {
+          "product": "MARVEL’S SPIDER-MAN 2 – PS5 Launch Edition",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "gamer-2",
+      "items": [
+        {
+          "product": "Gigabyte GeForce RTX 4060 AERO OC 8G Graphics Card, 3X WINDFORCE Fans, 8GB 128-bit GDDR6, GV-N4060AERO OC-8GD Video Card",
+          "quantity": 1
+        },
+        {
+          "product": "AMD Ryzen 5 5600X 6-core, 12-Thread Unlocked Desktop Processor with Wraith Stealth Cooler",
+          "quantity": 1
+        },
+        {
+          "product": "CORSAIR VENGEANCE DDR5 RAM 32GB (2x16GB) 5600MHz CL36 Intel XMP iCUE Compatible Computer Memory - Black (CMK32GX5M2B5600C36)",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "gamer-3",
+      "items": [
+        {
+          "product": "Gigabyte GeForce RTX 4060 AERO OC 8G Graphics Card, 3X WINDFORCE Fans, 8GB 128-bit GDDR6, GV-N4060AERO OC-8GD Video Card",
+          "quantity": 1
+        },
+        {
+          "product": "AMD Ryzen 5 5600X 6-core, 12-Thread Unlocked Desktop Processor with Wraith Stealth Cooler",
+          "quantity": 1
+        },
+        {
+          "product": "CORSAIR VENGEANCE DDR5 RAM 32GB (2x16GB) 5600MHz CL36 Intel XMP iCUE Compatible Computer Memory - Black (CMK32GX5M2B5600C36)",
+          "quantity": 1
+        },
+        {
+          "product": "Corsair RM750e (2023) Fully Modular Low-Noise Power Supply - ATX 3.0 & PCIe 5.0 Compliant - 105°C-Rated Capacitors - 80 Plus Gold Efficiency - Modern Standby Support - Black",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "gamer-3",
+      "items": [
+        {
+          "product": "Logitech G502 HERO High Performance Wired Gaming Mouse, HERO 25K Sensor, 25,600 DPI, RGB, Adjustable Weights, 11 Programmable Buttons, On-Board Memory, PC / Mac, Black",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "beauty-1",
+      "items": [
+        {
+          "product": "Tarte Shape Tape ULTRA CREAMY Concealer 0.33 fl. oz. (Light-Medium 29N)",
+          "quantity": 1
+        },
+        {
+          "product": "PHOERA Foundation,Flawless Soft Matte Oil Control Liquid Foundation Full Coverage Face Makeup. (102# Nude)",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "beauty-1",
+      "items": [
+        {
+          "product": "Shankara Anti-Age Vitamin C Serum for Face - Herbal Anti Aging Serum Hydrating Formulation, Naturally Nourishes & Rejuvenates Skin, For Face Care and Neck Area (30ml)",
+          "quantity": 1
+        },
+        {
+          "product": "Amazon Aware Balancing Face Moisturizer with Licorice Root Extract & Vitamin C, Vegan, Cucumber, Dermatologist Tested, Oily to Combination Skin, 1.7 fl oz",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "beauty-1",
+      "items": [
+        {
+          "product": "Epionce Renewal Eye Cream: Anti-Aging, Dark Circles & Puffiness, Hyaluronic Acid, Under Eye Brightener",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "beauty-2",
+      "items": [
+        {
+          "product": "Tarte Shape Tape ULTRA CREAMY Concealer 0.33 fl. oz. (Light-Medium 29N)",
+          "quantity": 1
+        },
+        {
+          "product": "PHOERA Foundation,Flawless Soft Matte Oil Control Liquid Foundation Full Coverage Face Makeup. (102# Nude)",
+          "quantity": 1
+        },
+        {
+          "product": "Grande Cosmetics GrandeFANATIC Fanning and Curling Mascara, 0.37 oz.",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "beauty-2",
+      "items": [
+        {
+          "product": "ROSE GOLD 2 In 1 Matte Lipstick & Liquid Lipstick, Matte Finish, Nude, Full Color Lipstick, Long Lasting Waterproof Velvet Lip Gloss (04)",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "beauty-3",
+      "items": [
+        {
+          "product": "Shankara Anti-Age Vitamin C Serum for Face - Herbal Anti Aging Serum Hydrating Formulation, Naturally Nourishes & Rejuvenates Skin, For Face Care and Neck Area (30ml)",
+          "quantity": 1
+        },
+        {
+          "product": "Amazon Aware Balancing Face Moisturizer with Licorice Root Extract & Vitamin C, Vegan, Cucumber, Dermatologist Tested, Oily to Combination Skin, 1.7 fl oz",
+          "quantity": 1
+        },
+        {
+          "product": "COMPLETE COMPLEXION CARE Squalane & Probiotic Gentle Face Cleanser | Daily Moisturizing Face Wash for Dry & Sensitive Skin | Fragrance Free, Paraben Free | Cruelty-Free & Vegan | 9.0 Fl Oz",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "beauty-3",
+      "items": [
+        {
+          "product": "Tarte Shape Tape ULTRA CREAMY Concealer 0.33 fl. oz. (Light-Medium 29N)",
+          "quantity": 1
+        },
+        {
+          "product": "PHOERA Foundation,Flawless Soft Matte Oil Control Liquid Foundation Full Coverage Face Makeup. (102# Nude)",
+          "quantity": 1
+        },
+        {
+          "product": "Billion Dollar Brows Eyebrow Gel for All-Day Glow, Hold, and Control - Cruelty Free",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "home-1",
+      "items": [
+        {
+          "product": "Utopia Bedding Bed Pillows for Sleeping Queen Size (White), Set of 2, Cooling Hotel Quality, Gusseted Pillow for Back, Stomach or Side Sleepers",
+          "quantity": 1
+        },
+        {
+          "product": "Utopia Bedding Premium Waterproof Terry Mattress Protector Queen 200 GSM, Mattress Cover, Breathable, Fitted Style with Stretchable Pockets (White)",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "home-1",
+      "items": [
+        {
+          "product": "Aigostar Electric Kettle Temperature Control & Tea Infuser 1.7L, Hot Water Tea Kettle with Variable Temperature LED Indicator Light Change Auto Shut-Off",
+          "quantity": 1
+        },
+        {
+          "product": "Celestial Seasonings Herbal Tea, Bengal Spice 20 Count (Pack of 2)",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "home-1",
+      "items": [
+        {
+          "product": "Wooden Spoons for Cooking,12 Pack Wooden Utensils for Cooking Wooden Kitchen Utensils Set Wooden Cooking Utensils Natural Teak Wooden Spatulas for Cooking",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "home-2",
+      "items": [
+        {
+          "product": "Utopia Bedding Bed Pillows for Sleeping Queen Size (White), Set of 2, Cooling Hotel Quality, Gusseted Pillow for Back, Stomach or Side Sleepers",
+          "quantity": 1
+        },
+        {
+          "product": "Utopia Bedding Premium Waterproof Terry Mattress Protector Queen 200 GSM, Mattress Cover, Breathable, Fitted Style with Stretchable Pockets (White)",
+          "quantity": 1
+        },
+        {
+          "product": "Utopia Bedding Full Bed Sheets Set - 4 Piece Bedding - Brushed Microfiber - Shrinkage and Fade Resistant - Easy Care (Full, White)",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "home-2",
+      "items": [
+        {
+          "product": "Bolsius White Pillar Candles – 2x6 Unscented Candle Set of 20 – Dripless, Smokeless, and Clean Burning Household Dinner Candles – Perfect for Weddings, Parties, Dinners – 20 Decorative Candles",
+          "quantity": 1
+        },
+        {
+          "product": "Toneed Fluffy Area Rug for Bedroom Living Room, 4 x 6 Feet Gray Shaggy Rug Super Soft Modern Indoor Rug Fuzzy Plush Carpet for Dorm Nursery Kids Room Home Decorative",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "home-3",
+      "items": [
+        {
+          "product": "Aigostar Electric Kettle Temperature Control & Tea Infuser 1.7L, Hot Water Tea Kettle with Variable Temperature LED Indicator Light Change Auto Shut-Off",
+          "quantity": 1
+        },
+        {
+          "product": "Celestial Seasonings Herbal Tea, Bengal Spice 20 Count (Pack of 2)",
+          "quantity": 1
+        },
+        {
+          "product": "FineDine 5 Deep Nesting Mixing Bowls with Lids for Kitchen Storage , Cooking Food, Baking, Breading, Salad or Meal Prep - Silver Stainless Steel - Large",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "home-3",
+      "items": [
+        {
+          "product": "Utopia Bedding Bed Pillows for Sleeping Queen Size (White), Set of 2, Cooling Hotel Quality, Gusseted Pillow for Back, Stomach or Side Sleepers",
+          "quantity": 1
+        },
+        {
+          "product": "Utopia Bedding Premium Waterproof Terry Mattress Protector Queen 200 GSM, Mattress Cover, Breathable, Fitted Style with Stretchable Pockets (White)",
+          "quantity": 1
+        },
+        {
+          "product": "WOPITUES Floating Shelves Wall Mounted, Wood Bathroom Shelves with Extra Storage Shelf, Rustic Wall Shelves for Bathroom, Bedroom, Kitchen, Living Room, Plants - Rustic Brown",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "mixed-1",
+      "items": [
+        {
+          "product": "PlayStation 5 Console (PS5)",
+          "quantity": 1
+        },
+        {
+          "product": "PlayStation DualSense Wireless Controller – Midnight Black",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "mixed-1",
+      "items": [
+        {
+          "product": "Bolsius White Pillar Candles – 2x6 Unscented Candle Set of 20 – Dripless, Smokeless, and Clean Burning Household Dinner Candles – Perfect for Weddings, Parties, Dinners – 20 Decorative Candles",
+          "quantity": 1
+        },
+        {
+          "product": "Revolution Good Vibes Chilled Bomb Lip Oil",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "buyer": "mixed-1",
+      "items": [
+        {
+          "product": "Nintendo Switch – OLED Model w/ White Joy-Con",
+          "quantity": 1
+        },
+        {
+          "product": "Silicone Spatulas, 8.5 inch Small Rubber Spatula Seamless One Piece Design Heat Resistant Non-Stick Flexible Scrapers Baking Mixing Tool (5 Pieces)",
+          "quantity": 1
+        }
+      ]
+    }
+  ],
+  "reviews": [
+    {
+      "buyer": "gamer-1",
+      "product": "PlayStation 5 Console (PS5)",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "gamer-1",
+      "product": "PlayStation DualSense Wireless Controller – Midnight Black",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "gamer-1",
+      "product": "MARVEL’S SPIDER-MAN 2 – PS5 Launch Edition",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "gamer-1",
+      "product": "Bose QuietComfort 45 Wireless Bluetooth Noise Cancelling Headphones, Over-Ear Headphones with Microphone, Personalized Noise Cancellation and Sound, White Smoke",
+      "stars": 4,
+      "title": "Very good",
+      "text": "Works well, a couple of small details could be better."
+    },
+    {
+      "buyer": "gamer-1",
+      "product": "JBL Tune 710BT Wireless Over-Ear Bluetooth Headphones with Microphone, 50H Battery, Hands-Free Calls, Portable (Blue)",
+      "stars": 3,
+      "title": "It is okay",
+      "text": "Does the job but nothing special."
+    },
+    {
+      "buyer": "gamer-2",
+      "product": "PlayStation 5 Console (PS5)",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "gamer-2",
+      "product": "PlayStation DualSense Wireless Controller – Midnight Black",
+      "stars": 4,
+      "title": "Very good",
+      "text": "Works well, a couple of small details could be better."
+    },
+    {
+      "buyer": "gamer-2",
+      "product": "Gigabyte GeForce RTX 4060 AERO OC 8G Graphics Card, 3X WINDFORCE Fans, 8GB 128-bit GDDR6, GV-N4060AERO OC-8GD Video Card",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "gamer-2",
+      "product": "AMD Ryzen 5 5600X 6-core, 12-Thread Unlocked Desktop Processor with Wraith Stealth Cooler",
+      "stars": 4,
+      "title": "Very good",
+      "text": "Works well, a couple of small details could be better."
+    },
+    {
+      "buyer": "gamer-3",
+      "product": "Gigabyte GeForce RTX 4060 AERO OC 8G Graphics Card, 3X WINDFORCE Fans, 8GB 128-bit GDDR6, GV-N4060AERO OC-8GD Video Card",
+      "stars": 4,
+      "title": "Very good",
+      "text": "Works well, a couple of small details could be better."
+    },
+    {
+      "buyer": "gamer-3",
+      "product": "CORSAIR VENGEANCE DDR5 RAM 32GB (2x16GB) 5600MHz CL36 Intel XMP iCUE Compatible Computer Memory - Black (CMK32GX5M2B5600C36)",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "gamer-3",
+      "product": "Corsair RM750e (2023) Fully Modular Low-Noise Power Supply - ATX 3.0 & PCIe 5.0 Compliant - 105°C-Rated Capacitors - 80 Plus Gold Efficiency - Modern Standby Support - Black",
+      "stars": 4,
+      "title": "Very good",
+      "text": "Works well, a couple of small details could be better."
+    },
+    {
+      "buyer": "gamer-3",
+      "product": "Logitech G502 HERO High Performance Wired Gaming Mouse, HERO 25K Sensor, 25,600 DPI, RGB, Adjustable Weights, 11 Programmable Buttons, On-Board Memory, PC / Mac, Black",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "beauty-1",
+      "product": "Tarte Shape Tape ULTRA CREAMY Concealer 0.33 fl. oz. (Light-Medium 29N)",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "beauty-1",
+      "product": "PHOERA Foundation,Flawless Soft Matte Oil Control Liquid Foundation Full Coverage Face Makeup. (102# Nude)",
+      "stars": 4,
+      "title": "Very good",
+      "text": "Works well, a couple of small details could be better."
+    },
+    {
+      "buyer": "beauty-1",
+      "product": "Shankara Anti-Age Vitamin C Serum for Face - Herbal Anti Aging Serum Hydrating Formulation, Naturally Nourishes & Rejuvenates Skin, For Face Care and Neck Area (30ml)",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "beauty-1",
+      "product": "Amazon Aware Balancing Face Moisturizer with Licorice Root Extract & Vitamin C, Vegan, Cucumber, Dermatologist Tested, Oily to Combination Skin, 1.7 fl oz",
+      "stars": 4,
+      "title": "Very good",
+      "text": "Works well, a couple of small details could be better."
+    },
+    {
+      "buyer": "beauty-2",
+      "product": "Tarte Shape Tape ULTRA CREAMY Concealer 0.33 fl. oz. (Light-Medium 29N)",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "beauty-2",
+      "product": "Grande Cosmetics GrandeFANATIC Fanning and Curling Mascara, 0.37 oz.",
+      "stars": 3,
+      "title": "It is okay",
+      "text": "Does the job but nothing special."
+    },
+    {
+      "buyer": "beauty-2",
+      "product": "ROSE GOLD 2 In 1 Matte Lipstick & Liquid Lipstick, Matte Finish, Nude, Full Color Lipstick, Long Lasting Waterproof Velvet Lip Gloss (04)",
+      "stars": 2,
+      "title": "Disappointing",
+      "text": "Expected more for the price."
+    },
+    {
+      "buyer": "beauty-3",
+      "product": "Shankara Anti-Age Vitamin C Serum for Face - Herbal Anti Aging Serum Hydrating Formulation, Naturally Nourishes & Rejuvenates Skin, For Face Care and Neck Area (30ml)",
+      "stars": 4,
+      "title": "Very good",
+      "text": "Works well, a couple of small details could be better."
+    },
+    {
+      "buyer": "beauty-3",
+      "product": "COMPLETE COMPLEXION CARE Squalane & Probiotic Gentle Face Cleanser | Daily Moisturizing Face Wash for Dry & Sensitive Skin | Fragrance Free, Paraben Free | Cruelty-Free & Vegan | 9.0 Fl Oz",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "beauty-3",
+      "product": "PHOERA Foundation,Flawless Soft Matte Oil Control Liquid Foundation Full Coverage Face Makeup. (102# Nude)",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "beauty-3",
+      "product": "Billion Dollar Brows Eyebrow Gel for All-Day Glow, Hold, and Control - Cruelty Free",
+      "stars": 4,
+      "title": "Very good",
+      "text": "Works well, a couple of small details could be better."
+    },
+    {
+      "buyer": "home-1",
+      "product": "Utopia Bedding Bed Pillows for Sleeping Queen Size (White), Set of 2, Cooling Hotel Quality, Gusseted Pillow for Back, Stomach or Side Sleepers",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "home-1",
+      "product": "Utopia Bedding Premium Waterproof Terry Mattress Protector Queen 200 GSM, Mattress Cover, Breathable, Fitted Style with Stretchable Pockets (White)",
+      "stars": 4,
+      "title": "Very good",
+      "text": "Works well, a couple of small details could be better."
+    },
+    {
+      "buyer": "home-1",
+      "product": "Aigostar Electric Kettle Temperature Control & Tea Infuser 1.7L, Hot Water Tea Kettle with Variable Temperature LED Indicator Light Change Auto Shut-Off",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "home-1",
+      "product": "Celestial Seasonings Herbal Tea, Bengal Spice 20 Count (Pack of 2)",
+      "stars": 4,
+      "title": "Very good",
+      "text": "Works well, a couple of small details could be better."
+    },
+    {
+      "buyer": "home-2",
+      "product": "Utopia Bedding Bed Pillows for Sleeping Queen Size (White), Set of 2, Cooling Hotel Quality, Gusseted Pillow for Back, Stomach or Side Sleepers",
+      "stars": 4,
+      "title": "Very good",
+      "text": "Works well, a couple of small details could be better."
+    },
+    {
+      "buyer": "home-2",
+      "product": "Utopia Bedding Full Bed Sheets Set - 4 Piece Bedding - Brushed Microfiber - Shrinkage and Fade Resistant - Easy Care (Full, White)",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "home-2",
+      "product": "Toneed Fluffy Area Rug for Bedroom Living Room, 4 x 6 Feet Gray Shaggy Rug Super Soft Modern Indoor Rug Fuzzy Plush Carpet for Dorm Nursery Kids Room Home Decorative",
+      "stars": 2,
+      "title": "Disappointing",
+      "text": "Expected more for the price."
+    },
+    {
+      "buyer": "home-3",
+      "product": "Aigostar Electric Kettle Temperature Control & Tea Infuser 1.7L, Hot Water Tea Kettle with Variable Temperature LED Indicator Light Change Auto Shut-Off",
+      "stars": 4,
+      "title": "Very good",
+      "text": "Works well, a couple of small details could be better."
+    },
+    {
+      "buyer": "home-3",
+      "product": "FineDine 5 Deep Nesting Mixing Bowls with Lids for Kitchen Storage , Cooking Food, Baking, Breading, Salad or Meal Prep - Silver Stainless Steel - Large",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "home-3",
+      "product": "Utopia Bedding Premium Waterproof Terry Mattress Protector Queen 200 GSM, Mattress Cover, Breathable, Fitted Style with Stretchable Pockets (White)",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    },
+    {
+      "buyer": "mixed-1",
+      "product": "PlayStation 5 Console (PS5)",
+      "stars": 4,
+      "title": "Very good",
+      "text": "Works well, a couple of small details could be better."
+    },
+    {
+      "buyer": "mixed-1",
+      "product": "Bolsius White Pillar Candles – 2x6 Unscented Candle Set of 20 – Dripless, Smokeless, and Clean Burning Household Dinner Candles – Perfect for Weddings, Parties, Dinners – 20 Decorative Candles",
+      "stars": 1,
+      "title": "Do not buy",
+      "text": "Stopped working / not as described."
+    },
+    {
+      "buyer": "mixed-1",
+      "product": "Nintendo Switch – OLED Model w/ White Joy-Con",
+      "stars": 5,
+      "title": "Excellent",
+      "text": "Exactly what I wanted, would buy again."
+    }
+  ],
+  "lists": [
+    {
+      "buyer": "gamer-1",
+      "name": "Wish list",
+      "products": [
+        "Mortal Kombat 1 - PlayStation5",
+        "Xbox Wireless Headset – Xbox Series X|S, Xbox One, and Windows Devices"
+      ]
+    },
+    {
+      "buyer": "gamer-2",
+      "name": "PC upgrade",
+      "products": [
+        "Corsair RM750e (2023) Fully Modular Low-Noise Power Supply - ATX 3.0 & PCIe 5.0 Compliant - 105°C-Rated Capacitors - 80 Plus Gold Efficiency - Modern Standby Support - Black",
+        "Logitech G502 HERO High Performance Wired Gaming Mouse, HERO 25K Sensor, 25,600 DPI, RGB, Adjustable Weights, 11 Programmable Buttons, On-Board Memory, PC / Mac, Black"
+      ]
+    },
+    {
+      "buyer": "gamer-3",
+      "name": "Console someday",
+      "products": [
+        "Nintendo Switch – OLED Model w/ White Joy-Con",
+        "The Legend of Zelda: Tears of the Kingdom - Nintendo Switch (US Version)"
+      ]
+    },
+    {
+      "buyer": "beauty-1",
+      "name": "Skin care routine",
+      "products": [
+        "COMPLETE COMPLEXION CARE Squalane & Probiotic Gentle Face Cleanser | Daily Moisturizing Face Wash for Dry & Sensitive Skin | Fragrance Free, Paraben Free | Cruelty-Free & Vegan | 9.0 Fl Oz",
+        "Sukin Organics Moisture Restoring Night Cream, 4.06 Fl. Oz."
+      ]
+    },
+    {
+      "buyer": "beauty-2",
+      "name": "Wish list",
+      "products": [
+        "Billion Dollar Brows Eyebrow Gel for All-Day Glow, Hold, and Control - Cruelty Free",
+        "Revolution Good Vibes Chilled Bomb Lip Oil"
+      ]
+    },
+    {
+      "buyer": "beauty-3",
+      "name": "Eye care",
+      "products": [
+        "Epionce Renewal Eye Cream: Anti-Aging, Dark Circles & Puffiness, Hyaluronic Acid, Under Eye Brightener",
+        "Grande Cosmetics GrandeFANATIC Fanning and Curling Mascara, 0.37 oz."
+      ]
+    },
+    {
+      "buyer": "home-1",
+      "name": "New apartment",
+      "products": [
+        "Utopia Bedding Full Bed Sheets Set - 4 Piece Bedding - Brushed Microfiber - Shrinkage and Fade Resistant - Easy Care (Full, White)",
+        "Toneed Fluffy Area Rug for Bedroom Living Room, 4 x 6 Feet Gray Shaggy Rug Super Soft Modern Indoor Rug Fuzzy Plush Carpet for Dorm Nursery Kids Room Home Decorative",
+        "WOPITUES Floating Shelves Wall Mounted, Wood Bathroom Shelves with Extra Storage Shelf, Rustic Wall Shelves for Bathroom, Bedroom, Kitchen, Living Room, Plants - Rustic Brown"
+      ]
+    },
+    {
+      "buyer": "home-2",
+      "name": "Kitchen",
+      "products": [
+        "FineDine 5 Deep Nesting Mixing Bowls with Lids for Kitchen Storage , Cooking Food, Baking, Breading, Salad or Meal Prep - Silver Stainless Steel - Large",
+        "Silicone Spatulas, 8.5 inch Small Rubber Spatula Seamless One Piece Design Heat Resistant Non-Stick Flexible Scrapers Baking Mixing Tool (5 Pieces)",
+        "Wooden Spoons for Cooking,12 Pack Wooden Utensils for Cooking Wooden Kitchen Utensils Set Wooden Cooking Utensils Natural Teak Wooden Spatulas for Cooking"
+      ]
+    },
+    {
+      "buyer": "home-3",
+      "name": "Bedroom",
+      "products": [
+        "Bolsius White Pillar Candles – 2x6 Unscented Candle Set of 20 – Dripless, Smokeless, and Clean Burning Household Dinner Candles – Perfect for Weddings, Parties, Dinners – 20 Decorative Candles",
+        "Utopia Bedding Full Bed Sheets Set - 4 Piece Bedding - Brushed Microfiber - Shrinkage and Fade Resistant - Easy Care (Full, White)"
+      ]
+    },
+    {
+      "buyer": "mixed-1",
+      "name": "Gift ideas",
+      "products": [
+        "Bose QuietComfort 45 Wireless Bluetooth Noise Cancelling Headphones, Over-Ear Headphones with Microphone, Personalized Noise Cancellation and Sound, White Smoke",
+        "Shankara Anti-Age Vitamin C Serum for Face - Herbal Anti Aging Serum Hydrating Formulation, Naturally Nourishes & Rejuvenates Skin, For Face Care and Neck Area (30ml)"
+      ]
+    }
+  ],
+  "expectations": {
+    "alsoBought": [
+      {
+        "product": "PlayStation 5 Console (PS5)",
+        "expected": [
+          "PlayStation DualSense Wireless Controller – Midnight Black",
+          "MARVEL’S SPIDER-MAN 2 – PS5 Launch Edition"
+        ],
+        "notes": "PS5 + DualSense bought together 3 times, PS5 + Spider-Man 2 twice."
+      },
+      {
+        "product": "Gigabyte GeForce RTX 4060 AERO OC 8G Graphics Card, 3X WINDFORCE Fans, 8GB 128-bit GDDR6, GV-N4060AERO OC-8GD Video Card",
+        "expected": [
+          "AMD Ryzen 5 5600X 6-core, 12-Thread Unlocked Desktop Processor with Wraith Stealth Cooler",
+          "CORSAIR VENGEANCE DDR5 RAM 32GB (2x16GB) 5600MHz CL36 Intel XMP iCUE Compatible Computer Memory - Black (CMK32GX5M2B5600C36)"
+        ],
+        "notes": "GPU + CPU + RAM bought together twice."
+      },
+      {
+        "product": "Tarte Shape Tape ULTRA CREAMY Concealer 0.33 fl. oz. (Light-Medium 29N)",
+        "expected": [
+          "PHOERA Foundation,Flawless Soft Matte Oil Control Liquid Foundation Full Coverage Face Makeup. (102# Nude)"
+        ],
+        "notes": "Concealer + foundation bought together 3 times."
+      },
+      {
+        "product": "Shankara Anti-Age Vitamin C Serum for Face - Herbal Anti Aging Serum Hydrating Formulation, Naturally Nourishes & Rejuvenates Skin, For Face Care and Neck Area (30ml)",
+        "expected": [
+          "Amazon Aware Balancing Face Moisturizer with Licorice Root Extract & Vitamin C, Vegan, Cucumber, Dermatologist Tested, Oily to Combination Skin, 1.7 fl oz"
+        ],
+        "notes": "Serum + moisturizer bought together twice."
+      },
+      {
+        "product": "Utopia Bedding Bed Pillows for Sleeping Queen Size (White), Set of 2, Cooling Hotel Quality, Gusseted Pillow for Back, Stomach or Side Sleepers",
+        "expected": [
+          "Utopia Bedding Premium Waterproof Terry Mattress Protector Queen 200 GSM, Mattress Cover, Breathable, Fitted Style with Stretchable Pockets (White)"
+        ],
+        "notes": "Pillows + mattress protector bought together 3 times."
+      },
+      {
+        "product": "Aigostar Electric Kettle Temperature Control & Tea Infuser 1.7L, Hot Water Tea Kettle with Variable Temperature LED Indicator Light Change Auto Shut-Off",
+        "expected": [
+          "Celestial Seasonings Herbal Tea, Bengal Spice 20 Count (Pack of 2)"
+        ],
+        "notes": "Kettle + tea bought together twice."
+      }
+    ],
+    "forBuyer": [
+      {
+        "buyer": "gamer-3",
+        "heldOut": [
+          "PlayStation 5 Console (PS5)",
+          "PlayStation DualSense Wireless Controller – Midnight Black"
+        ],
+        "notes": "PC gamer who never bought a console; every other gamer bought the PS5 + DualSense."
+      },
+      {
+        "buyer": "beauty-2",
+        "heldOut": [
+          "Shankara Anti-Age Vitamin C Serum for Face - Herbal Anti Aging Serum Hydrating Formulation, Naturally Nourishes & Rejuvenates Skin, For Face Care and Neck Area (30ml)",
+          "Amazon Aware Balancing Face Moisturizer with Licorice Root Extract & Vitamin C, Vegan, Cucumber, Dermatologist Tested, Oily to Combination Skin, 1.7 fl oz"
+        ],
+        "notes": "Makeup-only buyer; both other beauty buyers bought serum + moisturizer."
+      },
+      {
+        "buyer": "home-2",
+        "heldOut": [
+          "Aigostar Electric Kettle Temperature Control & Tea Infuser 1.7L, Hot Water Tea Kettle with Variable Temperature LED Indicator Light Change Auto Shut-Off",
+          "Celestial Seasonings Herbal Tea, Bengal Spice 20 Count (Pack of 2)"
+        ],
+        "notes": "Bedroom/decor buyer; both other home buyers bought kettle + tea."
+      }
+    ]
+  }
+}
