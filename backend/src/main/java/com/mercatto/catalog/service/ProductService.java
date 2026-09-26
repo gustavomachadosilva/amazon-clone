@@ -14,8 +14,6 @@ import java.util.Optional;
  */
 public interface ProductService {
 
-    Page<Product> search(String query, String category, Pageable pageable);
-
     /**
      * A persistence-free read model of a {@link Product}, used for every cross-module read
      * (cart, orders, sellers) so those modules never depend on catalog's JPA entity shape
@@ -42,16 +40,20 @@ public interface ProductService {
     List<String> listCategories();
 
     /**
-     * A {@link Product} enriched with its aggregate rating, resolved read-only from the
-     * Reviews module. Additive read model: existing {@link #search}/{@link #findById}
-     * callers (cart, sellers, orders) keep returning the plain {@link Product} untouched.
+     * A {@link Product} with its aggregate rating. The rating is Catalog's denormalized copy of
+     * the Reviews module's aggregate, refreshed by {@code ReviewRatingSyncListener} whenever a
+     * review is created, so searches can filter and sort by it in SQL.
      */
     record ProductView(Long id, String name, String description, BigDecimal price, Integer stockQuantity,
                         String category, String imageUrl, String brand, Integer warrantyMonths,
                         String modelNumber, BigDecimal listPrice, Long sellerId, Instant createdAt,
                         double averageRating, long reviewCount) {}
 
-    Page<ProductView> searchWithRating(String query, String category, Pageable pageable);
+    /**
+     * One page of the products matching {@code criteria}, filtered and ordered in the database so
+     * {@code totalElements}/{@code totalPages} describe the whole filtered result.
+     */
+    Page<ProductView> searchWithRating(ProductSearchCriteria criteria, int page, int size);
 
     Optional<ProductView> findByIdWithRating(Long id);
 }

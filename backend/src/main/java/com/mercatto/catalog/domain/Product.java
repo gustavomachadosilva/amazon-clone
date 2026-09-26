@@ -8,11 +8,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -69,6 +71,23 @@ public class Product {
     // the Seller aggregate and this module must not join across schemas.
     @Column(name = "seller_id", nullable = false)
     private Long sellerId;
+
+    // Denormalized copy of the Reviews module's aggregate, kept so search can filter and sort
+    // by rating in SQL. Written only by ProductRepository#updateRating (reacting to
+    // ReviewCreatedEvent, plus the boot-time ProductRatingBackfill) — insertable/updatable=false
+    // so an ordinary entity save (seller PUT, decreaseStock) never overwrites it with a stale
+    // value loaded earlier. New rows get the column default.
+    @Column(name = "average_rating", nullable = false, insertable = false, updatable = false)
+    @ColumnDefault("0")
+    @Builder.Default
+    @Setter(AccessLevel.NONE)
+    private Double averageRating = 0.0;
+
+    @Column(name = "review_count", nullable = false, insertable = false, updatable = false)
+    @ColumnDefault("0")
+    @Builder.Default
+    @Setter(AccessLevel.NONE)
+    private Long reviewCount = 0L;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

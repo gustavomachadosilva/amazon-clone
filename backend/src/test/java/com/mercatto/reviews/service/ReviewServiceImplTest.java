@@ -3,6 +3,7 @@ package com.mercatto.reviews.service;
 import com.mercatto.reviews.domain.Review;
 import com.mercatto.reviews.domain.ReviewMedia;
 import com.mercatto.reviews.domain.ReviewMediaType;
+import com.mercatto.reviews.event.ReviewCreatedEvent;
 import com.mercatto.reviews.repository.ReviewMediaRepository;
 import com.mercatto.reviews.repository.ReviewRepository;
 import com.mercatto.users.domain.User;
@@ -15,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -55,6 +57,9 @@ class ReviewServiceImplTest {
 
     @Mock
     private UserService userService;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private ReviewServiceImpl reviewService;
@@ -105,11 +110,25 @@ class ReviewServiceImplTest {
     }
 
     @Test
+    void createReviewPublishesReviewCreatedEventForCatalogRatingSync() {
+        when(reviewRepository.save(any(Review.class))).thenAnswer(invocation -> {
+            Review r = invocation.getArgument(0);
+            r.setId(1L);
+            return r;
+        });
+
+        reviewService.createReview(5L, 10L, 4, "Great", "Loved it");
+
+        verify(eventPublisher).publishEvent(new ReviewCreatedEvent(1L, 5L, 4));
+    }
+
+    @Test
     void createReviewWithStarsBelowRangeThrows() {
         assertThatThrownBy(() -> reviewService.createReview(5L, 10L, 0, "Title", "Text"))
                 .isInstanceOf(IllegalArgumentException.class);
 
         verify(reviewRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -118,6 +137,7 @@ class ReviewServiceImplTest {
                 .isInstanceOf(IllegalArgumentException.class);
 
         verify(reviewRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -341,6 +361,7 @@ class ReviewServiceImplTest {
 
         verifyNoInteractions(reviewMediaStorage);
         verify(reviewRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test

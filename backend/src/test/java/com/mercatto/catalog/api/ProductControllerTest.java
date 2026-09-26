@@ -2,13 +2,17 @@ package com.mercatto.catalog.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mercatto.catalog.domain.Product;
+import com.mercatto.catalog.service.ProductSearchCriteria;
 import com.mercatto.catalog.service.ProductService;
+import com.mercatto.catalog.service.ProductSort;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.AuthenticatedUser;
 import com.mercatto.users.service.TokenService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -25,7 +29,9 @@ import org.springframework.data.domain.PageImpl;
 import java.time.Instant;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -85,12 +91,90 @@ class ProductControllerTest {
     @Test
     void search_returns200WithRatingEnrichedProducts() throws Exception {
         Page<ProductService.ProductView> page = new PageImpl<>(List.of(productView(1L)));
-        when(productService.searchWithRating(any(), any(), any())).thenReturn(page);
+        when(productService.searchWithRating(any(), anyInt(), anyInt())).thenReturn(page);
 
         mockMvc.perform(get("/api/catalog/products"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].averageRating").value(4.5))
                 .andExpect(jsonPath("$.content[0].reviewCount").value(3));
+    }
+
+    @Test
+    void search_withoutParamsUsesNoFiltersRelevanceAndFirstPageOfTen() throws Exception {
+        when(productService.searchWithRating(any(), anyInt(), anyInt())).thenReturn(Page.empty());
+
+        mockMvc.perform(get("/api/catalog/products"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<ProductSearchCriteria> criteria = ArgumentCaptor.forClass(ProductSearchCriteria.class);
+        verify(productService).searchWithRating(criteria.capture(), eq(0), eq(10));
+        assertThat(criteria.getValue())
+                .isEqualTo(new ProductSearchCriteria(null, null, null, null, null, ProductSort.RELEVANCE));
+    }
+
+    @Test
+    void search_forwardsEveryFilterSortAndPage() throws Exception {
+        when(productService.searchWithRating(any(), anyInt(), anyInt())).thenReturn(Page.empty());
+
+        mockMvc.perform(get("/api/catalog/products")
+                        .param("query", "tv")
+                        .param("category", "Electronics")
+                        .param("minPrice", "10")
+                        .param("maxPrice", "200.50")
+                        .param("minRating", "4")
+                        .param("sort", "price_asc")
+                        .param("page", "2")
+                        .param("size", "20"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<ProductSearchCriteria> criteria = ArgumentCaptor.forClass(ProductSearchCriteria.class);
+        verify(productService).searchWithRating(criteria.capture(), eq(2), eq(20));
+        assertThat(criteria.getValue().query()).isEqualTo("tv");
+        assertThat(criteria.getValue().category()).isEqualTo("Electronics");
+        assertThat(criteria.getValue().minPrice()).isEqualByComparingTo("10");
+        assertThat(criteria.getValue().maxPrice()).isEqualByComparingTo("200.50");
+        assertThat(criteria.getValue().minRating()).isEqualTo(4.0);
+        assertThat(criteria.getValue().sort()).isEqualTo(ProductSort.PRICE_ASC);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"price_desc", "rating", "relevance"})
+    void search_acceptsEverySortValue(String sort) throws Exception {
+        when(productService.searchWithRating(any(), anyInt(), anyInt())).thenReturn(Page.empty());
+
+        mockMvc.perform(get("/api/catalog/products").param("sort", sort))
+                .andExpect(status().isOk());
+    }
+
+    static Stream<String[]> invalidSearchParams() {
+        return Stream.of(
+                new String[] {"sort", "bogus"},
+                new String[] {"sort", "price,asc"},
+                new String[] {"minRating", "6"},
+                new String[] {"minRating", "-1"},
+                new String[] {"minPrice", "-5"},
+                new String[] {"minPrice", "abc"},
+                new String[] {"maxPrice", "abc"},
+                new String[] {"page", "-1"},
+                new String[] {"size", "0"},
+                new String[] {"size", "101"});
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidSearchParams")
+    void search_withInvalidParam_returns400(String name, String value) throws Exception {
+        mockMvc.perform(get("/api/catalog/products").param(name, value))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(productService);
+    }
+
+    @Test
+    void search_withMinPriceAboveMaxPrice_returns400() throws Exception {
+        mockMvc.perform(get("/api/catalog/products").param("minPrice", "50").param("maxPrice", "10"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(productService);
     }
 
     @Test

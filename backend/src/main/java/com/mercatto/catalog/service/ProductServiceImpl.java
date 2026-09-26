@@ -2,24 +2,29 @@ package com.mercatto.catalog.service;
 
 import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.repository.ProductRepository;
-import com.mercatto.reviews.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
+import static com.mercatto.catalog.repository.ProductSpecifications.categoryEquals;
+import static com.mercatto.catalog.repository.ProductSpecifications.nameContains;
+import static com.mercatto.catalog.repository.ProductSpecifications.priceAtLeast;
+import static com.mercatto.catalog.repository.ProductSpecifications.priceAtMost;
+import static com.mercatto.catalog.repository.ProductSpecifications.ratingAtLeast;
+
 /**
- * Catalog calls Reviews synchronously through {@link ReviewService} (its public API) to resolve
- * each product's aggregate rating at read time, mirroring how {@code CartServiceImpl} resolves
- * product name/price through Catalog's own public API. This is a read-only, never-mutating call,
- * so it is safe inside this module's own transactions.
+ * Product ratings are read from the product's own denormalized columns (kept in sync with the
+ * Reviews module by {@link ReviewRatingSyncListener} and {@link ProductRatingBackfill}), not
+ * resolved from Reviews at read time, so search can filter and sort by rating in SQL.
  */
 @Service
 @RequiredArgsConstructor
@@ -30,12 +35,6 @@ class ProductServiceImpl implements ProductService {
     private static final int DEFAULT_WARRANTY_MONTHS = 12;
 
     private final ProductRepository productRepository;
-    private final ReviewService reviewService;
-
-    @Override
-    public Page<Product> search(String query, String category, Pageable pageable) {
-        return productRepository.search(query, category, pageable);
-    }
 
     @Override
     public Optional<ProductSummary> findById(Long id) {
@@ -117,18 +116,20 @@ class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Page<ProductView> searchWithRating(String query, String category, Pageable pageable) {
-        Page<Product> page = productRepository.search(query, category, pageable);
-        List<Long> productIds = page.getContent().stream().map(Product::getId).toList();
-        Map<Long, ReviewService.RatingAggregate> aggregates = reviewService.getAggregates(productIds);
-        return page.map(product -> toView(product,
-                aggregates.getOrDefault(product.getId(), ReviewService.RatingAggregate.empty(product.getId()))));
+    public Page<ProductView> searchWithRating(ProductSearchCriteria criteria, int page, int size) {
+        Specification<Product> spec = Specification.allOf(
+                nameContains(criteria.query()),
+                categoryEquals(criteria.category()),
+                priceAtLeast(criteria.minPrice()),
+                priceAtMost(criteria.maxPrice()),
+                ratingAtLeast(criteria.minRating()));
+        return productRepository.findAll(spec, PageRequest.of(page, size, criteria.sort().toSort()))
+                .map(this::toView);
     }
 
     @Override
     public Optional<ProductView> findByIdWithRating(Long id) {
-        return productRepository.findById(id)
-                .map(product -> toView(product, reviewService.getAggregate(id)));
+        return productRepository.findById(id).map(this::toView);
     }
 
     private ProductSummary toSummary(Product product) {
@@ -148,7 +149,7 @@ class ProductServiceImpl implements ProductService {
                 product.getCreatedAt());
     }
 
-    private ProductView toView(Product product, ReviewService.RatingAggregate aggregate) {
+    private ProductView toView(Product product) {
         return new ProductView(
                 product.getId(),
                 product.getName(),
@@ -163,7 +164,7 @@ class ProductServiceImpl implements ProductService {
                 product.getListPrice(),
                 product.getSellerId(),
                 product.getCreatedAt(),
-                aggregate.averageRating(),
-                aggregate.reviewCount());
+                product.getAverageRating() != null ? product.getAverageRating() : 0.0,
+                product.getReviewCount() != null ? product.getReviewCount() : 0L);
     }
 }

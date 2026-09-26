@@ -67,7 +67,7 @@ export default function Cart() {
                   {product && (
                     <>
                       <div className="text-[16.5px] text-accent-700">{deriveStockLabel(product)}</div>
-                      <div className="text-[16px] text-paper-700">{deriveDeliveryLabel(product)}</div>
+                      <div className="text-[16px] text-paper-700">{deriveDeliveryLabel()}</div>
                     </>
                   )}
                   <div className="mt-2 flex flex-wrap items-center gap-3">
