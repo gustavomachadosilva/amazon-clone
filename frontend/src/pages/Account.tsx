@@ -1,6 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react'
 import { Link } from 'react-router-dom'
-import { ListChecks, Package, ShieldCheck, Store, type LucideProps } from 'lucide-react'
+import { Package, ShieldCheck, Store, type LucideProps } from 'lucide-react'
+import AccountListsSection from '../components/account/AccountListsSection'
 import { Blueprint, Button } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { useSignOut } from '../hooks/useSignOut'
@@ -18,7 +19,6 @@ interface Shortcut {
 
 const SHORTCUTS: Shortcut[] = [
   { title: 'Your Orders', description: 'Track, return or buy things again', icon: Package, to: '/orders' },
-  { title: 'Your Lists', description: 'View and manage your wish lists', icon: ListChecks, to: '/lists' },
   { title: 'Login & security', description: 'Edit name, email and password', icon: ShieldCheck, to: '/account/security' },
   { title: 'Seller Central', description: 'Manage your products, orders and metrics', icon: Store, to: '/seller', onlyFor: 'SELLER' },
 ]
@@ -102,7 +102,7 @@ interface SectionShellProps {
   to: string
 }
 
-// Structural shell for the main-column sections; their real content lands in #211 / #212.
+// Structural shell for the account-information section; its real content lands in #211.
 function SectionShell({ id, title, description, linkLabel, to }: SectionShellProps) {
   return (
     <Blueprint as="section" aria-labelledby={id} className="flex flex-col bg-card p-4 md:p-6">
@@ -181,19 +181,13 @@ export default function Account() {
             linkLabel="Edit account details"
             to="/account/security"
           />
-          <SectionShell
-            id="lists-heading"
-            title="Your Lists"
-            description="Keep track of things you want to buy later."
-            linkLabel="Open your lists"
-            to="/lists"
-          />
+          <AccountListsSection />
 
           <section aria-labelledby="shortcuts-heading">
             <h2 id="shortcuts-heading" className="card-title mb-3">
               Shortcuts
             </h2>
-            {/* auto-fit: every role fills the row (3 or 4 columns on desktop, 1 on a phone) — no hole. */}
+            {/* auto-fit: every role fills the row (2 or 3 columns on desktop, 1 on a phone) — no hole. */}
             <ul
               aria-label="Account shortcuts"
               className="grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-4"
