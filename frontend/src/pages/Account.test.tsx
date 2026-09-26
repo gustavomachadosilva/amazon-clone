@@ -19,26 +19,69 @@ vi.mock('../services/api', async (importOriginal) => {
     catalogApi: {
       ...actual.catalogApi,
       getCategories: vi.fn(),
+      // List thumbnails (and the Lists page) resolve products by id.
+      getById: vi.fn(),
     },
     cartApi: {
       ...actual.cartApi,
       get: vi.fn(),
     },
+    // ListsProvider fetches the signed-in user's lists; the Your Lists section reads them.
+    listsApi: {
+      ...actual.listsApi,
+      listMine: vi.fn(),
+      create: vi.fn(),
+    },
   }
 })
 
 // Imported after the mock so they pick up the mocked module.
-import { ApiRequestError, cartApi, catalogApi, usersApi, type UserProfile } from '../services/api'
+import {
+  ApiRequestError,
+  cartApi,
+  catalogApi,
+  listsApi,
+  usersApi,
+  type Product,
+  type UserProfile,
+  type WishListView,
+} from '../services/api'
 import { AUTH_STORAGE_KEY } from '../services/auth-token'
 import RequireAuth from '../components/auth/RequireAuth'
 import Header from '../components/layout/Header'
+import { ListsProvider } from '../context/ListsContext'
 import type { UserRole } from '../types/domain'
 import Account from './Account'
+import Lists from './Lists'
 import SignIn from './SignIn'
 
 const mockedUsersApi = vi.mocked(usersApi)
 const mockedCartApi = vi.mocked(cartApi)
+const mockedListsApi = vi.mocked(listsApi)
 const mockedCatalogApi = vi.mocked(catalogApi)
+
+function productFor(id: number): Product {
+  return {
+    id,
+    name: `Product ${id}`,
+    description: '',
+    price: 10,
+    stockQuantity: 5,
+    category: 'Books',
+    sellerId: 2,
+    imageUrl: `https://img.example/${id}.png`,
+    brand: null,
+    warrantyMonths: null,
+    modelNumber: null,
+    listPrice: null,
+    averageRating: 0,
+    reviewCount: 0,
+  }
+}
+
+function listFor(id: number, name: string, productIds: number[]): WishListView {
+  return { id, buyerId: 1, name, productIds, createdAt: '2026-09-01T12:00:00Z' }
+}
 
 function profileFor(role: UserRole): UserProfile {
   return {
@@ -79,7 +122,7 @@ function LocationProbe() {
 // /account/security redirect mirrors App.tsx.
 function renderAccount(route = '/account') {
   return renderWithProviders(
-    <>
+    <ListsProvider>
       <Header />
       <Routes>
         <Route
@@ -93,9 +136,10 @@ function renderAccount(route = '/account') {
         <Route path="/account/security" element={<Navigate to="/account#account-info" replace />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/" element={<div>Home stub</div>} />
+        <Route path="/lists" element={<Lists />} />
       </Routes>
       <LocationProbe />
-    </>,
+    </ListsProvider>,
     { route },
   )
 }
@@ -130,6 +174,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockedCatalogApi.getCategories.mockResolvedValue([])
   mockedCartApi.get.mockResolvedValue({ userId: 1, items: [], savedForLater: [], itemCount: 0, total: 0 })
+  mockedListsApi.listMine.mockResolvedValue([])
+  mockedCatalogApi.getById.mockImplementation(async (id: number) => productFor(id))
   // jsdom has no layout, so it doesn't implement scrollIntoView.
   Element.prototype.scrollIntoView = vi.fn()
 })
@@ -198,14 +244,14 @@ describe('Account page', () => {
     await renderLoadedAccount()
 
     const shortcuts = screen.getByRole('list', { name: 'Account shortcuts' })
-    expect(within(shortcuts).getAllByRole('listitem')).toHaveLength(2)
+    expect(within(shortcuts).getAllByRole('listitem')).toHaveLength(1)
     expect(within(shortcuts).getByRole('link', { name: /Your Orders/ })).toHaveAttribute('href', '/orders')
-    expect(within(shortcuts).getByRole('link', { name: /Your Lists/ })).toHaveAttribute('href', '/lists')
+    // Lists have their own section now, so there's no generic "Your Lists" shortcut.
+    expect(within(shortcuts).queryByText('Your Lists')).not.toBeInTheDocument()
     // Name, email and password are edited on the page itself now.
     expect(within(shortcuts).queryByText('Login & security')).not.toBeInTheDocument()
     expect(within(shortcuts).queryByText('Seller Central')).not.toBeInTheDocument()
     expect(within(shortcuts).getByRole('heading', { level: 3, name: 'Your Orders' })).toBeInTheDocument()
-    expect(within(shortcuts).getByRole('heading', { level: 3, name: 'Your Lists' })).toBeInTheDocument()
   })
 
   it('shows the Seller badge and Seller Central shortcut to sellers', async () => {
@@ -216,7 +262,7 @@ describe('Account page', () => {
 
     expect(await profileCard().findByText('Seller')).toBeInTheDocument()
     const shortcuts = screen.getByRole('list', { name: 'Account shortcuts' })
-    expect(within(shortcuts).getAllByRole('listitem')).toHaveLength(3)
+    expect(within(shortcuts).getAllByRole('listitem')).toHaveLength(2)
     expect(within(shortcuts).queryByText('Login & security')).not.toBeInTheDocument()
     expect(within(shortcuts).getByRole('link', { name: /Seller Central/ })).toHaveAttribute('href', '/seller')
     expect(within(shortcuts).getByRole('heading', { level: 3, name: 'Seller Central' })).toBeInTheDocument()
@@ -232,7 +278,6 @@ describe('Account page', () => {
     expect(accountInfo().getByText('buyer@example.com')).toBeInTheDocument()
     expect(accountInfo().getByRole('button', { name: 'Edit name and email' })).toBeInTheDocument()
     expect(accountInfo().getByRole('button', { name: 'Change password' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open your lists' })).toHaveAttribute('href', '/lists')
   })
 
   it('signs out, goes home and clears the stored session', async () => {
@@ -387,5 +432,131 @@ describe('Account page', () => {
       const section = screen.getByRole('region', { name: 'Your account information' })
       expect(vi.mocked(Element.prototype.scrollIntoView).mock.contexts).toContain(section)
     })
+  })
+})
+
+describe('Account page — Your Lists section', () => {
+  function renderSignedIn() {
+    seedAuth('BUYER')
+    mockedUsersApi.me.mockResolvedValue(profileFor('BUYER'))
+    renderAccount()
+    return screen.getByRole('region', { name: 'Your Lists' })
+  }
+
+  it('shows a loading state inside the section while lists load', async () => {
+    let resolveLists: (lists: WishListView[]) => void = () => {}
+    mockedListsApi.listMine.mockReturnValue(new Promise((resolve) => (resolveLists = resolve)))
+
+    const section = renderSignedIn()
+
+    expect(within(section).getByRole('status')).toHaveTextContent('Loading your lists')
+    // No empty state flashes while the first fetch is still in flight.
+    expect(within(section).queryByText(/haven't created any lists/)).not.toBeInTheDocument()
+
+    resolveLists([listFor(1, 'Wishlist', [])])
+    expect(await within(section).findByRole('link', { name: 'Wishlist, 0 items' })).toBeInTheDocument()
+    expect(within(section).queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('shows up to four lists with name, item count, thumbnails and a link to each', async () => {
+    mockedListsApi.listMine.mockResolvedValue([
+      listFor(5, 'Birthday ideas', [1, 2, 3, 4]),
+      listFor(4, 'Books', [2]),
+      listFor(3, 'Empty one', []),
+      listFor(2, 'Kitchen', [5, 6]),
+      listFor(1, 'Oldest list', [7]),
+    ])
+
+    const section = renderSignedIn()
+    const grid = await within(section).findByRole('list', { name: 'Your lists' })
+
+    expect(within(grid).getAllByRole('listitem')).toHaveLength(4)
+    expect(within(section).queryByText('Oldest list')).not.toBeInTheDocument()
+
+    const birthday = within(section).getByRole('link', { name: 'Birthday ideas, 4 items' })
+    expect(birthday).toHaveAttribute('href', '/lists?list=5')
+    expect(within(birthday).getByRole('heading', { level: 3, name: 'Birthday ideas' })).toBeInTheDocument()
+    expect(within(birthday).getByText('4 items')).toBeInTheDocument()
+    // At most three thumbnails, from the first products of the list.
+    await waitFor(() => expect(within(birthday).getAllByRole('img')).toHaveLength(3))
+    expect(within(birthday).getByAltText('Product 1')).toHaveAttribute('src', 'https://img.example/1.png')
+    expect(within(birthday).queryByAltText('Product 4')).not.toBeInTheDocument()
+
+    const books = within(section).getByRole('link', { name: 'Books, 1 item' })
+    expect(books).toHaveAttribute('href', '/lists?list=4')
+    expect(within(books).getByText('1 item')).toBeInTheDocument()
+
+    const empty = within(section).getByRole('link', { name: 'Empty one, 0 items' })
+    expect(within(empty).getByText('No items yet')).toBeInTheDocument()
+
+    expect(within(section).getByRole('link', { name: 'Kitchen, 2 items' })).toHaveAttribute('href', '/lists?list=2')
+    expect(within(section).getByRole('link', { name: 'See all lists' })).toHaveAttribute('href', '/lists')
+
+    // One batched fetch per distinct thumbnail product (product 2 is in two lists; 7 isn't shown).
+    expect(mockedCatalogApi.getById).toHaveBeenCalledTimes(5)
+  })
+
+  it('opens the Lists page with the clicked list selected', async () => {
+    mockedListsApi.listMine.mockResolvedValue([listFor(2, 'Newest', [1]), listFor(1, 'Gifts', [3])])
+
+    const section = renderSignedIn()
+    fireEvent.click(await within(section).findByRole('link', { name: 'Gifts, 1 item' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Gifts' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Gifts/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /Newest/ })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('lets a user with no lists create one from the empty state', async () => {
+    mockedListsApi.create.mockResolvedValue(listFor(9, 'Birthday ideas', []))
+
+    const section = renderSignedIn()
+    expect(await within(section).findByText("You haven't created any lists yet.")).toBeInTheDocument()
+    expect(within(section).queryByRole('link', { name: 'See all lists' })).not.toBeInTheDocument()
+
+    const input = within(section).getByRole('textbox', { name: 'New list name' })
+    const submit = within(section).getByRole('button', { name: 'Create list' })
+
+    fireEvent.change(input, { target: { value: '   ' } })
+    fireEvent.click(submit)
+    expect(mockedListsApi.create).not.toHaveBeenCalled()
+
+    fireEvent.change(input, { target: { value: '  Birthday ideas  ' } })
+    fireEvent.click(submit)
+
+    expect(await within(section).findByRole('link', { name: 'Birthday ideas, 0 items' })).toHaveAttribute(
+      'href',
+      '/lists?list=9',
+    )
+    expect(mockedListsApi.create).toHaveBeenCalledWith('Birthday ideas')
+    expect(within(section).queryByText("You haven't created any lists yet.")).not.toBeInTheDocument()
+  })
+
+  it('shows an inline error when creating the first list fails', async () => {
+    mockedListsApi.create.mockRejectedValue(new Error('boom'))
+
+    const section = renderSignedIn()
+    fireEvent.change(await within(section).findByRole('textbox', { name: 'New list name' }), {
+      target: { value: 'Gifts' },
+    })
+    fireEvent.click(within(section).getByRole('button', { name: 'Create list' }))
+
+    expect(await within(section).findByRole('alert')).toHaveTextContent('Could not create the list. Please try again.')
+    expect(within(section).getByRole('button', { name: 'Create list' })).toBeEnabled()
+  })
+
+  it('shows an error with a retry when the lists fail to load', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockedListsApi.listMine.mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce([listFor(1, 'Gifts', [])])
+
+    const section = renderSignedIn()
+
+    expect(await within(section).findByRole('alert')).toHaveTextContent("We couldn't load your lists.")
+    fireEvent.click(within(section).getByRole('button', { name: 'Try again' }))
+
+    expect(await within(section).findByRole('link', { name: 'Gifts, 0 items' })).toBeInTheDocument()
+    expect(mockedListsApi.listMine).toHaveBeenCalledTimes(2)
+    expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
+    consoleError.mockRestore()
   })
 })

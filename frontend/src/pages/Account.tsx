@@ -1,7 +1,8 @@
 import { useEffect, useState, type ComponentType } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ListChecks, Package, Store, type LucideProps } from 'lucide-react'
+import { Package, Store, type LucideProps } from 'lucide-react'
 import AccountInfoSection from '../components/account/AccountInfoSection'
+import AccountListsSection from '../components/account/AccountListsSection'
 import { Blueprint, Button } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { useSignOut } from '../hooks/useSignOut'
@@ -19,7 +20,6 @@ interface Shortcut {
 
 const SHORTCUTS: Shortcut[] = [
   { title: 'Your Orders', description: 'Track, return or buy things again', icon: Package, to: '/orders' },
-  { title: 'Your Lists', description: 'View and manage your wish lists', icon: ListChecks, to: '/lists' },
   { title: 'Seller Central', description: 'Manage your products, orders and metrics', icon: Store, to: '/seller', onlyFor: 'SELLER' },
 ]
 
@@ -90,29 +90,6 @@ function ProfileCard({ status, profile, onRetry, onSignOut }: ProfileCardProps) 
           Sign out
         </Button>
       </div>
-    </Blueprint>
-  )
-}
-
-interface SectionShellProps {
-  id: string
-  title: string
-  description: string
-  linkLabel: string
-  to: string
-}
-
-// Structural shell for the main-column sections; their real content lands in #211 / #212.
-function SectionShell({ id, title, description, linkLabel, to }: SectionShellProps) {
-  return (
-    <Blueprint as="section" aria-labelledby={id} className="flex flex-col bg-card p-4 md:p-6">
-      <h2 id={id} className="card-title mb-2">
-        {title}
-      </h2>
-      <p className="text-[16px] text-paper-700">{description}</p>
-      <Link to={to} className="btn btn-secondary mt-4 self-start">
-        {linkLabel}
-      </Link>
     </Blueprint>
   )
 }
@@ -192,19 +169,13 @@ export default function Account() {
               }}
             />
           )}
-          <SectionShell
-            id="lists-heading"
-            title="Your Lists"
-            description="Keep track of things you want to buy later."
-            linkLabel="Open your lists"
-            to="/lists"
-          />
+          <AccountListsSection />
 
           <section aria-labelledby="shortcuts-heading">
             <h2 id="shortcuts-heading" className="card-title mb-3">
               Shortcuts
             </h2>
-            {/* auto-fit: every role fills the row (3 or 4 columns on desktop, 1 on a phone) — no hole. */}
+            {/* auto-fit: every role fills the row (1 or 2 columns on desktop, 1 on a phone) — no hole. */}
             <ul
               aria-label="Account shortcuts"
               className="grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-4"
