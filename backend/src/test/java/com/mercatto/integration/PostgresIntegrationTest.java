@@ -169,11 +169,11 @@ abstract class PostgresIntegrationTest {
         return new BigDecimal(number.toString());
     }
 
-    private static <T> HttpEntity<T> json(T body, String bearerToken) {
+    protected static <T> HttpEntity<T> json(T body, String bearerToken) {
         return new HttpEntity<>(body, jsonHeaders(bearerToken));
     }
 
-    private static HttpHeaders jsonHeaders(String bearerToken) {
+    protected static HttpHeaders jsonHeaders(String bearerToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
