@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Blueprint, Button, Input, Placeholder, Select, StarRating, Table, TableBody, TableCell, TableRow } from '../components/ui'
 import ProductGridCard from '../components/ProductGridCard'
+import ProductMainImage from '../components/ProductMainImage'
 import ReviewMediaThumbnails from '../components/reviews/ReviewMediaThumbnails'
 import ReviewsWithImages from '../components/reviews/ReviewsWithImages'
 import { useAuth } from '../context/AuthContext'
@@ -207,7 +208,8 @@ export default function Product() {
 
       <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,420px)_1fr] md:gap-7 lg:grid-cols-[420px_1fr_300px]">
         <Blueprint className="p-3">
-          <Placeholder label="Main photo" aspect="1/1" src={product.imageUrl} priority />
+          {/* Keyed so switching products closes an open viewer. */}
+          <ProductMainImage key={product.id} name={product.name} imageUrl={product.imageUrl} />
           <div className="mt-2 grid grid-cols-4 gap-2">
             {['Angle 2', 'Angle 3', 'Detail', 'In use'].map((label) => (
               <Placeholder key={label} label={label} aspect="1/1" />
