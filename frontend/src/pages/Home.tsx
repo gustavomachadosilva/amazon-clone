@@ -64,7 +64,7 @@ export default function Home() {
             </Button>
           </form>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-            <Button variant="primary" onClick={() => navigate('/search?sort=low')}>
+            <Button variant="primary" onClick={() => navigate('/search?sort=price_asc')}>
               See today&rsquo;s deals
             </Button>
             <Button variant="secondary" onClick={() => navigate('/search')}>

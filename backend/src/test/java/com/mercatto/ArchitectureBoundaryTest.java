@@ -26,6 +26,15 @@ public class ArchitectureBoundaryTest {
     }
 
     @Test
+    void reviews_should_not_depend_on_catalog() {
+        noClasses().that().resideInAPackage("..reviews..")
+            .should().dependOnClassesThat().resideInAPackage("..catalog..")
+            .as("catalog depends on reviews (ratings); reviews reaches catalog only by publishing "
+                + "ReviewCreatedEvent, never by calling it")
+            .check(classes);
+    }
+
+    @Test
     void modules_should_be_free_of_cycles() {
         SlicesRuleDefinition.slices().matching("com.mercatto.(*)..")
             .should().beFreeOfCycles()

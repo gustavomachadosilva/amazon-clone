@@ -27,10 +27,13 @@ Two channels only, chosen deliberately per use case:
 2. **Spring `ApplicationEvent`s**, for side effects that belong to another module's data and don't
    need to block the triggering request (e.g. decrementing stock after an order is paid). The
    publishing module defines the event as part of its public contract
-   (`orders.event.OrderPlacedEvent`); listeners live in the module that owns the reaction
-   (`catalog.event.OrderPlacedEventListener`) and run via `@TransactionalEventListener(phase =
-   AFTER_COMMIT)`, so each module's transaction commits independently — a failure decrementing
-   stock never rolls back the order.
+   (`orders.event.OrderPlacedEvent`); listeners run via `@TransactionalEventListener(phase =
+   AFTER_COMMIT)` (e.g. `orders.event.OrderPlacedEventListener`, which decrements stock through
+   `catalog.service.ProductService`), so each module's transaction commits independently — a
+   failure decrementing stock never rolls back the order. Events also break what would otherwise
+   be a dependency cycle: Catalog reads ratings from Reviews, so Reviews never calls Catalog —
+   it publishes `reviews.event.ReviewCreatedEvent`, and `catalog.service.ReviewRatingSyncListener`
+   refreshes the product's denormalized rating (used to filter/sort search results).
 
 This is also why every cross-module reference in an entity is a bare foreign-key id
 (`Product.sellerId`, `Order.buyerId`, `OrderItem.productId`) and never a JPA `@ManyToOne` — no

@@ -53,7 +53,7 @@ export default function Product() {
 
   useEffect(() => {
     if (!product) return
-    catalogApi.search(undefined, product.category).then((page) => {
+    catalogApi.search({ category: product.category }).then((page) => {
       const others = page.content.filter((p) => p.id !== product.id)
       setRelated(others)
       setBundleChecked(new Set([product.id, ...others.slice(0, 2).map((p) => p.id)]))
@@ -291,7 +291,7 @@ export default function Product() {
 
         <Blueprint as="aside" className="flex flex-col gap-2.5 p-4 md:col-span-2 lg:sticky lg:top-4 lg:col-span-1 lg:p-[18px]">
           <div className="readout text-[38px] font-semibold">{usd(product.price)}</div>
-          <div className="text-[16.5px]">{deriveDeliveryLabel(product)}</div>
+          <div className="text-[16.5px]">{deriveDeliveryLabel()}</div>
           <div className="text-[16px] text-paper-600">Ships from and sold by {STORE_NAME}</div>
           <div className="h text-[22px] text-accent-700">{deriveStockLabel(product)}</div>
           <div className="flex items-center gap-2">

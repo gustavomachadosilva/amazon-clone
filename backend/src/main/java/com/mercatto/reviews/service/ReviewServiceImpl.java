@@ -3,10 +3,12 @@ package com.mercatto.reviews.service;
 import com.mercatto.reviews.domain.Review;
 import com.mercatto.reviews.domain.ReviewMedia;
 import com.mercatto.reviews.domain.ReviewMediaType;
+import com.mercatto.reviews.event.ReviewCreatedEvent;
 import com.mercatto.reviews.repository.ReviewMediaRepository;
 import com.mercatto.reviews.repository.ReviewRepository;
 import com.mercatto.users.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -32,6 +34,8 @@ import java.util.Map;
  * Catalog already depends on Reviews ({@code ProductServiceImpl} calls {@code ReviewService} for
  * aggregate ratings), so a reverse Reviews -> Catalog call here would create a module cycle,
  * which {@code ArchitectureBoundaryTest.modules_should_be_free_of_cycles} correctly rejects.
+ * For the same reason, Catalog's denormalized rating is kept in sync through a
+ * {@link ReviewCreatedEvent} it listens to, never by a call from here.
  *
  * <p>Review photos/videos: every file is validated (count, magic-byte type, size) before
  * anything touches the disk; files are then written through {@link ReviewMediaStorage} before
@@ -52,6 +56,7 @@ class ReviewServiceImpl implements ReviewService {
     private final ReviewMediaRepository reviewMediaRepository;
     private final ReviewMediaStorage reviewMediaStorage;
     private final UserService userService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -93,6 +98,7 @@ class ReviewServiceImpl implements ReviewService {
                     .text(text)
                     .helpfulCount(0)
                     .build());
+            eventPublisher.publishEvent(new ReviewCreatedEvent(saved.getId(), productId, stars));
 
             List<ReviewMedia> rows = new ArrayList<>();
             for (int i = 0; i < uploads.size(); i++) {

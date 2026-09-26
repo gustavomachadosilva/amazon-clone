@@ -134,11 +134,30 @@ export interface ProductInput {
   listPrice?: number
 }
 
+/** Orderings accepted by the backend's `?sort=` on the product search. */
+export type ProductSort = 'relevance' | 'price_asc' | 'price_desc' | 'rating'
+
+/** Product search filters, all applied server-side so totals/pagination match the results. */
+export interface ProductSearchParams {
+  query?: string
+  category?: string
+  minPrice?: number
+  maxPrice?: number
+  minRating?: number
+  sort?: ProductSort
+  page?: number
+  size?: number
+}
+
 export const catalogApi = {
-  search: (query?: string, category?: string, page: number = 0, size: number = 10) => {
+  search: ({ query, category, minPrice, maxPrice, minRating, sort, page = 0, size = 10 }: ProductSearchParams = {}) => {
     const params = new URLSearchParams()
     if (query) params.set('query', query)
     if (category) params.set('category', category)
+    if (minPrice !== undefined) params.set('minPrice', minPrice.toString())
+    if (maxPrice !== undefined) params.set('maxPrice', maxPrice.toString())
+    if (minRating !== undefined) params.set('minRating', minRating.toString())
+    if (sort && sort !== 'relevance') params.set('sort', sort)
     params.set('page', page.toString())
     params.set('size', size.toString())
     return api.get<Page<Product>>(`/api/catalog/products?${params.toString()}`)

@@ -3,10 +3,10 @@ import { getStandardDeliveryLabel } from './deliveryDate'
 
 /**
  * brand, listPrice/discount, warranty and model number are now real Product fields (see
- * catalog.Product) — this file no longer derives them. What remains below is fabricated on
- * purpose: fast-delivery/delivery-estimate has no real source in this project (there is no
- * logistics/shipping module), so it stays a deterministic, clearly-labeled placeholder rather
- * than a random value, to avoid pretending there is real delivery data behind it.
+ * catalog.Product) — this file no longer derives them. The delivery estimate below has no
+ * per-product source in this project (there is no logistics/shipping module), so every product
+ * shows the same standard-delivery estimate; the old fake "Arrives tomorrow" badge (and the
+ * search filter built on it) was removed rather than pretending there is real data behind it.
  */
 
 export function deriveStockLabel(product: Product): string {
@@ -15,10 +15,6 @@ export function deriveStockLabel(product: Product): string {
   return 'In Stock'
 }
 
-export function deriveFastDelivery(product: Product): boolean {
-  return product.id % 2 === 0
-}
-
-export function deriveDeliveryLabel(product: Product): string {
-  return deriveFastDelivery(product) ? 'Arrives tomorrow' : `Free delivery ${getStandardDeliveryLabel()}`
+export function deriveDeliveryLabel(): string {
+  return `Free delivery ${getStandardDeliveryLabel()}`
 }

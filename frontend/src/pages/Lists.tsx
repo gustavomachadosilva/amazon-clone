@@ -196,7 +196,7 @@ export default function Lists() {
                           <span className="text-paper-600">({product.reviewCount})</span>
                         </div>
                         <div className="text-xs text-paper-700">
-                          {deriveDeliveryLabel(product)} · {deriveStockLabel(product)}
+                          {deriveDeliveryLabel()} · {deriveStockLabel(product)}
                         </div>
                       </div>
                       <div className="col-span-2 sm:col-span-1">
