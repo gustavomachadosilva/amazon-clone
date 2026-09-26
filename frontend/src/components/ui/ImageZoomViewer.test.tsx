@@ -16,6 +16,17 @@ function image() {
   return screen.getByAltText('Wireless Headphones')
 }
 
+// The hidden <img> that downloads the full-size version, if any.
+function preloader() {
+  return document.querySelector('img[hidden]')
+}
+
+// jsdom has no layout: fake the sizes measure() reads.
+function setSize(el: HTMLElement, kind: 'client' | 'offset', w: number, h: number) {
+  Object.defineProperty(el, `${kind}Width`, { configurable: true, value: w })
+  Object.defineProperty(el, `${kind}Height`, { configurable: true, value: h })
+}
+
 describe('ImageZoomViewer', () => {
   it('opens as a modal dialog at 100% with Close focused', () => {
     const { dialog } = renderViewer()
@@ -124,5 +135,80 @@ describe('ImageZoomViewer', () => {
     fireEvent.pointerDown(image())
     fireEvent.click(dialog)
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('renders only the given image when there is no full-size version', () => {
+    renderViewer()
+    expect(document.querySelectorAll('img')).toHaveLength(1)
+    expect(preloader()).toBeNull()
+  })
+
+  it('re-clamps the pan when a new image loads at a different size', () => {
+    renderViewer()
+    const viewport = image().parentElement as HTMLElement
+    setSize(viewport, 'client', 400, 400)
+    setSize(image(), 'offset', 400, 400)
+    // 250% around the bottom-right corner: 1000px image, pan pinned at its -300px limit.
+    fireEvent.click(image(), { clientX: 200, clientY: 200 })
+    expect(image().style.transform).toContain('translate3d(-300px, -300px, 0)')
+    // Laid out at 200px, the image only overflows by 50px on each side.
+    setSize(image(), 'offset', 200, 200)
+    fireEvent.load(image())
+    expect(image().style.transform).toContain('translate3d(-50px, -50px, 0)')
+    expect(readout()).toHaveTextContent('250%')
+  })
+})
+
+describe('ImageZoomViewer with a full-size version', () => {
+  const THUMB = '/img/headphones._AC_UL320_.jpg'
+  const FULL = '/img/headphones.jpg'
+
+  function renderWithFull(src = THUMB, fullSrc = FULL) {
+    return render(
+      <ImageZoomViewer src={src} fullSrc={fullSrc} alt="Wireless Headphones" label="Photo of Wireless Headphones" onClose={vi.fn()} />,
+    )
+  }
+
+  it('shows the thumbnail while the full image downloads in a hidden preloader', () => {
+    renderWithFull()
+    expect(image()).toHaveAttribute('src', THUMB)
+    expect(preloader()).toHaveAttribute('src', FULL)
+    expect(preloader()).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('swaps to the full image once it has loaded', () => {
+    renderWithFull()
+    fireEvent.load(preloader() as HTMLElement)
+    expect(image()).toHaveAttribute('src', FULL)
+    expect(preloader()).toBeNull()
+  })
+
+  it('keeps the thumbnail when the full image fails', () => {
+    renderWithFull()
+    fireEvent.error(preloader() as HTMLElement)
+    expect(image()).toHaveAttribute('src', THUMB)
+    expect(preloader()).toBeNull()
+  })
+
+  it('does not preload when the full image is the same URL', () => {
+    renderWithFull(FULL, FULL)
+    expect(image()).toHaveAttribute('src', FULL)
+    expect(preloader()).toBeNull()
+  })
+
+  it('starts over with the thumbnail when the images change', () => {
+    const { rerender } = renderWithFull()
+    fireEvent.load(preloader() as HTMLElement)
+    rerender(
+      <ImageZoomViewer
+        src="/img/speaker._AC_UL320_.jpg"
+        fullSrc="/img/speaker.jpg"
+        alt="Wireless Headphones"
+        label="Photo of Wireless Headphones"
+        onClose={vi.fn()}
+      />,
+    )
+    expect(image()).toHaveAttribute('src', '/img/speaker._AC_UL320_.jpg')
+    expect(preloader()).toHaveAttribute('src', '/img/speaker.jpg')
   })
 })

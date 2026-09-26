@@ -19,6 +19,8 @@ import {
 
 interface ImageZoomViewerProps {
   src: string
+  // Higher-resolution version of `src`, swapped in once it has loaded; `src` stays if it fails.
+  fullSrc?: string
   alt: string
   // Accessible name of the dialog, e.g. "Photo of Wireless Headphones".
   label: string
@@ -60,12 +62,26 @@ function relativeToCenter(clientX: number, clientY: number, center: Point): Poin
   return { x: clientX - center.x, y: clientY - center.y }
 }
 
+// clampPan that keeps the same state object when nothing moves, so React can skip the render.
+function keepPanInBounds(prev: ZoomState, viewport: Size, content: Size): ZoomState {
+  const next = clampPan(prev, viewport, content)
+  return next.x === prev.x && next.y === prev.y ? prev : next
+}
+
 // Fullscreen photo viewer: click/tap toggles fit ↔ 2.5× on the clicked point, + / − / reset
-// buttons and keys, wheel and pinch zoom, drag to pan while zoomed.
-export default function ImageZoomViewer({ src, alt, label, onClose }: ImageZoomViewerProps) {
+// buttons and keys, wheel and pinch zoom, drag to pan while zoomed. With `fullSrc`, the
+// already-loaded `src` shows first and the bigger image replaces it only once fully downloaded
+// (a hidden preloader), so there's never a blank frame.
+export default function ImageZoomViewer({ src, fullSrc, alt, label, onClose }: ImageZoomViewerProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const imageRef = useRef<HTMLImageElement>(null)
   const [zoom, setZoom] = useState<ZoomState>(IDENTITY)
+  // Keyed by URL, so a new `fullSrc` starts over without a reset effect.
+  const [loadedFullSrc, setLoadedFullSrc] = useState<string | null>(null)
+  const [failedFullSrc, setFailedFullSrc] = useState<string | null>(null)
+  const wantsFull = !!fullSrc && fullSrc !== src
+  const showFull = wantsFull && loadedFullSrc === fullSrc
+  const preloadFull = wantsFull && !showFull && failedFullSrc !== fullSrc
   // True while a finger/mouse drag or pinch is in progress (no transition, grabbing cursor).
   const [gesturing, setGesturing] = useState(false)
   const pointers = useRef(new Map<number, Point>())
@@ -95,14 +111,18 @@ export default function ImageZoomViewer({ src, alt, label, onClose }: ImageZoomV
     if (!viewportEl || typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(() => {
       const { viewport, content } = measure(viewportRef.current, imageRef.current)
-      setZoom((prev) => {
-        const next = clampPan(prev, viewport, content)
-        return next.x === prev.x && next.y === prev.y ? prev : next
-      })
+      setZoom((prev) => keepPanInBounds(prev, viewport, content))
     })
     observer.observe(viewportEl)
     return () => observer.disconnect()
   }, [])
+
+  // A thumbnail renders at its natural (small) size; the full image that replaces it is laid
+  // out bigger, which changes the room to pan in: re-clamp at the current level.
+  function handleImageLoad() {
+    const { viewport, content } = measure(viewportRef.current, imageRef.current)
+    setZoom((prev) => keepPanInBounds(prev, viewport, content))
+  }
 
   function zoomAroundCenter(next: number) {
     const { viewport, content } = measure(viewportRef.current, imageRef.current)
@@ -220,14 +240,26 @@ export default function ImageZoomViewer({ src, alt, label, onClose }: ImageZoomV
       >
         <img
           ref={imageRef}
-          src={src}
+          src={showFull ? fullSrc : src}
           alt={alt}
           draggable={false}
+          onLoad={handleImageLoad}
           className={`absolute inset-0 m-auto max-h-full max-w-full object-contain will-change-transform ${
             gesturing ? '' : 'transition-transform duration-200 ease-out motion-reduce:transition-none'
           }`}
           style={{ transform: `translate3d(${zoom.x}px, ${zoom.y}px, 0) scale(${zoom.scale})` }}
         />
+        {fullSrc && preloadFull && (
+          // Downloads the full image off-screen; once it's in the cache the swap above is instant.
+          <img
+            src={fullSrc}
+            alt=""
+            aria-hidden
+            hidden
+            onLoad={() => setLoadedFullSrc(fullSrc)}
+            onError={() => setFailedFullSrc(fullSrc)}
+          />
+        )}
       </div>
 
       <div className="flex items-center gap-4">
