@@ -101,6 +101,8 @@ cd backend
 # Com Colima (ver README > Testes de integração):
 export DOCKER_HOST="unix://$HOME/.colima/default/docker.sock" \
        TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock TESTCONTAINERS_RYUK_DISABLED=true
+# O Maven precisa rodar num JDK 21 (num JDK mais novo o Lombok não processa as anotações):
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 mvn test -Dtest=SearchEvalIT
 ```
 
@@ -121,22 +123,28 @@ nas 3 execuções; latência = mediana das 3 execuções.
 
 ### Agregado
 
-| Métrica | Baseline | Após #222 | Após #220 |
-|---|---|---|---|
-| P@10 | **0,498** | 0,498 | **0,794** |
-| R@10 | **0,482** | 0,482 | **0,859** |
-| MRR@10 | **0,524** | 0,551 | **0,883** |
-| Taxa de zero-resultado (consultas com relevantes) | **0,32** (8 de 25) | 0,32 (8 de 25) | **0,00** (0 de 25) |
-| Taxa de falso positivo (consultas sem relevantes) | **0,20** (1 de 5: `_`) | 0,20 (1 de 5: `_`) | **0,00** (0 de 5) |
-| Latência p50 | 4,48 ms | 4,39 ms | 2,25 ms |
-| Latência p95 | **7,54 ms** (execuções: 7,54 / 7,40 / 7,63) | 7,48 ms (1 execução) | **9,85 ms** (execuções: 10,23 / 9,85 / 9,70) |
-| Latência max | 14,64 ms | 20,96 ms | 14,26 ms |
+| Métrica | Baseline | Após #222 | Após #220 | Após #221 |
+|---|---|---|---|---|
+| P@10 | **0,498** | 0,498 | **0,794** | **0,810** |
+| R@10 | **0,482** | 0,482 | **0,859** | **0,880** |
+| MRR@10 | **0,524** | 0,551 | **0,883** | **1,000** |
+| Taxa de zero-resultado (consultas com relevantes) | **0,32** (8 de 25) | 0,32 (8 de 25) | **0,00** (0 de 25) | **0,00** (0 de 25) |
+| Taxa de falso positivo (consultas sem relevantes) | **0,20** (1 de 5: `_`) | 0,20 (1 de 5: `_`) | **0,00** (0 de 5) | **0,00** (0 de 5) |
+| Latência p50 | 4,48 ms | 4,39 ms | 2,25 ms | 2,93 ms (#220 remedido: 2,94 ms) |
+| Latência p95 | **7,54 ms** (execuções: 7,54 / 7,40 / 7,63) | 7,48 ms (1 execução) | **9,85 ms** (execuções: 10,23 / 9,85 / 9,70) | **10,44 ms** (execuções: 10,24 / 10,88 / 10,44; #220 remedido: 11,18 ms) |
+| Latência max | 14,64 ms | 20,96 ms | 14,26 ms | 16,71 ms (#220 remedido: 21,56 ms) |
 
 "Após #222" e "Após #220" foram medidos em 29/09/2026 na mesma máquina do baseline: #222 no `dev`
 antes de #220 (commit `820d447`), #220 no branch do card. Relevância idêntica nas execuções.
 #222 só mudou o MRR: a ordem deixou de ser a física da tabela e passou a ser `id ASC`, o que tirou
 `nintendo switch` da posição 3 (RR 0,333 → 1). Ver [Card #220](#card-220-busca-em-múltiplos-campos-e-termos)
 para o que mudou e por que a latência p95 subiu.
+
+"Após #221" foi medido em 29/09/2026 na mesma máquina, no branch do card, lado a lado com o `dev`
+de #220 (commit `165392b`) remedido na mesma sessão: relevância do #220 idêntica à da coluna "Após
+#220" (MRR 0,883), latência um pouco mais alta que a registrada antes (máquina com outra carga), por
+isso a latência do #221 deve ser comparada com o "#220 remedido" entre parênteses. Relevância
+idêntica nas 3 execuções de cada lado. Ver [Card #221](#card-221-ordenação-real-por-relevância).
 
 ### Por tipo
 
@@ -161,6 +169,19 @@ Após #222 e após #220, por tipo (célula = `após #222 → após #220`; p95 da
 | category_only | 4 | 0,167 → 0,975 | 0,050 → 0,975 | 0,250 → 1,000 | 0,750 → 0,000 | – | 5,29 → 3,34 |
 | special_chars | 4 | 0,300 → 1,000 | 0,500 → 1,000 | 0,306 → 1,000 | 0,000 → 0,000 | 0,500 → 0,000 | 8,03 → 2,83 |
 | no_result | 3 | – | – | – | – | 0,000 → 0,000 | 4,89 → 10,18 |
+
+Após #221, por tipo (célula = `após #220 remedido → após #221`, medidos lado a lado na mesma sessão;
+p95 da execução mediana de cada lado):
+
+| Tipo | n | P@10 | R@10 | MRR@10 | zero-resultado | falso positivo | p95 ms |
+|---|---|---|---|---|---|---|---|
+| exact | 6 | 0,636 → 0,636 | 0,806 → 0,806 | 0,722 → **1,000** | 0,000 → 0,000 | – | 4,53 → 4,23 |
+| multi_term | 6 | 0,813 → 0,797 | 0,952 → 0,936 | 1,000 → 1,000 | 0,000 → 0,000 | – | 4,46 → 4,34 |
+| plural_singular | 4 | 0,750 → **0,875** | 0,771 → **0,929** | 0,813 → **1,000** | 0,000 → 0,000 | – | 4,65 → 4,35 |
+| typo | 3 | 0,750 → 0,750 | 0,644 → 0,644 | 0,833 → **1,000** | 0,000 → 0,000 | – | 15,13 → 14,92 |
+| category_only | 4 | 0,975 → 0,975 | 0,975 → 0,975 | 1,000 → 1,000 | 0,000 → 0,000 | – | 5,06 → 4,89 |
+| special_chars | 4 | 1,000 → 1,000 | 1,000 → 1,000 | 1,000 → 1,000 | 0,000 → 0,000 | 0,000 → 0,000 | 4,16 → 3,23 |
+| no_result | 3 | – | – | – | – | 0,000 → 0,000 | 11,25 → 9,88 |
 
 ### Por consulta
 
@@ -310,6 +331,103 @@ Scan em `products_search_vector_idx` (≈ 0,4 ms contra ≈ 10 ms do seq scan).
     ruído.
   - `samsung` e `camera` seguem com acessórios "for Samsung" / "for Canon … Camera" no topo
     (RR 0,333 e 0,5): o texto não distingue marca de compatibilidade.
+
+## Card #221: ordenação real por relevância
+
+[#221](https://github.com/gustavomachadosilva/amazon-clone/issues/221) trocou o `ts_rank` puro do
+`sort=relevance` por uma pontuação em faixas. O **casamento não mudou** (mesmo
+`catalog.product_fts_matches`, mesmo índice, mesmos resultados e `totalElements`): só a ordem.
+
+### Fórmula
+
+`catalog.product_relevance(name, brand, category, description, q_all, q_any, q_phrase)`, em
+`db/post-ddl/catalog-search.sql`, usada só no `ORDER BY` (`ProductSpecifications.orderByRelevance`):
+
+```
+relevância =
+    8 · [todos os termos na CABEÇA do nome]
+  + 4 · [algum termo na marca]                       (q_any = termos unidos por |)
+  + 2 · [todos os termos em qualquer lugar do nome]
+  + 2 · [2+ termos como frase contígua no nome]      (q_phrase = termos unidos por <->)
+  + 1 · [todos os termos na categoria]
+  + ts_rank(documento, q_all, 1|32)                  (em [0, 1): só desempata dentro da faixa)
+ORDER BY relevância DESC, id ASC
+```
+
+- Cada campo é casado com `to_tsvector('english', immutable_unaccent(campo)) @@
+  to_tsquery('english', immutable_unaccent(q))`, a mesma normalização (stemming, sem acento,
+  prefixo `:*` em termos de 3+ caracteres) do casamento de #220. `q_all`, `q_any` e `q_phrase` são
+  montados por `ProductTextQuery` (`tsQuery()`, `anyTermTsQuery()`, `phraseTsQuery()`), inclusive na
+  nova tentativa com a correção de digitação (`withReplacedTerms`).
+- Os pesos seguem a ordem cabeça do nome > marca > resto do nome > categoria > descrição. A
+  descrição não tem bônus próprio: só entra pelo `ts_rank` (peso C).
+- `ts_rank` passou a usar normalização `1|32`: `1` divide por `1 + log(tamanho do documento)`, então
+  um nome longo que repete a palavra não ganha mais por frequência; `32` leva o valor para
+  `rank / (rank + 1)`, abaixo de 1, para que ele nunca pule de faixa.
+- Sem termo full-text (sem consulta, ou só termos literais `%`/`_`) a ordem continua `id ASC`
+  (`ProductSort.RELEVANCE.toSort()`); uma consulta só de stop words pontua 0 em todos os produtos e
+  também cai em `id ASC`. Os outros `sort` não mudaram (todos terminam em `id ASC`).
+
+### Cabeça do nome
+
+`catalog.product_name_head(name)`: o nome (sem acento) até a primeira **palavra inteira**
+`for | compatible | fits | replacement | replaces | para | compativel`, sem diferenciar maiúsculas; se
+isso sobrar vazio (nome que começa com o marcador), o nome inteiro. É a heurística que separa o
+produto do acessório feito para ele: "PlayStation 5 Console" tem "playstation" na cabeça; "AC Power
+Cord Compatible Sony PS5 … Playstation 5 Playstation 4 …" só no rabo. Limitação: um nome que cita o
+alvo antes do marcador ("Camera Backpack … for Laptop") continua na faixa de cima.
+
+### Popularidade: decidido não usar
+
+Nota média, nº de reviews ou vendas **não** entram na relevância: (1) o dataset de avaliação carrega
+pedidos e reviews plantados para os cards de recomendação, então um sinal de popularidade mediria o
+dataset e não a busca; (2) nota e estoque mudam a qualquer momento (uma review, um pedido), e uma
+ordem que muda entre a página 1 e a página 2 repete ou pula produtos, justamente o problema do
+card. Quem quer popularidade usa `sort=rating`. A ordem por relevância só depende dos campos de
+texto e do `id`.
+
+### Determinismo da paginação
+
+`CatalogRelevanceIntegrationTest` cria 23 produtos numa categoria única, com faixas misturadas e
+muitos empates exatos (nomes, marcas e preços idênticos). Para `relevance`, `price_asc`,
+`price_desc` e `rating` com a consulta, e para `relevance`/padrão só com o filtro de categoria, lê
+todas as páginas com `size=5` e verifica: nenhum id repetido, o conjunto é exatamente o criado, a
+contagem é `totalElements` e a sequência é igual à de uma única página `size=100`. Uma variante
+atualiza o estoque de dois produtos (um já visto, um ainda não) entre a página 0 e a 1 (o `UPDATE`
+grava uma nova versão da linha, o que muda a ordem física da tabela) e exige o mesmo resultado.
+
+### O que mudou por consulta (após #220 → após #221)
+
+| Consulta | RR | P@10 | R@10 | O que aconteceu |
+|---|---|---|---|---|
+| `playstation` | 0,500 → **1,000** | 0,750 | 0,600 | PS5, DualSense e Mortal Kombat na frente; o cabo "…Compatible Sony PS5 … Playstation" (3× no rabo) foi para o fim. |
+| `playstaton` (typo) | 0,500 → **1,000** | 0,750 | 0,600 | Mesma lista de `playstation`: a nova tentativa corrigida usa a mesma ordem. |
+| `samsung` | 0,333 → **1,000** | 0,667 | 1,000 | Os 6 produtos SAMSUNG (cabeça + marca) nas posições 1–6; o controle "Universal for Samsung-TV-Remote" e a resistência "Heating Element for Samsung Dryer" em 7 e 8. |
+| `camera` | 0,500 → **1,000** | 0,400 | 1,000 | Câmera ZWO em 1º; flash, filmes Polaroid e case "for … Camera" desceram para o fim da página. Continuam na página a mochila "Camera Backpack" (posição 2) e dois tablets "5MP Camera" (a palavra está na cabeça do nome). |
+| `laptops` | 0,250 → **1,000** | 0,200 → **0,500** | 0,286 → **0,714** | Os 5 notebooks com "Laptop" no nome nas posições 1–5; fones "…for Laptop" e o drive "Compatible with Laptop" depois. Os 2 relevantes restantes (MacBook Pro, Surface Pro X) não têm a palavra e nunca casam. |
+| `boots` / `boot` | 1,000 | 0,900 → **1,000** | 0,900 → **1,000** | A normalização por tamanho pôs a 10ª bota à frente do organizador de sapatos. |
+| `usb c cable` | 1,000 | 0,500 | 1,000 | Sem mudança: só 2 resultados e o cabo já era o 1º. |
+| `noise cancelling headphones` | 1,000 | 0,714 | 0,714 | Métricas iguais; os 3 com a frase contígua (2 Bose, JBL) nas posições 1–3 pelo bônus de frase, e o Galaxy Buds Live subiu de 6º para 5º. Os fones com "Noise Canceling Mic" continuam na página (têm os 3 termos na cabeça). |
+| `earbuds wireless` | 1,000 | 1,000 → **0,900** | 1,000 → **0,900** | **Piora.** "Amazon Basics In Ear Wired Headphones, Earbuds with Microphone No Wireless Technology" entrou na página (posição 5): tem os dois termos na cabeça e, com a normalização por tamanho, o nome curto ganha dos fones sem fio de nome longo. Nenhum nome tem a frase na ordem invertida, então o bônus de frase não ajuda, e a negação ("No Wireless") está fora do alcance de uma ordenação lexical. `wireless earbuds` (ordem normal) continua com P@10 1,0. |
+
+Nenhuma outra consulta mudou de P@10, R@10 ou RR; nenhum RR piorou.
+
+### Latência
+
+Medida lado a lado (3 execuções de cada lado, mesma sessão): p50 2,94 → 2,93 ms, p95 11,18 → 10,44 ms
+(execuções do #221: 10,24 / 10,88 / 10,44), max 21,56 → 16,71 ms. Ou seja, sem custo mensurável: a
+pontuação só é calculada para as linhas que já casaram (no máximo ~26 no seed), e o p95 continua
+dominado pelas consultas que pagam a correção de digitação (`typo` e `no_result`, ~10–15 ms).
+
+### Ressalva: sobreajuste
+
+Os pesos e os marcadores da cabeça do nome foram escolhidos olhando para as mesmas 30 consultas que
+medem o resultado, e o MRR 1,000 é sobre 25 consultas num seed de 500 produtos. Os sinais são
+genéricos (nome > marca > categoria, "for/compatible/replacement" introduz compatibilidade, frase
+contígua, frequência não conta) e nenhuma regra cita uma consulta, mas o número deve ser lido como
+"os problemas de ordenação listados em #220 foram resolvidos", não como uma estimativa da qualidade
+em consultas novas. Um conjunto de consultas separado (held-out) seria a medida honesta para
+ajustes futuros de peso.
 
 ## Dataset de recomendação
 

@@ -130,4 +130,72 @@ class ProductTextQueryTest {
         assertThat(corrected.likePatterns()).containsExactly("%100\\%%");
         assertThat(query.ftsTerms()).containsExactly("lipstik", "red");
     }
+
+    @Test
+    void oneTermGivesTheSameExpressionForEveryOperator() {
+        ProductTextQuery query = ProductTextQuery.parse("Laptops");
+
+        assertThat(query.tsQuery()).isEqualTo("laptops:*");
+        assertThat(query.anyTermTsQuery()).isEqualTo("laptops:*");
+        assertThat(query.phraseTsQuery()).isEqualTo("laptops:*");
+    }
+
+    @Test
+    void severalTermsAreJoinedWithOrAndAsAPhrase() {
+        ProductTextQuery query = ProductTextQuery.parse("noise cancelling headphones");
+
+        assertThat(query.anyTermTsQuery()).isEqualTo("noise:* | cancelling:* | headphones:*");
+        assertThat(query.phraseTsQuery()).isEqualTo("noise:* <-> cancelling:* <-> headphones:*");
+    }
+
+    @Test
+    void shortTermsAreNotPrefixesInAnyOperator() {
+        ProductTextQuery query = ProductTextQuery.parse("usb-c tv 4k");
+
+        assertThat(query.anyTermTsQuery()).isEqualTo("usb:* | c | tv | 4k");
+        assertThat(query.phraseTsQuery()).isEqualTo("usb:* <-> c <-> tv <-> 4k");
+    }
+
+    @Test
+    void literalOnlyQueryHasNoAnyTermOrPhraseExpression() {
+        ProductTextQuery query = ProductTextQuery.parse("100% _");
+
+        assertThat(query.anyTermTsQuery()).isNull();
+        assertThat(query.phraseTsQuery()).isNull();
+    }
+
+    @Test
+    void literalTermsStayOutOfTheAnyTermAndPhraseExpressions() {
+        ProductTextQuery query = ProductTextQuery.parse("cotton 100% shirt");
+
+        assertThat(query.anyTermTsQuery()).isEqualTo("cotton:* | shirt:*");
+        assertThat(query.phraseTsQuery()).isEqualTo("cotton:* <-> shirt:*");
+    }
+
+    @Test
+    void withReplacedTermsPropagatesToTheAnyTermAndPhraseExpressions() {
+        ProductTextQuery corrected = ProductTextQuery.parse("matte lipstik")
+                .withReplacedTerms(Map.of("lipstik", "lipstick"));
+
+        assertThat(corrected.tsQuery()).isEqualTo("matte:* & lipstick:*");
+        assertThat(corrected.anyTermTsQuery()).isEqualTo("matte:* | lipstick:*");
+        assertThat(corrected.phraseTsQuery()).isEqualTo("matte:* <-> lipstick:*");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"a | b", "a <-> b", "a <2> b", "!x | (y)", "<->", "|"})
+    void anyTermAndPhraseExpressionsNeverContainUserSuppliedOperators(String raw) {
+        ProductTextQuery query = ProductTextQuery.parse(raw);
+        if (!query.hasFtsTerms()) {
+            assertThat(query.anyTermTsQuery()).isNull();
+            assertThat(query.phraseTsQuery()).isNull();
+            return;
+        }
+        for (String part : query.anyTermTsQuery().split(" \\| ")) {
+            assertThat(part).matches("[\\p{L}\\p{N}]+(:\\*)?");
+        }
+        for (String part : query.phraseTsQuery().split(" <-> ")) {
+            assertThat(part).matches("[\\p{L}\\p{N}]+(:\\*)?");
+        }
+    }
 }

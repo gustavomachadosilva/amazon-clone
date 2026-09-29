@@ -48,11 +48,56 @@ CREATE OR REPLACE FUNCTION catalog.product_fts_matches(name text, brand text, ca
               OR catalog.product_search_vector(name, brand, category, description)
                  @@ to_tsquery('english'::regconfig, catalog.immutable_unaccent(q)) $$;
 
+-- Full-text rank of the whole weighted document. Normalization 1 divides by 1 + log(document
+-- length), so a long name repeating a word no longer outranks a short one by sheer frequency, and
+-- 32 maps the result into the range 0 to 1 (rank / (rank + 1)). Only product_relevance uses it,
+-- to break ties inside a relevance tier. No index depends on it.
 CREATE OR REPLACE FUNCTION catalog.product_search_rank(name text, brand text, category text, description text, q text)
     RETURNS real
     LANGUAGE sql IMMUTABLE PARALLEL SAFE
     AS $$ SELECT ts_rank(catalog.product_search_vector(name, brand, category, description),
-                         to_tsquery('english'::regconfig, catalog.immutable_unaccent(q))) $$;
+                         to_tsquery('english'::regconfig, catalog.immutable_unaccent(q)), 1 | 32) $$;
+
+-- Name head (#221): the unaccented name up to the first whole word that introduces a
+-- compatibility tail (for, compatible, fits, replacement, replaces, para, compativel), any case.
+-- In a name like Remote Replacement for Samsung TV the head is Remote, so the product that IS
+-- the searched thing ranks above the accessory made FOR it. When the name starts with a marker
+-- the head would be empty and the whole name is used instead.
+CREATE OR REPLACE FUNCTION catalog.product_name_head(name text)
+    RETURNS text
+    LANGUAGE sql IMMUTABLE PARALLEL SAFE
+    AS $$ SELECT coalesce(nullif(btrim(regexp_replace(catalog.immutable_unaccent(coalesce(name, '')),
+                                                      '\m(for|compatible|fits|replacement|replaces|para|compativel)\M.*$',
+                                                      '', 'i')), ''),
+                          coalesce(name, '')) $$;
+
+-- Relevance score of the search sort (#221), used only in ORDER BY (the match itself is
+-- product_fts_matches). Tiers, highest first, added up:
+--   8  every term in the name head
+--   4  any term in the brand
+--   2  every term anywhere in the name
+--   2  two or more terms found as a contiguous phrase in the name
+--   1  every term in the category
+-- plus product_search_rank, which is below 1 and so only orders products inside the same tier.
+-- q_all joins the terms with the AND operator, q_any with OR and q_phrase with the followed-by
+-- operator, all built by ProductTextQuery. Callers add id ASC as the final tie-break.
+CREATE OR REPLACE FUNCTION catalog.product_relevance(name text, brand text, category text, description text,
+                                                     q_all text, q_any text, q_phrase text)
+    RETURNS real
+    LANGUAGE sql IMMUTABLE PARALLEL SAFE
+    AS $$ SELECT (8 * (to_tsvector('english'::regconfig, catalog.immutable_unaccent(catalog.product_name_head(name)))
+                       @@ to_tsquery('english'::regconfig, catalog.immutable_unaccent(q_all)))::int
+                + 4 * (to_tsvector('english'::regconfig, catalog.immutable_unaccent(coalesce(brand, '')))
+                       @@ to_tsquery('english'::regconfig, catalog.immutable_unaccent(q_any)))::int
+                + 2 * (to_tsvector('english'::regconfig, catalog.immutable_unaccent(coalesce(name, '')))
+                       @@ to_tsquery('english'::regconfig, catalog.immutable_unaccent(q_all)))::int
+                + 2 * (numnode(to_tsquery('english'::regconfig, catalog.immutable_unaccent(q_phrase))) > 1
+                       AND to_tsvector('english'::regconfig, catalog.immutable_unaccent(coalesce(name, '')))
+                           @@ to_tsquery('english'::regconfig, catalog.immutable_unaccent(q_phrase)))::int
+                + 1 * (to_tsvector('english'::regconfig, catalog.immutable_unaccent(coalesce(category, '')))
+                       @@ to_tsquery('english'::regconfig, catalog.immutable_unaccent(q_all)))::int
+               )::real
+               + catalog.product_search_rank(name, brand, category, description, q_all) $$;
 
 CREATE INDEX IF NOT EXISTS products_search_vector_idx ON catalog.products
     USING gin (catalog.product_search_vector(name, brand, category, description));

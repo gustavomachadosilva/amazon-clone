@@ -156,8 +156,9 @@ class ProductServiceImpl implements ProductService {
                 priceAtLeast(criteria.minPrice()),
                 priceAtMost(criteria.maxPrice()),
                 ratingAtLeast(criteria.minRating()));
-        // RELEVANCE with free text orders by the full-text rank, set by the specification itself;
-        // an unsorted page request keeps Spring Data from replacing that ORDER BY.
+        // RELEVANCE with free text orders by the tiered relevance score (#221), set by the
+        // specification itself; an unsorted page request keeps Spring Data from replacing that
+        // ORDER BY. The typo-corrected retry goes through here too, so it gets the same order.
         if (criteria.sort() == ProductSort.RELEVANCE && text != null && text.hasFtsTerms()) {
             return productRepository.findAll(spec.and(orderByRelevance(text)), PageRequest.of(page, size));
         }

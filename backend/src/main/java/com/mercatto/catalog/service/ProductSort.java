@@ -12,10 +12,17 @@ import java.util.Locale;
 public enum ProductSort {
 
     /**
-     * With a free-text query, the full-text rank (a name match above a brand/category match above
-     * a description match, then {@code id ASC}), applied by {@code ProductServiceImpl} rather than
-     * through {@link #toSort()}. Without a query (or when it has only {@code %}/{@code _} literal
-     * terms) there is nothing to rank by, and this {@code id ASC} sort is used.
+     * With a free-text query, the tiered relevance score of {@code catalog.product_relevance}
+     * (#221): terms in the name head (before a "for …"/"compatible …" tail) above a brand match
+     * above terms elsewhere in the name (with a bonus for a contiguous phrase) above a category
+     * match, then a normalized full-text rank inside each tier, then {@code id ASC}. Applied by
+     * {@code ProductServiceImpl} through {@code ProductSpecifications.orderByRelevance} (with an
+     * unsorted page request) rather than through {@link #toSort()}, also on the typo-corrected
+     * retry. Deterministic: no popularity or other mutable signal, so paging is stable.
+     *
+     * <p>Without a query, or when it has only {@code %}/{@code _} literal terms, there is nothing
+     * to rank by and this {@code id ASC} sort is used. A query made only of stop words scores 0
+     * for every product, so it also ends up in {@code id ASC} order.
      */
     RELEVANCE(Sort.by(Sort.Order.asc("id"))),
     PRICE_ASC(Sort.by(Sort.Order.asc("price"), Sort.Order.asc("id"))),
