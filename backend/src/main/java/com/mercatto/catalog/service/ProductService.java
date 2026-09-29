@@ -64,4 +64,23 @@ public interface ProductService {
     Page<ProductView> searchWithRating(ProductSearchCriteria criteria, int page, int size);
 
     Optional<ProductView> findByIdWithRating(Long id);
+
+    /**
+     * A product recommended as related to another, with its similarity score and the reasons it
+     * was picked ({@code reasons} in {@link RelatedReason} priority order, {@code primaryReason}
+     * being the first). Every reason is checked against the data, so it can be shown as-is.
+     */
+    record RelatedProduct(ProductView product, double score, RelatedReason primaryReason,
+                          List<RelatedReason> reasons) {}
+
+    /**
+     * Up to {@code limit} in-stock products related to {@code productId}, most related first
+     * (Card #223). Candidates come from the same category; only when that yields fewer than
+     * {@code limit} are products from other categories considered, and then only those sharing
+     * the brand or a similar name — the result is never padded with unrelated items, so it may be
+     * shorter than {@code limit} or empty.
+     *
+     * @throws ProductNotFoundException when {@code productId} doesn't exist
+     */
+    List<RelatedProduct> findRelated(Long productId, int limit);
 }

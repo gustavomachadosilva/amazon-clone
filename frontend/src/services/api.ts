@@ -110,6 +110,23 @@ export interface Product {
   reviewCount: number
 }
 
+// Why the backend recommended a product as related (Card #223) — each one checked against the
+// catalog data, listed in priority order; primaryReason is the first that holds.
+export type RelatedReason =
+  | 'TOP_RATED_IN_CATEGORY'
+  | 'LOWER_PRICE'
+  | 'SAME_BRAND'
+  | 'SIMILAR_NAME'
+  | 'HIGHER_RATED'
+  | 'SAME_CATEGORY'
+
+export interface RelatedProduct {
+  product: Product
+  score: number
+  primaryReason: RelatedReason
+  reasons: RelatedReason[]
+}
+
 export interface Page<T> {
   content: T[]
   totalPages: number
@@ -163,6 +180,8 @@ export const catalogApi = {
     return api.get<Page<Product>>(`/api/catalog/products?${params.toString()}`)
   },
   getById: (id: number) => api.get<Product>(`/api/catalog/products/${id}`),
+  related: (id: number, limit = 10) =>
+    api.get<RelatedProduct[]>(`/api/catalog/products/${id}/related?limit=${limit}`),
   getCategories: () => api.get<string[]>('/api/catalog/categories'),
   create: (input: ProductInput) => api.post<Product>('/api/catalog/products', input),
   update: (id: number, input: ProductInput) => api.put<Product>(`/api/catalog/products/${id}`, input),

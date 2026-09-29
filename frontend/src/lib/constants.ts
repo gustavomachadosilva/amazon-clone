@@ -39,12 +39,3 @@ export const PAYMENT_OPTIONS = {
   STORE: 'Store card — 5% back',
   GIFT: 'Gift card balance',
 } as const
-
-export const RELATED_REASONS = [
-  'Highest rated in {category}',
-  'Similar item at a lower price',
-  'Most reviewed by customers like you',
-  'Arrives tomorrow with this order',
-]
-
-export const ALSO_VIEWED_SHARES = [38, 24, 19, 14, 11, 9]

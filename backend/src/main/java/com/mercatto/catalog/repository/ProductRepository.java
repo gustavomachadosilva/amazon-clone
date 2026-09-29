@@ -46,6 +46,17 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Query(nativeQuery = true, value = "ANALYZE catalog.products")
     void refreshStatistics();
 
+    // Candidate pools for related products (ProductServiceImpl#findRelated). Capped so a huge
+    // category can't turn a product page into a full-table scan.
+    List<Product> findTop200ByCategoryAndIdNotAndStockQuantityGreaterThan(String category, Long id, int stock);
+
+    List<Product> findTop50ByBrandIgnoreCaseAndCategoryNotAndStockQuantityGreaterThan(String brand, String category,
+                                                                                      int stock);
+
+    /** Best average rating among the reviewed products of {@code category}, or {@code null} if none is reviewed. */
+    @Query("select max(p.averageRating) from Product p where p.category = :category and p.reviewCount > 0")
+    Double findTopAverageRatingInCategory(@Param("category") String category);
+
     // Bulk UPDATE is the only writer of the denormalized rating columns (they are
     // insertable/updatable=false on the entity). It deliberately does not bump @Version: a
     // rating refresh must not make a concurrent seller edit or stock decrement fail.

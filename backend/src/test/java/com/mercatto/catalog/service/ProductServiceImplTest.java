@@ -454,6 +454,93 @@ class ProductServiceImplTest {
         assertThat(result.get().reviewCount()).isEqualTo(4L);
     }
 
+    private static Product product(long id, String name, String category, String brand, String price) {
+        return Product.builder().id(id).name(name).category(category).brand(brand).price(new BigDecimal(price))
+                .stockQuantity(5).sellerId(1L).build();
+    }
+
+    private static final Product CURRENT = product(1L, "Acme Cordless Drill Kit", "tools", "Acme", "100");
+
+    @Test
+    void findRelatedThrowsWhenProductNotFound() {
+        when(productRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> productService.findRelated(99L, 6))
+                .isInstanceOf(ProductNotFoundException.class);
+
+        verify(productRepository, never())
+                .findTop200ByCategoryAndIdNotAndStockQuantityGreaterThan(any(), any(), anyInt());
+    }
+
+    @Test
+    void findRelatedExcludesTheProductAndOutOfStockAndReturnsTheBestScoredFirst() {
+        when(productRepository.findById(1L)).thenReturn(Optional.of(CURRENT));
+        when(productRepository.findTopAverageRatingInCategory("tools")).thenReturn(null);
+        when(productRepository.findTop200ByCategoryAndIdNotAndStockQuantityGreaterThan("tools", 1L, 0))
+                .thenReturn(List.of(
+                        product(2L, "Garden Hose", "tools", null, "500"),
+                        product(3L, "Acme Cordless Drill Driver", "tools", "Acme", "90"),
+                        product(4L, "Cordless Drill Battery", "tools", null, "100")));
+
+        List<ProductService.RelatedProduct> result = productService.findRelated(1L, 2);
+
+        assertThat(result).extracting(r -> r.product().id()).containsExactly(3L, 4L);
+        assertThat(result.get(0).primaryReason()).isEqualTo(RelatedReason.LOWER_PRICE);
+        assertThat(result.get(1).primaryReason()).isEqualTo(RelatedReason.SIMILAR_NAME);
+        assertThat(result.get(0).score()).isGreaterThan(result.get(1).score());
+        verify(productRepository).findTop200ByCategoryAndIdNotAndStockQuantityGreaterThan("tools", 1L, 0);
+        // The same-category pool already fills the limit: no cross-category lookup.
+        verify(productRepository, never())
+                .findTop50ByBrandIgnoreCaseAndCategoryNotAndStockQuantityGreaterThan(any(), any(), anyInt());
+        verify(productRepository, never()).findAll(anySpecification(), any(Pageable.class));
+    }
+
+    @Test
+    void findRelatedFallsBackToOtherCategoriesKeepingOnlyBrandOrNameMatches() {
+        Product sameBrand = product(10L, "Acme Leaf Blower", "garden", "ACME", "300");
+        Product similarName = product(11L, "Cordless Drill Holster", "apparel", null, "20");
+        Product unrelated = product(12L, "Kitchen Knife", "kitchen", null, "100");
+        when(productRepository.findById(1L)).thenReturn(Optional.of(CURRENT));
+        when(productRepository.findTop200ByCategoryAndIdNotAndStockQuantityGreaterThan("tools", 1L, 0))
+                .thenReturn(List.of(product(2L, "Garden Hose", "tools", null, "100")));
+        when(productRepository.findTop50ByBrandIgnoreCaseAndCategoryNotAndStockQuantityGreaterThan("Acme", "tools", 0))
+                .thenReturn(List.of(sameBrand));
+        when(productRepository.findAll(anySpecification(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(sameBrand, similarName, unrelated)));
+
+        List<ProductService.RelatedProduct> result = productService.findRelated(1L, 6);
+
+        // Never padded with the unrelated item: fewer than the limit is fine.
+        assertThat(result).extracting(r -> r.product().id()).containsExactlyInAnyOrder(2L, 10L, 11L);
+        assertThat(result).filteredOn(r -> r.product().id() == 10L).singleElement()
+                .extracting(ProductService.RelatedProduct::primaryReason).isEqualTo(RelatedReason.SAME_BRAND);
+        assertThat(result).filteredOn(r -> r.product().id() == 11L).singleElement()
+                .extracting(ProductService.RelatedProduct::primaryReason).isEqualTo(RelatedReason.SIMILAR_NAME);
+    }
+
+    @Test
+    void findRelatedSkipsTheBrandLookupForAGenericSeedBrand() {
+        Product current = product(1L, "Women's Running Shoe", "shoes", "Women's", "80");
+        when(productRepository.findById(1L)).thenReturn(Optional.of(current));
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+
+        productService.findRelated(1L, 6);
+
+        verify(productRepository, never())
+                .findTop50ByBrandIgnoreCaseAndCategoryNotAndStockQuantityGreaterThan(any(), any(), anyInt());
+    }
+
+    @Test
+    void findRelatedReturnsEmptyWhenNothingIsRelated() {
+        Product current = product(1L, "Acme Cordless Drill Kit", "tools", null, "100");
+        when(productRepository.findById(1L)).thenReturn(Optional.of(current));
+        when(productRepository.findTop200ByCategoryAndIdNotAndStockQuantityGreaterThan("tools", 1L, 0))
+                .thenReturn(List.of());
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+
+        assertThat(productService.findRelated(1L, 6)).isEmpty();
+    }
+
     private static ProductSearchCriteria criteria(ProductSort sort) {
         return criteria("query", sort);
     }
