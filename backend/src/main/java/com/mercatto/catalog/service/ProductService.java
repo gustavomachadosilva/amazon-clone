@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -64,6 +65,13 @@ public interface ProductService {
     Page<ProductView> searchWithRating(ProductSearchCriteria criteria, int page, int size);
 
     Optional<ProductView> findByIdWithRating(Long id);
+
+    /**
+     * Batch version of {@link #findByIdWithRating} for callers that already know which products
+     * to show (e.g. Orders' frequently-bought-together, Card #224). Unknown ids are skipped and
+     * the result's order is not guaranteed — callers re-order by their own ranking.
+     */
+    List<ProductView> findViewsByIds(Collection<Long> ids);
 
     /**
      * A product recommended as related to another, with its similarity score and the reasons it

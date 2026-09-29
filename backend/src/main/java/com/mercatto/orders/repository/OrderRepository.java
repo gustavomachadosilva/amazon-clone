@@ -4,6 +4,7 @@ import com.mercatto.orders.domain.Order;
 import com.mercatto.orders.domain.PaymentMethod;
 import com.mercatto.orders.service.OrderStatus;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -11,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -68,4 +70,33 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @Query("select distinct o from Order o left join fetch o.items where o.id in :orderIds")
     List<Order> findByIdInWithItems(@Param("orderIds") List<Long> orderIds);
+
+    /** A product and how many distinct buyers bought it (alone or with another product). */
+    interface ProductBuyerCount {
+        Long getProductId();
+
+        long getBuyers();
+    }
+
+    // Co-purchase counts for #224: the products that appear in the same orders as :productId,
+    // counted by distinct buyer (not by order) so one buyer re-ordering the same pair can't make a
+    // trend on their own. Only orders in :status (PAID) count; pairs below :minSupport buyers are
+    // dropped in SQL. The Pageable caps the candidate pool; scoring happens in CoPurchaseScorer.
+    @Query("select oi2.productId as productId, count(distinct o.buyerId) as buyers "
+            + "from Order o join o.items oi1 join o.items oi2 "
+            + "where oi1.productId = :productId and oi2.productId <> :productId and o.status = :status "
+            + "group by oi2.productId having count(distinct o.buyerId) >= :minSupport "
+            + "order by count(distinct o.buyerId) desc, oi2.productId asc")
+    List<ProductBuyerCount> findCoPurchaseCounts(@Param("productId") Long productId,
+                                                 @Param("status") OrderStatus status,
+                                                 @Param("minSupport") long minSupport,
+                                                 Pageable pool);
+
+    // Popularity of each product in :ids — distinct buyers with an order in :status containing it —
+    // used to normalize the co-purchase counts above so the best-seller isn't always recommended.
+    @Query("select oi.productId as productId, count(distinct o.buyerId) as buyers "
+            + "from Order o join o.items oi "
+            + "where o.status = :status and oi.productId in :ids group by oi.productId")
+    List<ProductBuyerCount> countBuyersByProduct(@Param("ids") Collection<Long> ids,
+                                                 @Param("status") OrderStatus status);
 }

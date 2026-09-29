@@ -35,6 +35,17 @@ Two channels only, chosen deliberately per use case:
    it publishes `reviews.event.ReviewCreatedEvent`, and `catalog.service.ReviewRatingSyncListener`
    refreshes the product's denormalized rating (used to filter/sort search results).
 
+Reads that combine two modules' data live in the module that already depends on the other. The
+product page's "Frequently bought together" (#224) needs order history and product details, but
+Catalog may not depend on Orders (`ArchitectureBoundaryTest`), so Orders composes it:
+`orders.service.BoughtTogetherService` counts co-purchases with a live query over Orders' own tables
+(`OrderService.coPurchasedWith`, PAID orders only) and reads product details through
+`catalog.service.ProductService`, falling back to Catalog's similar products when there isn't enough
+history. A projection table fed by `OrderPlacedEvent` was rejected for now — there is no
+cancel/refund event to decrement it, it would need a backfill, and an `AFTER_COMMIT` listener
+without an outbox can silently lose increments. Revisit if the query gets slow or orders gain a
+cancellation/refund flow; a projection can replace the query behind the same interface.
+
 This is also why every cross-module reference in an entity is a bare foreign-key id
 (`Product.sellerId`, `Order.buyerId`, `OrderItem.productId`) and never a JPA `@ManyToOne` — no
 entity ever joins across a schema boundary.

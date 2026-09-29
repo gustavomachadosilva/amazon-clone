@@ -127,6 +127,24 @@ export interface RelatedProduct {
   reasons: RelatedReason[]
 }
 
+// Where a product page's bundle came from (Card #224): CO_PURCHASE items were really bought
+// together by other customers; SIMILAR is the cold-start fallback (not enough purchase history)
+// and must never be presented as "bought together".
+export type BoughtTogetherSource = 'CO_PURCHASE' | 'SIMILAR'
+
+export interface BoughtTogetherItem {
+  product: Product
+  // Distinct customers who bought both; null when the source is SIMILAR.
+  timesBoughtTogether: number | null
+  // Why it is similar (Card #223); null when the source is CO_PURCHASE.
+  primaryReason: RelatedReason | null
+}
+
+export interface BoughtTogether {
+  source: BoughtTogetherSource
+  items: BoughtTogetherItem[]
+}
+
 export interface Page<T> {
   content: T[]
   totalPages: number
@@ -290,6 +308,9 @@ export const ordersApi = {
   // means an item went out of stock (see isOutOfStockError) or the order isn't retryable anymore.
   retryPayment: (id: number, paymentMethod: PaymentMethod) =>
     api.post<Order>(`/api/orders/${id}/payment`, { paymentMethod }),
+  // Public (no sign-in needed): the product page's "Frequently bought together" bundle (#224).
+  boughtTogether: (productId: number, limit = 2) =>
+    api.get<BoughtTogether>(`/api/orders/bought-together/${productId}?limit=${limit}`),
 }
 
 // The 409s a payment retry can get share a status, so the out-of-stock case is told apart by the

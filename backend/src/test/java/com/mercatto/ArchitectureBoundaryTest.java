@@ -22,6 +22,8 @@ public class ArchitectureBoundaryTest {
     void catalog_should_not_depend_on_orders_or_sellers() {
         noClasses().that().resideInAPackage("..catalog..")
             .should().dependOnClassesThat().resideInAnyPackage("..orders..", "..sellers..", "..cart..")
+            .because("orders/sellers/cart depend on catalog.service; reads combining them with catalog "
+                + "data (e.g. frequently bought together, #224) are composed on their side")
             .check(classes);
     }
 

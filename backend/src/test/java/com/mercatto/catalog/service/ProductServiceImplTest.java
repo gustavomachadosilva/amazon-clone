@@ -454,6 +454,28 @@ class ProductServiceImplTest {
         assertThat(result.get().reviewCount()).isEqualTo(4L);
     }
 
+    @Test
+    void findViewsByIdsReturnsTheFoundProductsWithTheirRatingAndSkipsUnknownIds() {
+        Product product = Product.builder().id(2L).name("Widget").price(BigDecimal.TEN).stockQuantity(5)
+                .category("tools").averageRating(4.0).reviewCount(2L).build();
+        when(productRepository.findAllById(List.of(2L, 99L))).thenReturn(List.of(product));
+
+        List<ProductService.ProductView> result = productService.findViewsByIds(List.of(2L, 99L));
+
+        assertThat(result).singleElement().satisfies(view -> {
+            assertThat(view.id()).isEqualTo(2L);
+            assertThat(view.averageRating()).isEqualTo(4.0);
+            assertThat(view.reviewCount()).isEqualTo(2L);
+        });
+    }
+
+    @Test
+    void findViewsByIdsWithNoIdsDoesNotQuery() {
+        assertThat(productService.findViewsByIds(List.of())).isEmpty();
+
+        verify(productRepository, never()).findAllById(any());
+    }
+
     private static Product product(long id, String name, String category, String brand, String price) {
         return Product.builder().id(id).name(name).category(category).brand(brand).price(new BigDecimal(price))
                 .stockQuantity(5).sellerId(1L).build();
