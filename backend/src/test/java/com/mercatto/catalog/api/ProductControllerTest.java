@@ -2,9 +2,11 @@ package com.mercatto.catalog.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mercatto.catalog.domain.Product;
+import com.mercatto.catalog.service.ProductNotFoundException;
 import com.mercatto.catalog.service.ProductSearchCriteria;
 import com.mercatto.catalog.service.ProductService;
 import com.mercatto.catalog.service.ProductSort;
+import com.mercatto.catalog.service.RelatedReason;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.AuthenticatedUser;
 import com.mercatto.users.service.TokenService;
@@ -192,6 +194,48 @@ class ProductControllerTest {
         when(productService.findByIdWithRating(1L)).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/catalog/products/1"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void related_returns200WithProductScoreAndReasons() throws Exception {
+        ProductService.RelatedProduct related = new ProductService.RelatedProduct(productView(2L), 7.55,
+                RelatedReason.LOWER_PRICE, List.of(RelatedReason.LOWER_PRICE, RelatedReason.SAME_CATEGORY));
+        when(productService.findRelated(1L, 6)).thenReturn(List.of(related));
+
+        mockMvc.perform(get("/api/catalog/products/1/related"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].product.id").value(2))
+                .andExpect(jsonPath("$[0].score").value(7.55))
+                .andExpect(jsonPath("$[0].primaryReason").value("LOWER_PRICE"))
+                .andExpect(jsonPath("$[0].reasons[0]").value("LOWER_PRICE"))
+                .andExpect(jsonPath("$[0].reasons[1]").value("SAME_CATEGORY"));
+    }
+
+    @Test
+    void related_forwardsAnExplicitLimit() throws Exception {
+        when(productService.findRelated(1L, 20)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/catalog/products/1/related").param("limit", "20"))
+                .andExpect(status().isOk());
+
+        verify(productService).findRelated(1L, 20);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "-1", "21", "abc"})
+    void related_withLimitOutOfRange_returns400(String limit) throws Exception {
+        mockMvc.perform(get("/api/catalog/products/1/related").param("limit", limit))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(productService);
+    }
+
+    @Test
+    void related_forUnknownProduct_returns404() throws Exception {
+        when(productService.findRelated(99L, 6)).thenThrow(new ProductNotFoundException("Product not found: 99"));
+
+        mockMvc.perform(get("/api/catalog/products/99/related"))
                 .andExpect(status().isNotFound());
     }
 
