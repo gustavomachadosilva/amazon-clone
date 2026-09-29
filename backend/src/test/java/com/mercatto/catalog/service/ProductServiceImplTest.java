@@ -386,6 +386,22 @@ class ProductServiceImplTest {
     }
 
     @Test
+    void typoCorrectedRetryAlsoLeavesTheOrderingToTheRelevanceScore() {
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+        when(productRepository.findClosestIndexedWord("lipstik", 1)).thenReturn(Optional.of("lipstick"));
+
+        productService.searchWithRating(criteria("lipstik", ProductSort.RELEVANCE), 1, 20);
+
+        ArgumentCaptor<Pageable> pageables = ArgumentCaptor.forClass(Pageable.class);
+        verify(productRepository, times(2)).findAll(anySpecification(), pageables.capture());
+        assertThat(pageables.getAllValues()).hasSize(2).allSatisfy(pageable -> {
+            assertThat(pageable.getSort().isUnsorted()).isTrue();
+            assertThat(pageable.getPageNumber()).isEqualTo(1);
+            assertThat(pageable.getPageSize()).isEqualTo(20);
+        });
+    }
+
+    @Test
     void zeroResultsWithOnlyKnownWordsDoNotSearchAgain() {
         when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
         when(productRepository.findClosestIndexedWord("blender", 1)).thenReturn(Optional.of("blender"));

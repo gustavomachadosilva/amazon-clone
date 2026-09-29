@@ -100,6 +100,29 @@ public final class ProductTextQuery {
      * {@code null} when there are none.
      */
     public String tsQuery() {
+        return joinedTerms(" & ");
+    }
+
+    /**
+     * The full-text terms joined with OR ({@code term1:* | term2 | …}), same prefix rule as
+     * {@link #tsQuery()}; {@code null} when there are none. Used only by the relevance order
+     * (#221), to reward a product whose brand is one of the terms.
+     */
+    public String anyTermTsQuery() {
+        return joinedTerms(" | ");
+    }
+
+    /**
+     * The full-text terms as a phrase ({@code term1:* <-> term2 <-> …}: each one right after the
+     * previous), same prefix rule as {@link #tsQuery()}; with one term it equals {@link #tsQuery()},
+     * {@code null} when there are none. Used only by the relevance order (#221), to reward a name
+     * containing the terms contiguously and in order.
+     */
+    public String phraseTsQuery() {
+        return joinedTerms(" <-> ");
+    }
+
+    private String joinedTerms(String operator) {
         if (ftsTerms.isEmpty()) {
             return null;
         }
@@ -107,7 +130,7 @@ public final class ProductTextQuery {
         for (String term : ftsTerms) {
             parts.add(term.length() >= MIN_PREFIX_LENGTH ? term + ":*" : term);
         }
-        return String.join(" & ", parts);
+        return String.join(operator, parts);
     }
 
     /** Full-text terms eligible for typo correction (see {@link #isCorrectable}). */

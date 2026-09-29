@@ -54,17 +54,28 @@ public final class ProductSpecifications {
     }
 
     /**
-     * Orders by full-text rank ({@code ts_rank}, name weighted above brand/category above
-     * description), then by id for a stable pagination. Contributes no predicate; a no-op without
-     * full-text terms and in the count query. Only meaningful with an unsorted {@code Pageable}:
-     * Spring Data replaces this ordering when the page request carries its own {@code Sort}.
+     * Orders by the tiered relevance score {@code catalog.product_relevance} (#221), highest
+     * first, then by id, so exact ties come back in a stable order and paging never repeats or
+     * skips a product. The score adds 8 when every term is in the name head (the name before a
+     * compatibility tail such as "for …" or "compatible with …"), 4 when any term is in the
+     * brand, 2 when every term is anywhere in the name, 2 when two or more terms appear as a
+     * contiguous phrase in the name and 1 when every term is in the category, plus a normalized
+     * {@code ts_rank} below 1 that only orders products inside the same tier. The weights live
+     * only in {@code db/post-ddl/catalog-search.sql}.
+     *
+     * <p>Contributes no predicate; a no-op without full-text terms and in the count query. Only
+     * meaningful with an unsorted {@code Pageable}: Spring Data replaces this ordering when the
+     * page request carries its own {@code Sort}.
      */
     public static Specification<Product> orderByRelevance(ProductTextQuery query) {
         return (root, cq, cb) -> {
             if (query != null && query.hasFtsTerms() && !isCountQuery(cq)) {
                 cq.orderBy(
-                        cb.desc(cb.function("catalog.product_search_rank", Float.class,
-                                searchFields(root, cb, cb.literal(query.tsQuery())))),
+                        cb.desc(cb.function("catalog.product_relevance", Float.class,
+                                searchFields(root, cb,
+                                        cb.literal(query.tsQuery()),
+                                        cb.literal(query.anyTermTsQuery()),
+                                        cb.literal(query.phraseTsQuery())))),
                         cb.asc(root.get("id")));
             }
             return null;
