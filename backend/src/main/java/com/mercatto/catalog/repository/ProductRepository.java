@@ -8,8 +8,10 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
@@ -17,6 +19,32 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
     @Query("select distinct p.category from Product p order by p.category")
     List<String> findDistinctCategories();
+
+    /**
+     * Typo correction for the search (#220): the catalog word (from name, brand, category and
+     * description, unaccented and lowercased) closest to {@code term}, within {@code maxEdits}
+     * Levenshtein edits and with trigram similarity ≥ 0.45; ties go to the word in more products.
+     * Returns {@code term} itself when it is already a catalog word. Scans the whole vocabulary
+     * ({@code ts_stat}), so it's only called when a search found nothing.
+     */
+    @Query(nativeQuery = true, value = """
+            SELECT w.word
+            FROM ts_stat('SELECT to_tsvector(''simple'', catalog.product_search_text(name, brand, category, description)) FROM catalog.products') w
+            WHERE public.levenshtein(w.word, catalog.immutable_unaccent(:term)) <= :maxEdits
+              AND public.similarity(w.word, catalog.immutable_unaccent(:term)) >= 0.45
+            ORDER BY public.levenshtein(w.word, catalog.immutable_unaccent(:term)),
+                     public.similarity(w.word, catalog.immutable_unaccent(:term)) DESC,
+                     w.ndoc DESC,
+                     w.word
+            LIMIT 1
+            """)
+    Optional<String> findClosestIndexedWord(@Param("term") String term, @Param("maxEdits") int maxEdits);
+
+    /** {@code ANALYZE} of the products table, for right after a bulk load (dev seed). */
+    @Modifying
+    @Transactional
+    @Query(nativeQuery = true, value = "ANALYZE catalog.products")
+    void refreshStatistics();
 
     // Bulk UPDATE is the only writer of the denormalized rating columns (they are
     // insertable/updatable=false on the entity). It deliberately does not bump @Version: a

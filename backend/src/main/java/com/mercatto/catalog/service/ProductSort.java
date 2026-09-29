@@ -11,7 +11,12 @@ import java.util.Locale;
  */
 public enum ProductSort {
 
-    // No real relevance score exists yet: "relevance" is the catalog's natural (id) order.
+    /**
+     * With a free-text query, the full-text rank (a name match above a brand/category match above
+     * a description match, then {@code id ASC}), applied by {@code ProductServiceImpl} rather than
+     * through {@link #toSort()}. Without a query (or when it has only {@code %}/{@code _} literal
+     * terms) there is nothing to rank by, and this {@code id ASC} sort is used.
+     */
     RELEVANCE(Sort.by(Sort.Order.asc("id"))),
     PRICE_ASC(Sort.by(Sort.Order.asc("price"), Sort.Order.asc("id"))),
     PRICE_DESC(Sort.by(Sort.Order.desc("price"), Sort.Order.asc("id"))),

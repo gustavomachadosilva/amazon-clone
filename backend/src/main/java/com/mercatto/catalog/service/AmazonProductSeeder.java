@@ -53,6 +53,10 @@ public class AmazonProductSeeder {
         log.info("Loading Amazon dataset sample from {}...", SAMPLE_CSV_PATH);
         List<Product> products = readSampleCsv(sellerIds);
         productRepository.saveAll(products);
+        // Fresh statistics right after the bulk load: until autovacuum gets to it, the planner
+        // doesn't know the table has rows and prefers a sequential scan that computes the
+        // full-text vector of every product over the search indexes (#220).
+        productRepository.refreshStatistics();
         log.info("Amazon dataset seed completed. {} products inserted.", products.size());
     }
 

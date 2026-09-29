@@ -24,7 +24,10 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -320,17 +323,115 @@ class ProductServiceImplTest {
     }
 
     @ParameterizedTest
-    @EnumSource(ProductSort.class)
+    @EnumSource(value = ProductSort.class, names = "RELEVANCE", mode = EnumSource.Mode.EXCLUDE)
     void searchWithRatingPassesPageSizeAndSortToRepository(ProductSort sort) {
         when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
 
         productService.searchWithRating(criteria(sort), 2, 25);
 
+        Pageable pageable = capturePageable();
+        assertThat(pageable.getPageNumber()).isEqualTo(2);
+        assertThat(pageable.getPageSize()).isEqualTo(25);
+        assertThat(pageable.getSort()).isEqualTo(sort.toSort());
+    }
+
+    @Test
+    void relevanceWithATextQueryLeavesTheOrderingToTheFullTextRank() {
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+
+        productService.searchWithRating(criteria(ProductSort.RELEVANCE), 2, 25);
+
+        Pageable pageable = capturePageable();
+        assertThat(pageable.getPageNumber()).isEqualTo(2);
+        assertThat(pageable.getPageSize()).isEqualTo(25);
+        assertThat(pageable.getSort().isUnsorted()).isTrue();
+    }
+
+    @Test
+    void relevanceWithoutATextQueryIsIdOrder() {
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+
+        productService.searchWithRating(criteria(null, ProductSort.RELEVANCE), 0, 10);
+
+        assertThat(capturePageable().getSort()).isEqualTo(ProductSort.RELEVANCE.toSort());
+    }
+
+    @Test
+    void relevanceWithOnlyLiteralTermsIsIdOrder() {
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+
+        productService.searchWithRating(criteria("100%", ProductSort.RELEVANCE), 0, 10);
+
+        assertThat(capturePageable().getSort()).isEqualTo(ProductSort.RELEVANCE.toSort());
+        verify(productRepository, never()).findClosestIndexedWord(any(), anyInt());
+    }
+
+    @Test
+    void zeroResultsRetryOnceWithCorrectedTerms() {
+        Product lipstick = Product.builder().id(7L).name("Lipstick").price(BigDecimal.TEN).stockQuantity(1)
+                .category("Makeup").build();
+        when(productRepository.findAll(anySpecification(), any(Pageable.class)))
+                .thenReturn(Page.empty())
+                .thenReturn(new PageImpl<>(List.of(lipstick)));
+        when(productRepository.findClosestIndexedWord("lipstik", 1)).thenReturn(Optional.of("lipstick"));
+        when(productRepository.findClosestIndexedWord("matte", 1)).thenReturn(Optional.of("matte"));
+
+        Page<ProductService.ProductView> result = productService.searchWithRating(
+                criteria("matte lipstik ps5", ProductSort.RELEVANCE), 0, 10);
+
+        assertThat(result.getContent()).extracting(ProductService.ProductView::id).containsExactly(7L);
+        verify(productRepository, times(2)).findAll(anySpecification(), any(Pageable.class));
+        // "ps5" has a digit: never corrected.
+        verify(productRepository, never()).findClosestIndexedWord(eq("ps5"), anyInt());
+    }
+
+    @Test
+    void zeroResultsWithOnlyKnownWordsDoNotSearchAgain() {
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+        when(productRepository.findClosestIndexedWord("blender", 1)).thenReturn(Optional.of("blender"));
+
+        Page<ProductService.ProductView> result = productService.searchWithRating(
+                criteria("blender", ProductSort.RELEVANCE), 0, 10);
+
+        assertThat(result.getTotalElements()).isZero();
+        verify(productRepository, times(1)).findAll(anySpecification(), any(Pageable.class));
+    }
+
+    @Test
+    void zeroResultsWithoutACloseWordDoNotSearchAgain() {
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+        when(productRepository.findClosestIndexedWord("xyzzy", 1)).thenReturn(Optional.empty());
+
+        productService.searchWithRating(criteria("xyzzy", ProductSort.PRICE_ASC), 0, 10);
+
+        verify(productRepository, times(1)).findAll(anySpecification(), any(Pageable.class));
+    }
+
+    @Test
+    void typoCorrectionIsSkippedWhenTheSearchFoundSomething() {
+        // A later page may be empty while the search as a whole matched.
+        when(productRepository.findAll(anySpecification(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), Pageable.ofSize(10).withPage(3), 1));
+
+        productService.searchWithRating(criteria("lipstik", ProductSort.RELEVANCE), 3, 10);
+
+        verify(productRepository, never()).findClosestIndexedWord(any(), anyInt());
+        verify(productRepository, times(1)).findAll(anySpecification(), any(Pageable.class));
+    }
+
+    @Test
+    void typoCorrectionIsSkippedWithoutATextQuery() {
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+
+        productService.searchWithRating(criteria(null, ProductSort.RELEVANCE), 0, 10);
+
+        verify(productRepository, never()).findClosestIndexedWord(any(), anyInt());
+    }
+
+    private Pageable capturePageable() {
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
         verify(productRepository).findAll(anySpecification(), pageable.capture());
-        assertThat(pageable.getValue().getPageNumber()).isEqualTo(2);
-        assertThat(pageable.getValue().getPageSize()).isEqualTo(25);
-        assertThat(pageable.getValue().getSort()).isEqualTo(sort.toSort());
+        return pageable.getValue();
     }
 
     @Test
@@ -354,7 +455,11 @@ class ProductServiceImplTest {
     }
 
     private static ProductSearchCriteria criteria(ProductSort sort) {
-        return new ProductSearchCriteria("query", "category", null, null, null, sort);
+        return criteria("query", sort);
+    }
+
+    private static ProductSearchCriteria criteria(String query, ProductSort sort) {
+        return new ProductSearchCriteria(query, "category", null, null, null, sort);
     }
 
     @SuppressWarnings("unchecked")

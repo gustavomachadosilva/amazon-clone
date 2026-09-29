@@ -2,6 +2,7 @@ package com.mercatto.catalog.service;
 
 import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.repository.ProductRepository;
+import com.mercatto.catalog.repository.ProductTextQuery;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -12,11 +13,14 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.mercatto.catalog.repository.ProductSpecifications.categoryEquals;
-import static com.mercatto.catalog.repository.ProductSpecifications.nameContains;
+import static com.mercatto.catalog.repository.ProductSpecifications.matchesText;
+import static com.mercatto.catalog.repository.ProductSpecifications.orderByRelevance;
 import static com.mercatto.catalog.repository.ProductSpecifications.priceAtLeast;
 import static com.mercatto.catalog.repository.ProductSpecifications.priceAtMost;
 import static com.mercatto.catalog.repository.ProductSpecifications.ratingAtLeast;
@@ -117,14 +121,45 @@ class ProductServiceImpl implements ProductService {
 
     @Override
     public Page<ProductView> searchWithRating(ProductSearchCriteria criteria, int page, int size) {
+        ProductTextQuery text = ProductTextQuery.parse(criteria.query());
+        Page<Product> result = search(criteria, text, page, size);
+        // Typo tolerance (#220): only when nothing matched at all, and at most one retry.
+        if (result.getTotalElements() == 0 && text != null && text.hasFtsTerms()) {
+            ProductTextQuery corrected = correctTypos(text);
+            if (corrected != null) {
+                result = search(criteria, corrected, page, size);
+            }
+        }
+        return result.map(this::toView);
+    }
+
+    private Page<Product> search(ProductSearchCriteria criteria, ProductTextQuery text, int page, int size) {
         Specification<Product> spec = Specification.allOf(
-                nameContains(criteria.query()),
+                matchesText(text),
                 categoryEquals(criteria.category()),
                 priceAtLeast(criteria.minPrice()),
                 priceAtMost(criteria.maxPrice()),
                 ratingAtLeast(criteria.minRating()));
-        return productRepository.findAll(spec, PageRequest.of(page, size, criteria.sort().toSort()))
-                .map(this::toView);
+        // RELEVANCE with free text orders by the full-text rank, set by the specification itself;
+        // an unsorted page request keeps Spring Data from replacing that ORDER BY.
+        if (criteria.sort() == ProductSort.RELEVANCE && text != null && text.hasFtsTerms()) {
+            return productRepository.findAll(spec.and(orderByRelevance(text)), PageRequest.of(page, size));
+        }
+        return productRepository.findAll(spec, PageRequest.of(page, size, criteria.sort().toSort()));
+    }
+
+    /**
+     * Replaces each correctable term that isn't a catalog word with the closest one; {@code null}
+     * when no term changed (so the caller doesn't repeat the same empty search).
+     */
+    private ProductTextQuery correctTypos(ProductTextQuery text) {
+        Map<String, String> replacements = new HashMap<>();
+        for (String term : text.correctableTerms()) {
+            productRepository.findClosestIndexedWord(term, ProductTextQuery.maxEdits(term))
+                    .filter(word -> !word.equals(term))
+                    .ifPresent(word -> replacements.put(term, word));
+        }
+        return replacements.isEmpty() ? null : text.withReplacedTerms(replacements);
     }
 
     @Override
