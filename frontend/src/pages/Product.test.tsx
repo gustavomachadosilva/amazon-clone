@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { vi } from 'vitest'
 import { Route, Routes } from 'react-router-dom'
 import { renderWithProviders } from '../test/test-utils'
@@ -20,7 +20,10 @@ vi.mock('../services/api', async (importOriginal) => {
       ...actual.catalogApi,
       getById: vi.fn(),
       related: vi.fn(),
-      search: vi.fn(),
+    },
+    ordersApi: {
+      ...actual.ordersApi,
+      boughtTogether: vi.fn(),
     },
     reviewsApi: {
       ...actual.reviewsApi,
@@ -32,8 +35,9 @@ vi.mock('../services/api', async (importOriginal) => {
 // Imported after the mock so they pick up the mocked module.
 import {
   catalogApi,
+  ordersApi,
   reviewsApi,
-  type Page,
+  type BoughtTogether,
   type Product as ProductType,
   type RelatedProduct,
   type RelatedReason,
@@ -43,6 +47,7 @@ import Product from './Product'
 
 const mockedCatalogApi = vi.mocked(catalogApi)
 const mockedReviewsApi = vi.mocked(reviewsApi)
+const mockedOrdersApi = vi.mocked(ordersApi)
 
 function product(id: number, overrides: Partial<ProductType> = {}): ProductType {
   return {
@@ -67,16 +72,17 @@ function related(item: ProductType, primaryReason: RelatedReason): RelatedProduc
   return { product: item, score: 5, primaryReason, reasons: [primaryReason] }
 }
 
-function emptyPage(): Page<ProductType> {
+function coPurchase(...items: [ProductType, number][]): BoughtTogether {
   return {
-    content: [],
-    totalElements: 0,
-    totalPages: 0,
-    number: 0,
-    size: 10,
-    first: true,
-    last: true,
-    empty: true,
+    source: 'CO_PURCHASE',
+    items: items.map(([item, times]) => ({ product: item, timesBoughtTogether: times, primaryReason: null })),
+  }
+}
+
+function similarBundle(...items: [ProductType, RelatedReason][]): BoughtTogether {
+  return {
+    source: 'SIMILAR',
+    items: items.map(([item, reason]) => ({ product: item, timesBoughtTogether: null, primaryReason: reason })),
   }
 }
 
@@ -97,7 +103,7 @@ beforeEach(() => {
   localStorage.clear()
   vi.clearAllMocks()
   mockedCatalogApi.getById.mockResolvedValue(CURRENT)
-  mockedCatalogApi.search.mockResolvedValue(emptyPage())
+  mockedOrdersApi.boughtTogether.mockResolvedValue(coPurchase())
   mockedReviewsApi.listByProduct.mockResolvedValue([])
 })
 
@@ -169,6 +175,81 @@ describe('Product page recommendations', () => {
     await screen.findByRole('heading', { name: 'Acme Cordless Drill' })
     await waitFor(() => expect(mockedCatalogApi.related).toHaveBeenCalled())
     expect(screen.queryByRole('heading', { name: 'Similar items' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Recommended based on this item' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Product page bundle', () => {
+  beforeEach(() => {
+    mockedCatalogApi.related.mockResolvedValue([])
+  })
+
+  it('shows items bought together with how many customers bought them', async () => {
+    mockedOrdersApi.boughtTogether.mockResolvedValue(
+      coPurchase([product(20, { name: 'Drill Bits' }), 3], [product(21, { name: 'Safety Glasses' }), 2]),
+    )
+
+    renderProduct()
+
+    expect(await screen.findByRole('heading', { name: 'Frequently bought together' })).toBeInTheDocument()
+    expect(screen.getAllByText('Drill Bits').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Safety Glasses').length).toBeGreaterThan(0)
+    expect(screen.getByText('Bought together by 3 customers')).toBeInTheDocument()
+    expect(screen.getByText('Bought together by 2 customers')).toBeInTheDocument()
+    expect(screen.getByText('3 of 3 items selected')).toBeInTheDocument()
+    expect(screen.queryByText(/not enough purchase history/i)).not.toBeInTheDocument()
+    expect(mockedOrdersApi.boughtTogether).toHaveBeenCalledWith(1, 2)
+  })
+
+  it('labels the similarity fallback as such and never as bought together', async () => {
+    mockedOrdersApi.boughtTogether.mockResolvedValue(
+      similarBundle([product(30, { name: 'Acme Impact Driver', brand: 'Acme' }), 'SAME_BRAND']),
+    )
+
+    renderProduct()
+
+    expect(await screen.findByRole('heading', { name: 'Pairs well with this item' })).toBeInTheDocument()
+    expect(screen.getByText('Not enough purchase history yet — suggested by similarity to this item')).toBeInTheDocument()
+    expect(screen.getByText('More from Acme')).toBeInTheDocument()
+    expect(screen.queryByText(/bought together/i)).not.toBeInTheDocument()
+  })
+
+  it('does not repeat a similarity bundle item in the similar-items grid', async () => {
+    mockedCatalogApi.related.mockResolvedValue([
+      related(product(30, { name: 'Bundled Similar' }), 'SAME_CATEGORY'),
+      related(product(31, { name: 'Only In Grid' }), 'SAME_CATEGORY'),
+    ])
+    mockedOrdersApi.boughtTogether.mockResolvedValue(similarBundle([product(30, { name: 'Bundled Similar' }), 'SAME_CATEGORY']))
+
+    renderProduct()
+
+    await screen.findByRole('heading', { name: 'Pairs well with this item' })
+    const grid = (await screen.findByRole('heading', { name: 'Similar items' })).parentElement as HTMLElement
+    expect(within(grid).getAllByText('Only In Grid').length).toBeGreaterThan(0)
+    expect(within(grid).queryAllByText('Bundled Similar')).toHaveLength(0)
+    expect(mockedCatalogApi.related).toHaveBeenCalledWith(1, 10)
+  })
+
+  it('hides the block when there is nothing to offer', async () => {
+    mockedOrdersApi.boughtTogether.mockResolvedValue(similarBundle())
+
+    renderProduct()
+
+    await screen.findByRole('heading', { name: 'Acme Cordless Drill' })
+    await waitFor(() => expect(mockedOrdersApi.boughtTogether).toHaveBeenCalled())
+    expect(screen.queryByRole('heading', { name: 'Frequently bought together' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Pairs well with this item' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Add selected to cart')).not.toBeInTheDocument()
+  })
+
+  it('hides the block when loading it fails', async () => {
+    mockedOrdersApi.boughtTogether.mockRejectedValue(new Error('boom'))
+
+    renderProduct()
+
+    await screen.findByRole('heading', { name: 'Acme Cordless Drill' })
+    await waitFor(() => expect(mockedOrdersApi.boughtTogether).toHaveBeenCalled())
+    expect(screen.queryByText('Add selected to cart')).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Recommended based on this item' })).not.toBeInTheDocument()
   })
 })

@@ -10,7 +10,9 @@ import { useCart } from '../context/CartContext'
 import { useLists } from '../context/ListsContext'
 import {
   catalogApi,
+  ordersApi,
   reviewsApi,
+  type BoughtTogether,
   type Product as ProductType,
   type RelatedProduct,
   type ReviewView,
@@ -19,6 +21,7 @@ import { usd } from '../lib/format'
 import { installmentLine } from '../lib/pricing'
 import { RATING_DISTRIBUTION, STORE_NAME } from '../lib/constants'
 import { relatedReasonLabel } from '../lib/relatedReasons'
+import { bundleCopy, bundleItemNote, withoutBundleItems } from '../lib/boughtTogether'
 import { deriveDeliveryLabel, deriveStockLabel } from '../lib/mockProductMeta'
 import { onEnterKey } from '../lib/a11y'
 
@@ -32,7 +35,9 @@ export default function Product() {
 
   const [product, setProduct] = useState<ProductType | null>(null)
   const [related, setRelated] = useState<RelatedProduct[]>([])
-  const [bundleCandidates, setBundleCandidates] = useState<ProductType[]>([])
+  // Keyed by the product it was loaded for, so a bundle never shows next to another product
+  // while the next one's request is still in flight.
+  const [bundleState, setBundleState] = useState<{ productId: number; bundle: BoughtTogether | null } | null>(null)
   const [qty, setQty] = useState(1)
   const [listTarget, setListTarget] = useState<number | null>(null)
   const [creatingList, setCreatingList] = useState(false)
@@ -75,15 +80,23 @@ export default function Product() {
     }
   }, [product])
 
-  // TODO #224: "Frequently bought together" still comes from an unranked category search; it
-  // gets its own co-purchase data in that card.
+  // "Frequently bought together" from purchase history (Card #224), or the backend's similarity
+  // fallback when there isn't enough of it — labelled as such below. A failed fetch hides the
+  // block: never falls back to unranked or made-up suggestions.
   useEffect(() => {
     if (!product) return
-    catalogApi.search({ category: product.category }).then((page) => {
-      const others = page.content.filter((p) => p.id !== product.id)
-      setBundleCandidates(others)
-      setBundleChecked(new Set([product.id, ...others.slice(0, 2).map((p) => p.id)]))
-    })
+    let cancelled = false
+    ordersApi
+      .boughtTogether(product.id, 2)
+      .catch(() => null)
+      .then((bundle) => {
+        if (cancelled) return
+        setBundleState({ productId: product.id, bundle })
+        setBundleChecked(new Set([product.id, ...(bundle?.items ?? []).map((item) => item.product.id)]))
+      })
+    return () => {
+      cancelled = true
+    }
   }, [product])
 
   useEffect(() => {
@@ -127,11 +140,16 @@ export default function Product() {
     'Ships in recyclable, single-box packaging.',
   ].filter((bullet): bullet is string => Boolean(bullet))
 
+  const bundle = bundleState?.productId === product.id ? bundleState.bundle : null
+  const hasBundle = bundle !== null && bundle.items.length > 0
+  const bundleItems = hasBundle ? [product, ...bundle.items.map((item) => item.product)] : []
+  const bundleHeading = bundle ? bundleCopy(bundle.source) : null
   // Split, not overlapped: the grid gets the six best matches, the list the next four, so no
-  // product is recommended twice on the page.
-  const similar = related.slice(0, 6)
-  const recommended = related.slice(6, 10)
-  const bundleItems = [product, ...bundleCandidates.slice(0, 2)]
+  // product is recommended twice on the page — minus whatever a similarity bundle already shows.
+  const unbundledRelated = withoutBundleItems(related, bundle)
+  const similar = unbundledRelated.slice(0, 6)
+  const recommended = unbundledRelated.slice(6, 10)
+  const bundleNotes = hasBundle ? bundle.items.map((item) => bundleItemNote(item, product)) : []
   const bundleTotal = bundleItems.filter((p) => bundleChecked.has(p.id)).reduce((sum, p) => sum + p.price, 0)
 
   function toggleBundle(pid: number) {
@@ -425,7 +443,7 @@ export default function Product() {
         </div>
       )}
 
-      {(bundleItems.length > 1 || recommended.length > 0) && (
+      {(hasBundle || recommended.length > 0) && (
         <div className="mt-7 border-t border-divider pt-7">
           <h2>Recommended based on this item</h2>
           {recommended.length > 0 && (
@@ -434,8 +452,12 @@ export default function Product() {
             </p>
           )}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {hasBundle && bundleHeading && (
             <Blueprint className="p-4">
-              <div className="h mb-3 text-base">Frequently bought together</div>
+              <h3 className="h mb-3 text-base">{bundleHeading.heading}</h3>
+              {bundleHeading.caption && (
+                <p className="-mt-2 mb-3 text-xs text-paper-600">{bundleHeading.caption}</p>
+              )}
 
               <div className="mb-4 flex flex-wrap items-start justify-center gap-x-2 gap-y-3 sm:gap-x-3">
                 {bundleItems.map((item, index) => (
@@ -478,6 +500,9 @@ export default function Product() {
                       <span className="block truncate text-sm" title={item.name}>
                         {item.name}
                       </span>
+                      {index > 0 && bundleNotes[index - 1] && (
+                        <span className="block text-xs text-accent-700">{bundleNotes[index - 1]}</span>
+                      )}
                     </span>
                     <span className="readout shrink-0 text-sm font-semibold">{usd(item.price)}</span>
                   </label>
@@ -492,6 +517,7 @@ export default function Product() {
                 Add selected to cart
               </Button>
             </Blueprint>
+            )}
 
             {recommended.length > 0 && (
               <div className="flex flex-col">
