@@ -1,10 +1,15 @@
 package com.mercatto.catalog.repository;
 
 import com.mercatto.catalog.domain.Product;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -18,10 +23,63 @@ public final class ProductSpecifications {
     private ProductSpecifications() {
     }
 
-    public static Specification<Product> nameContains(String query) {
-        return (root, cq, cb) -> query == null
-                ? null
-                : cb.like(cb.lower(root.get("name")), "%" + query.toLowerCase() + "%");
+    /**
+     * Free-text match over name, brand, category and description (#220): every full-text term
+     * must match (stemmed, unaccented, prefix) through {@code catalog.product_fts_matches}, and
+     * every literal term ({@code %}/{@code _}) must be a substring of
+     * {@code catalog.product_search_text}. The SQL functions live in
+     * {@code db/post-ddl/catalog-search.sql}.
+     */
+    public static Specification<Product> matchesText(ProductTextQuery query) {
+        return (root, cq, cb) -> {
+            if (query == null) {
+                return null;
+            }
+            List<Predicate> predicates = new ArrayList<>();
+            if (query.hasFtsTerms()) {
+                predicates.add(cb.isTrue(cb.function("catalog.product_fts_matches", Boolean.class,
+                        searchFields(root, cb, cb.literal(query.tsQuery())))));
+            }
+            if (!query.likePatterns().isEmpty()) {
+                Expression<String> searchText = cb.function("catalog.product_search_text", String.class,
+                        searchFields(root, cb));
+                for (String pattern : query.likePatterns()) {
+                    Expression<String> normalizedPattern = cb.lower(
+                            cb.function("catalog.immutable_unaccent", String.class, cb.literal(pattern)));
+                    predicates.add(cb.like(searchText, normalizedPattern, '\\'));
+                }
+            }
+            return cb.and(predicates.toArray(Predicate[]::new));
+        };
+    }
+
+    /**
+     * Orders by full-text rank ({@code ts_rank}, name weighted above brand/category above
+     * description), then by id for a stable pagination. Contributes no predicate; a no-op without
+     * full-text terms and in the count query. Only meaningful with an unsorted {@code Pageable}:
+     * Spring Data replaces this ordering when the page request carries its own {@code Sort}.
+     */
+    public static Specification<Product> orderByRelevance(ProductTextQuery query) {
+        return (root, cq, cb) -> {
+            if (query != null && query.hasFtsTerms() && !isCountQuery(cq)) {
+                cq.orderBy(
+                        cb.desc(cb.function("catalog.product_search_rank", Float.class,
+                                searchFields(root, cb, cb.literal(query.tsQuery())))),
+                        cb.asc(root.get("id")));
+            }
+            return null;
+        };
+    }
+
+    private static boolean isCountQuery(CriteriaQuery<?> cq) {
+        return cq != null && (Long.class.equals(cq.getResultType()) || long.class.equals(cq.getResultType()));
+    }
+
+    private static Expression<?>[] searchFields(Root<Product> root, CriteriaBuilder cb, Expression<?>... extra) {
+        List<Expression<?>> args = new ArrayList<>(List.of(
+                root.get("name"), root.get("brand"), root.get("category"), root.get("description")));
+        args.addAll(List.of(extra));
+        return args.toArray(Expression<?>[]::new);
     }
 
     public static Specification<Product> categoryEquals(String category) {

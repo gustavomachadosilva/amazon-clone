@@ -121,16 +121,22 @@ nas 3 execuções; latência = mediana das 3 execuções.
 
 ### Agregado
 
-| Métrica | Baseline |
-|---|---|
-| P@10 | **0,498** |
-| R@10 | **0,482** |
-| MRR@10 | **0,524** |
-| Taxa de zero-resultado (consultas com relevantes) | **0,32** (8 de 25) |
-| Taxa de falso positivo (consultas sem relevantes) | **0,20** (1 de 5: `_`) |
-| Latência p50 | 4,48 ms |
-| Latência p95 | **7,54 ms** (execuções: 7,54 / 7,40 / 7,63) |
-| Latência max | 14,64 ms |
+| Métrica | Baseline | Após #222 | Após #220 |
+|---|---|---|---|
+| P@10 | **0,498** | 0,498 | **0,794** |
+| R@10 | **0,482** | 0,482 | **0,859** |
+| MRR@10 | **0,524** | 0,551 | **0,883** |
+| Taxa de zero-resultado (consultas com relevantes) | **0,32** (8 de 25) | 0,32 (8 de 25) | **0,00** (0 de 25) |
+| Taxa de falso positivo (consultas sem relevantes) | **0,20** (1 de 5: `_`) | 0,20 (1 de 5: `_`) | **0,00** (0 de 5) |
+| Latência p50 | 4,48 ms | 4,39 ms | 2,25 ms |
+| Latência p95 | **7,54 ms** (execuções: 7,54 / 7,40 / 7,63) | 7,48 ms (1 execução) | **9,85 ms** (execuções: 10,23 / 9,85 / 9,70) |
+| Latência max | 14,64 ms | 20,96 ms | 14,26 ms |
+
+"Após #222" e "Após #220" foram medidos em 29/09/2026 na mesma máquina do baseline: #222 no `dev`
+antes de #220 (commit `820d447`), #220 no branch do card. Relevância idêntica nas execuções.
+#222 só mudou o MRR: a ordem deixou de ser a física da tabela e passou a ser `id ASC`, o que tirou
+`nintendo switch` da posição 3 (RR 0,333 → 1). Ver [Card #220](#card-220-busca-em-múltiplos-campos-e-termos)
+para o que mudou e por que a latência p95 subiu.
 
 ### Por tipo
 
@@ -143,6 +149,18 @@ nas 3 execuções; latência = mediana das 3 execuções.
 | category_only | 4 | 0,167 | 0,050 | 0,250 | 0,750 | – | 5,49 |
 | special_chars | 4 | 0,300 | 0,500 | 0,306 | 0,000 | 0,500 | 7,42 |
 | no_result | 3 | – | – | – | – | 0,000 | 4,11 |
+
+Após #222 e após #220, por tipo (célula = `após #222 → após #220`; p95 da execução mediana):
+
+| Tipo | n | P@10 | R@10 | MRR@10 | zero-resultado | falso positivo | p95 ms |
+|---|---|---|---|---|---|---|---|
+| exact | 6 | 0,629 → 0,636 | 0,756 → 0,806 | 0,694 → 0,722 | 0,000 → 0,000 | – | 7,63 → 3,25 |
+| multi_term | 6 | 0,778 → 0,813 | 0,655 → 0,952 | 0,833 → 1,000 | 0,167 → 0,000 | – | 7,97 → 3,13 |
+| plural_singular | 4 | 0,683 → 0,750 | 0,600 → 0,771 | 0,750 → 0,813 | 0,250 → 0,000 | – | 7,61 → 3,29 |
+| typo | 3 | 0,000 → 0,750 | 0,000 → 0,644 | 0,000 → 0,833 | 1,000 → 0,000 | – | 5,06 → 12,92 |
+| category_only | 4 | 0,167 → 0,975 | 0,050 → 0,975 | 0,250 → 1,000 | 0,750 → 0,000 | – | 5,29 → 3,34 |
+| special_chars | 4 | 0,300 → 1,000 | 0,500 → 1,000 | 0,306 → 1,000 | 0,000 → 0,000 | 0,500 → 0,000 | 8,03 → 2,83 |
+| no_result | 3 | – | – | – | – | 0,000 → 0,000 | 4,89 → 10,18 |
 
 ### Por consulta
 
@@ -209,6 +227,89 @@ relevantes na 1ª página.
 - **Não há nada no seed para uma parte das intenções** (`blender`, `air fryer`): acertam hoje (0
   resultados) e devem continuar acertando: uma busca mais "frouxa" não pode passar a devolver lixo
   para elas nem para `xyzzy`.
+
+## Card #220: busca em múltiplos campos e termos
+
+[#220](https://github.com/gustavomachadosilva/amazon-clone/issues/220) substituiu o
+`lower(name) like '%query%'` por full-text search do PostgreSQL. Objetos SQL em
+`backend/src/main/resources/db/post-ddl/catalog-search.sql` (idempotente, roda a cada subida logo
+depois do `ddl-auto`, via `spring.sql.init` + `spring.jpa.defer-datasource-initialization`); parse
+da consulta em `catalog.repository.ProductTextQuery`; predicados em `ProductSpecifications`
+(`matchesText`, `orderByRelevance`); correção de digitação em
+`ProductRepository#findClosestIndexedWord` e `ProductServiceImpl#searchWithRating`.
+
+### Algoritmo
+
+1. **Parse** (`ProductTextQuery`): trim, no máximo 200 caracteres e 10 termos, separação por espaço.
+   Um token com `%` ou `_` vira **termo literal**: padrão `LIKE '%…%'` com `\`, `%` e `_` escapados.
+   Os demais tokens são quebrados em tudo que não é letra/dígito (`usb-c` → `usb`, `c`), em
+   minúsculas: **termos full-text**. Uma consulta só de pontuação (`!!!`) vira um termo literal.
+2. **Casamento** (`catalog.product_fts_matches`): documento
+   `setweight(name,'A') || setweight(brand,'B') || setweight(category,'B') || setweight(description,'C')`,
+   cada campo passando por `unaccent` e `to_tsvector('english', …)`; consulta
+   `to_tsquery('english', 't1:* & t2 & …')`: **todos** os termos precisam casar (em qualquer campo e
+   ordem), com stemming do inglês (`laptops` ↔ `laptop`, `running` ↔ `run`) e prefixo (`:*`) para
+   termos de 3+ caracteres. Como os termos só têm letras e dígitos, nenhum operador de tsquery
+   (`& | ! ( ) : *`) vindo do usuário chega ao `to_tsquery`. Termos literais precisam ser
+   substring de `catalog.product_search_text` (os 4 campos concatenados, sem acento, minúsculos).
+3. **Ordenação** (`sort=relevance`, o padrão, com termos full-text): `ts_rank` sobre o mesmo
+   documento, pesos padrão do PostgreSQL (A = 1,0, B = 0,4, C = 0,2; nenhum peso foi ajustado), depois
+   `id ASC`. Sem consulta, ou só com termos literais, continua `id ASC`. Os outros `sort` não mudaram.
+4. **Tolerância a erro de digitação**, só quando a busca volta `totalElements = 0` e há termos
+   full-text: cada termo só de letras com 4+ caracteres é trocado pela palavra do catálogo mais
+   próxima (`ts_stat` sobre `to_tsvector('simple', product_search_text)`) com distância de
+   Levenshtein ≤ 1 (≤ 2 a partir de 8 letras) e similaridade de trigramas ≥ 0,45; desempate por
+   menor distância, maior similaridade e presença em mais produtos. Se algum termo mudou, a busca
+   roda **uma** vez de novo com os mesmos filtros; senão o resultado vazio é devolvido. Termos
+   com dígito (`ps5`, `4060`) nunca são corrigidos.
+5. **Índices**: GIN sobre `catalog.product_search_vector(...)` (usado pelo casamento full-text) e
+   GIN trigram sobre `catalog.product_search_text(...)` (disponível para os termos literais). As
+   funções são `IMMUTABLE` (o `unaccent` é embrulhado com dicionário fixo em
+   `catalog.immutable_unaccent`) e SQL simples, então o planner as expande e casa com os índices.
+
+Limitações conhecidas: uma consulta só de stop words do inglês (`the`, `for`) não filtra nada e
+devolve o catálogo inteiro (a alternativa, não devolver nada, é pior); a correção de digitação
+varre o vocabulário inteiro (`ts_stat`), por isso só roda quando não houve resultado.
+
+### Latência
+
+O p50 caiu pela metade (4,4 → 2,3 ms): com o índice GIN, o casamento não varre a tabela. O p95
+subiu (7,5 → 9,9 ms) porque 6 das 30 consultas (3 `typo` e 3 `no_result`) voltam vazias na
+primeira tentativa e pagam o `ts_stat` da correção (≈ 7–8 ms a mais); com 20% das consultas nesse
+caminho, o p95 cai nele. As demais consultas ficaram em ~2–3,5 ms de p95.
+
+Uma medição intermediária mostrou p95 de 26 ms: logo depois do seed a tabela ainda não tem
+estatísticas (o autovacuum só roda `ANALYZE` depois de ~1 min), o planner acha que ela está vazia e
+escolhe seq scan, recalculando o `to_tsvector` dos 500 produtos a cada busca. Por isso o
+`AmazonProductSeeder` agora roda `ANALYZE catalog.products` logo depois da carga
+(`ProductRepository#refreshStatistics`); com estatísticas, `EXPLAIN ANALYZE` mostra Bitmap Index
+Scan em `products_search_vector_idx` (≈ 0,4 ms contra ≈ 10 ms do seq scan).
+
+### O que mudou por consulta (após #222 → após #220)
+
+- **Resolvidas (0 → resultado):** `earbuds wireless` (0 → 22, P@10 1,0), `laptops` (0 → 15),
+  as 3 `typo` (`headphnes` → headphones, `playstaton` → playstation, `lipstik` → lipstick: mesmos
+  resultados das consultas corretas), e `video games`, `home appliances`, `computer components` (0 →
+  20, P@10 1,0, pela categoria).
+- **Mais recall:** `furniture` (3 → 21, R@10 0,2 → 0,9), `handbag` (7 → 20, R@10 0,6 → 0,9),
+  `running shoes` (R@10 0,5 → 1,0), `noise cancelling headphones` (R@10 0,43 → 0,71), `boots` (R@10
+  0,5 → 0,9, agora igual a `boot`).
+- **`%` e `_` literais:** `100%` (21 → 6, P@10 0,5 → 1,0), `%` (500 → 6, só os produtos com `%`),
+  `_` (500 → 0: some o único falso positivo), `50% off` segue 0.
+- **Continuam vazias, como devem:** `xyzzy`, `blender`, `air fryer` (nenhuma palavra do catálogo a
+  ≤ 1–2 edições).
+- **Pioras / pontos fracos restantes** (ranking, escopo de #221):
+  - `laptops`: acha os 7 notebooks, mas só 2 na 1ª página (P@10 0,2): fones "…for Laptop" têm o
+    termo no nome com o mesmo peso A e empatam com os notebooks; o desempate é o `id`.
+  - `playstation`: RR 1,0 → 0,5: o cabo de força cita "Playstation" 3 vezes no nome e o `ts_rank`
+    premia a frequência.
+  - `usb c cable` (P@10 1,0 → 0,5) e `noise cancelling headphones` (P@10 1,0 → 0,71): exigir os
+    termos em qualquer posição (e não mais como frase contígua) traz itens que os citam
+    separadamente: o carregador "USB C GaN Charger … (Cable Not Included)" e fones com "Noise
+    Canceling Mic" (o stemming junta canceling/cancelling), que não são fones com cancelamento de
+    ruído.
+  - `samsung` e `camera` seguem com acessórios "for Samsung" / "for Canon … Camera" no topo
+    (RR 0,333 e 0,5): o texto não distingue marca de compatibilidade.
 
 ## Dataset de recomendação
 

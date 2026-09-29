@@ -56,6 +56,23 @@ entity ever joins across a schema boundary.
 
 Postgres runs the SQL in `backend/src/main/resources/db/init/` on first boot, creating the
 `users`, `catalog`, `orders`, and `cart` schemas before Hibernate touches the database.
+Objects that need the tables to exist (extensions, SQL functions, expression indexes) go in
+`backend/src/main/resources/db/post-ddl/` instead: Spring runs those scripts on **every** startup,
+right after Hibernate's `ddl-auto` (`spring.sql.init.mode: always` +
+`spring.jpa.defer-datasource-initialization: true`), so they must be idempotent
+(`CREATE ... IF NOT EXISTS`, `CREATE OR REPLACE`) and never contain `;` inside a function body.
+
+### Product search
+
+`GET /api/catalog/products?query=…` (#220) searches name, brand, category and description with
+PostgreSQL full-text search (`english` configuration, `db/post-ddl/catalog-search.sql`): every
+term must match, in any field and any order; case and accents are ignored, English plurals and
+inflections are stemmed ("laptops" finds "Laptop") and terms of 3+ characters match as prefixes.
+A term containing `%` or `_` is literal text. Only when a search finds nothing, words of 4+
+letters that aren't in the catalog are corrected to the closest catalog word (1 edit, 2 from 8
+letters) and the search runs once more. `sort=relevance` (the default) orders by full-text rank
+(name > brand/category > description). Details and measurements in
+[`docs/search-recommendation-baseline.md`](docs/search-recommendation-baseline.md).
 
 ### Running without Docker
 

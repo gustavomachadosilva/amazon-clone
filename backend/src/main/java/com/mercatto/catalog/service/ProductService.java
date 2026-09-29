@@ -52,6 +52,14 @@ public interface ProductService {
     /**
      * One page of the products matching {@code criteria}, filtered and ordered in the database so
      * {@code totalElements}/{@code totalPages} describe the whole filtered result.
+     *
+     * <p>The free-text {@code query} (#220) is matched against name, brand, category and
+     * description. Every term must match (in any field, in any order); matching ignores case and
+     * accents, stems English words ("laptops" finds "Laptop") and treats terms of 3+ characters as
+     * prefixes. A term containing {@code %} or {@code _} is matched as literal text. Only when a
+     * search finds nothing, each word of 4+ letters that isn't in the catalog is replaced by the
+     * closest catalog word (1 edit, 2 from 8 letters) and the search runs once more with the same
+     * filters. With {@link ProductSort#RELEVANCE}, results are ordered by full-text rank.
      */
     Page<ProductView> searchWithRating(ProductSearchCriteria criteria, int page, int size);
 
