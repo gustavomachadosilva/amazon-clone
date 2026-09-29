@@ -3,6 +3,8 @@ package com.mercatto.integration;
 import com.mercatto.orders.service.PaymentGateway;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -66,5 +68,26 @@ class DeclinedPaymentCheckoutIntegrationTest extends PostgresIntegrationTest {
         // Synchronous AFTER_COMMIT listener: already applied when the response returned.
         assertThat(stockOf(product)).isEqualTo(3);
         assertThat(listOrders(buyer)).hasSize(1);
+    }
+
+    @Test
+    void declinedOrdersNeverCountAsBoughtTogether() {
+        when(paymentGateway.charge(anyLong(), any(), anyString()))
+                .thenReturn(new PaymentGateway.PaymentResult(false, null, "Card declined"));
+        TestUser seller = seller();
+        Long product = createProduct(seller, "30.00", 5);
+        Long companion = createProduct(seller, "10.00", 5);
+        // Enough buyers for the pair to count (#224) — if their orders had been paid.
+        for (int i = 0; i < 2; i++) {
+            ResponseEntity<Map<String, Object>> response =
+                    checkout(buyer(), List.of(item(product, 1), item(companion, 1)), null);
+            assertThat(response.getBody().get("status")).isEqualTo("FAILED");
+        }
+
+        ResponseEntity<Map<String, Object>> bundle = rest.exchange(
+                "/api/orders/bought-together/" + product, HttpMethod.GET, HttpEntity.EMPTY, MAP);
+
+        assertThat(bundle.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(bundle.getBody().get("source")).isEqualTo("SIMILAR");
     }
 }

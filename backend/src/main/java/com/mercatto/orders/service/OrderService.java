@@ -127,4 +127,25 @@ public interface OrderService {
      *         longer exists (HTTP 409); nothing is charged
      */
     Order retryPayment(Long orderId, Long buyerId, PaymentMethod paymentMethod);
+
+    /**
+     * A product bought together with another one: {@code buyers} is how many distinct buyers have
+     * a PAID order containing both, {@code score} that count normalized by the product's own
+     * popularity (see {@link #coPurchasedWith}).
+     */
+    record CoPurchase(Long productId, int buyers, double score) {}
+
+    /**
+     * Up to {@code limit} products most often bought together with {@code productId} (Card #224),
+     * best first. Only PAID orders count, pairs are counted by distinct buyer (not by order), and
+     * a pair needs at least two buyers to be returned. The score is
+     * {@code buyers / sqrt(popularity)}, where popularity is the number of distinct buyers of the
+     * candidate, so a best-seller present in every cart doesn't top every list; ties go to more
+     * buyers, then to the lowest product id.
+     * <p>
+     * Returns ids only and doesn't check the products still exist or are in stock — that's up to
+     * the caller (see {@link BoughtTogetherService}). Empty when there isn't enough purchase
+     * history, including for an unknown {@code productId}.
+     */
+    List<CoPurchase> coPurchasedWith(Long productId, int limit);
 }

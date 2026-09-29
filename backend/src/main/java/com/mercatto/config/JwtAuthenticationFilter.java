@@ -90,6 +90,11 @@ class JwtAuthenticationFilter extends OncePerRequestFilter {
         if ("GET".equals(method) && path.startsWith("/api/reviews/media/")) {
             return true;
         }
+        // The product page's frequently-bought-together bundle (#224) is shown to anonymous
+        // visitors too. Only this sub-path: every other /api/orders endpoint stays behind the token.
+        if ("GET".equals(method) && path.startsWith("/api/orders/bought-together/")) {
+            return true;
+        }
         return "GET".equals(method)
                 && (path.startsWith("/api/catalog/products") || path.startsWith("/api/catalog/categories"));
     }

@@ -244,11 +244,30 @@ API HTTP pública, sem repositório nem SQL em schema de outro módulo (Contrato
 resultado (`LoadedDataset`) traz comprador simbólico → usuário/token e nome → id do produto, para
 consultar o endpoint de recomendação e comparar com `expectations`.
 
-**Ainda não existe baseline de recomendação.** Hoje a página de produto mostra os 10 primeiros itens
-da mesma categoria e a Home, os 10 primeiros do banco para todos: não há endpoint próprio de
-recomendação a medir. As métricas de recomendação (por exemplo, hit rate@k de `alsoBought` e de
-`forBuyer`) devem ser definidas pelo primeiro card que criar esse endpoint (#223), registrando aqui o
-número do placeholder atual e o da mudança.
+**Ainda não existe baseline numérico de recomendação.** Quando este documento foi escrito, a página
+de produto mostrava os 10 primeiros itens da mesma categoria e a Home, os 10 primeiros do banco para
+todos: não havia endpoint próprio de recomendação a medir. As métricas de recomendação (por exemplo,
+hit rate@k de `alsoBought` e de `forBuyer`) devem ser definidas pelo primeiro card que criar esse
+endpoint, registrando aqui o número do placeholder atual e o da mudança.
+
+### Frequently bought together (#224)
+
+- **Antes:** o bloco "Frequently bought together" da página de produto mostrava os 2 primeiros
+  resultados de uma busca pela mesma categoria (`GET /api/catalog/products?category=…`), sem usar
+  pedido nenhum. Não foi medido contra `alsoBought` — qualquer acerto seria coincidência da ordem da
+  busca.
+- **Depois:** `GET /api/orders/bought-together/{productId}?limit=2` conta co-compras em pedidos
+  **PAID**, por **comprador distinto**, exige suporte mínimo de 2 compradores e ordena por
+  `co / sqrt(popularidade)` (ver `orders.service.CoPurchaseScorer`). Sem co-compra suficiente, cai
+  para os similares do #223 com `source: SIMILAR`, e a página não chama isso de "bought together".
+- **Medido** em `FrequentlyBoughtTogetherIntegrationTest` (roda no `mvn test`): para os **6/6**
+  produtos de `expectations.alsoBought`, com `limit=2`, a resposta é `CO_PURCHASE` e traz exatamente
+  os itens esperados (hit rate@2 = 1,0 e nenhum item fora do esperado). No PS5, o DualSense (3
+  compradores, score 1,73) vem antes do Spider-Man 2 (2 compradores, 1,41). A fonte "Corsair RM750e",
+  comprada uma única vez junto com GPU/CPU/RAM (suporte 1), cai para `SIMILAR`, como esperado.
+- Diferente do `SearchEvalIT`, esse teste não usa o perfil `dev`: cria pela API de vendedor um produto
+  novo para cada nome do dataset e passa esse mapa nome → id ao `RecommendationDatasetLoader`, para que
+  pedidos de outros testes não contaminem as contagens.
 
 ## Como atualizar este documento
 

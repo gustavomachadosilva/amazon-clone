@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -147,6 +148,14 @@ class ProductServiceImpl implements ProductService {
     @Override
     public Optional<ProductView> findByIdWithRating(Long id) {
         return productRepository.findById(id).map(this::toView);
+    }
+
+    @Override
+    public List<ProductView> findViewsByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return productRepository.findAllById(ids).stream().map(this::toView).toList();
     }
 
     @Override
