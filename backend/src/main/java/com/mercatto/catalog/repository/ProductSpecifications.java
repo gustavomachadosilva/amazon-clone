@@ -1,9 +1,11 @@
 package com.mercatto.catalog.repository;
 
 import com.mercatto.catalog.domain.Product;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Optional search predicates, each one a no-op when its argument is {@code null}. Built as
@@ -38,5 +40,26 @@ public final class ProductSpecifications {
         return (root, cq, cb) -> minRating == null
                 ? null
                 : cb.greaterThanOrEqualTo(root.get("averageRating"), minRating);
+    }
+
+    /** Name contains any of {@code tokens} (case-insensitive); a no-op when the list is empty. */
+    public static Specification<Product> nameContainsAny(List<String> tokens) {
+        return (root, cq, cb) -> tokens == null || tokens.isEmpty()
+                ? null
+                : cb.or(tokens.stream()
+                        .map(token -> cb.like(cb.lower(root.get("name")), "%" + token.toLowerCase() + "%"))
+                        .toArray(Predicate[]::new));
+    }
+
+    public static Specification<Product> categoryNot(String category) {
+        return (root, cq, cb) -> category == null ? null : cb.notEqual(root.get("category"), category);
+    }
+
+    public static Specification<Product> idNot(Long id) {
+        return (root, cq, cb) -> id == null ? null : cb.notEqual(root.get("id"), id);
+    }
+
+    public static Specification<Product> inStock() {
+        return (root, cq, cb) -> cb.greaterThan(root.get("stockQuantity"), 0);
     }
 }

@@ -8,10 +8,17 @@ import ReviewsWithImages from '../components/reviews/ReviewsWithImages'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { useLists } from '../context/ListsContext'
-import { catalogApi, reviewsApi, type Product as ProductType, type ReviewView } from '../services/api'
+import {
+  catalogApi,
+  reviewsApi,
+  type Product as ProductType,
+  type RelatedProduct,
+  type ReviewView,
+} from '../services/api'
 import { usd } from '../lib/format'
 import { installmentLine } from '../lib/pricing'
-import { RATING_DISTRIBUTION, RELATED_REASONS, ALSO_VIEWED_SHARES, STORE_NAME } from '../lib/constants'
+import { RATING_DISTRIBUTION, STORE_NAME } from '../lib/constants'
+import { relatedReasonLabel } from '../lib/relatedReasons'
 import { deriveDeliveryLabel, deriveStockLabel } from '../lib/mockProductMeta'
 import { onEnterKey } from '../lib/a11y'
 
@@ -24,7 +31,8 @@ export default function Product() {
   const lists = useLists()
 
   const [product, setProduct] = useState<ProductType | null>(null)
-  const [related, setRelated] = useState<ProductType[]>([])
+  const [related, setRelated] = useState<RelatedProduct[]>([])
+  const [bundleCandidates, setBundleCandidates] = useState<ProductType[]>([])
   const [qty, setQty] = useState(1)
   const [listTarget, setListTarget] = useState<number | null>(null)
   const [creatingList, setCreatingList] = useState(false)
@@ -51,11 +59,29 @@ export default function Product() {
     catalogApi.getById(productId).then(setProduct)
   }, [productId])
 
+  // Similarity-ranked recommendations (Card #223). A failed fetch just hides both sections —
+  // never falls back to unranked or made-up suggestions.
+  useEffect(() => {
+    if (!product) return
+    let cancelled = false
+    catalogApi
+      .related(product.id, 10)
+      .catch(() => [] as RelatedProduct[])
+      .then((items) => {
+        if (!cancelled) setRelated(items)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [product])
+
+  // TODO #224: "Frequently bought together" still comes from an unranked category search; it
+  // gets its own co-purchase data in that card.
   useEffect(() => {
     if (!product) return
     catalogApi.search({ category: product.category }).then((page) => {
       const others = page.content.filter((p) => p.id !== product.id)
-      setRelated(others)
+      setBundleCandidates(others)
       setBundleChecked(new Set([product.id, ...others.slice(0, 2).map((p) => p.id)]))
     })
   }, [product])
@@ -101,9 +127,11 @@ export default function Product() {
     'Ships in recyclable, single-box packaging.',
   ].filter((bullet): bullet is string => Boolean(bullet))
 
-  const alsoViewed = related.slice(0, 6)
-  const recommended = related.slice(0, 4)
-  const bundleItems = [product, ...related.slice(0, 2)]
+  // Split, not overlapped: the grid gets the six best matches, the list the next four, so no
+  // product is recommended twice on the page.
+  const similar = related.slice(0, 6)
+  const recommended = related.slice(6, 10)
+  const bundleItems = [product, ...bundleCandidates.slice(0, 2)]
   const bundleTotal = bundleItems.filter((p) => bundleChecked.has(p.id)).reduce((sum, p) => sum + p.price, 0)
 
   function toggleBundle(pid: number) {
@@ -377,19 +405,22 @@ export default function Product() {
         </Blueprint>
       </div>
 
-      {alsoViewed.length > 0 && (
+      {similar.length > 0 && (
         <div className="mt-7 border-t border-divider pt-7">
-          <h2>Customers who viewed this item also viewed</h2>
-          <p className="text-[16.5px] text-paper-700">Based on browsing sessions that included {product.name}</p>
+          <h2>Similar items</h2>
+          <p className="text-[16.5px] text-paper-700">
+            Ranked by category, brand, price and name similarity to this item
+          </p>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-6">
-            {alsoViewed.map((item, index) => (
-              <div key={item.id}>
-                <ProductGridCard product={item} compact />
-                <div className="mt-1 text-[14.5px] text-accent-700">
-                  {ALSO_VIEWED_SHARES[index] ?? 10}% also viewed this
+            {similar.map(({ product: item, primaryReason }) => {
+              const reason = relatedReasonLabel(primaryReason, product, item)
+              return (
+                <div key={item.id}>
+                  <ProductGridCard product={item} compact />
+                  {reason && <div className="mt-1 text-[14.5px] text-accent-700">{reason}</div>}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -397,9 +428,11 @@ export default function Product() {
       {(bundleItems.length > 1 || recommended.length > 0) && (
         <div className="mt-7 border-t border-divider pt-7">
           <h2>Recommended based on this item</h2>
-          <p className="text-[16.5px] text-paper-700">
-            Frequently bought with or instead of this {product.category} pick
-          </p>
+          {recommended.length > 0 && (
+            <p className="text-[16.5px] text-paper-700">
+              Picked by similarity to this item — each with the reason it was chosen
+            </p>
+          )}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Blueprint className="p-4">
               <div className="h mb-3 text-base">Frequently bought together</div>
@@ -460,64 +493,65 @@ export default function Product() {
               </Button>
             </Blueprint>
 
-            <div className="flex flex-col">
-              {recommended.map((item, index) => {
-                return (
-                  <div
-                    key={item.id}
-                    className="grid grid-cols-[64px_1fr] items-start gap-3 border-b border-divider py-3 first:pt-0 last:border-b-0 sm:grid-cols-[64px_1fr_auto]"
-                  >
+            {recommended.length > 0 && (
+              <div className="flex flex-col">
+                {recommended.map(({ product: item, primaryReason }) => {
+                  const reason = relatedReasonLabel(primaryReason, product, item)
+                  return (
                     <div
-                      className="cursor-pointer"
-                      role="link"
-                      tabIndex={0}
-                      onClick={() => navigate(`/product/${item.id}`)}
-                      onKeyDown={onEnterKey(() => navigate(`/product/${item.id}`))}
+                      key={item.id}
+                      className="grid grid-cols-[64px_1fr] items-start gap-3 border-b border-divider py-3 first:pt-0 last:border-b-0 sm:grid-cols-[64px_1fr_auto]"
                     >
-                      <Placeholder label={item.name} aspect="1/1" src={item.imageUrl} />
-                    </div>
-                    <div className="min-w-0">
                       <div
-                        className="line-clamp-2 min-h-[40px] cursor-pointer text-[15px] leading-[1.35]"
+                        className="cursor-pointer"
                         role="link"
                         tabIndex={0}
-                        title={item.name}
                         onClick={() => navigate(`/product/${item.id}`)}
                         onKeyDown={onEnterKey(() => navigate(`/product/${item.id}`))}
                       >
-                        {item.name}
+                        <Placeholder label={item.name} aspect="1/1" src={item.imageUrl} />
                       </div>
-                      {item.reviewCount > 0 && (
-                        <div className="mt-1 flex items-center gap-1.5">
-                          <StarRating rating={item.averageRating} size={14} />
-                          <span className="readout text-xs text-paper-600">{item.reviewCount}</span>
+                      <div className="min-w-0">
+                        <div
+                          className="line-clamp-2 min-h-[40px] cursor-pointer text-[15px] leading-[1.35]"
+                          role="link"
+                          tabIndex={0}
+                          title={item.name}
+                          onClick={() => navigate(`/product/${item.id}`)}
+                          onKeyDown={onEnterKey(() => navigate(`/product/${item.id}`))}
+                        >
+                          {item.name}
                         </div>
-                      )}
-                      <div className="mt-1 truncate text-xs text-accent-700">
-                        {RELATED_REASONS[index % RELATED_REASONS.length].replace('{category}', product.category)}
+                        {item.reviewCount > 0 && (
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <StarRating rating={item.averageRating} size={14} />
+                            <span className="readout text-xs text-paper-600">{item.reviewCount}</span>
+                          </div>
+                        )}
+                        {reason && <div className="mt-1 truncate text-xs text-accent-700">{reason}</div>}
+                      </div>
+                      <div className="col-span-2 flex items-center justify-between gap-3 sm:col-span-1 sm:flex-col sm:items-end sm:justify-start sm:gap-1.5">
+                        <div className="readout text-lg font-semibold">{usd(item.price)}</div>
+                        <Button
+                          variant="secondary"
+                          className="whitespace-nowrap"
+                          onClick={() => {
+                            if (!user) {
+                              navigate('/signin')
+                              return
+                            }
+                            cart.addItem(item)
+                            navigate('/cart')
+                          }}
+                        >
+                          Add to cart
+                        </Button>
                       </div>
                     </div>
-                    <div className="col-span-2 flex items-center justify-between gap-3 sm:col-span-1 sm:flex-col sm:items-end sm:justify-start sm:gap-1.5">
-                      <div className="readout text-lg font-semibold">{usd(item.price)}</div>
-                      <Button
-                        variant="secondary"
-                        className="whitespace-nowrap"
-                        onClick={() => {
-                          if (!user) {
-                            navigate('/signin')
-                            return
-                          }
-                          cart.addItem(item)
-                          navigate('/cart')
-                        }}
-                      >
-                        Add to cart
-                      </Button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

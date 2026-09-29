@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
 import java.security.Principal;
+import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -35,6 +36,7 @@ import java.util.Optional;
 public class ProductController {
 
     static final int MAX_PAGE_SIZE = 100;
+    static final int MAX_RELATED_LIMIT = 20;
 
     private final ProductService productService;
 
@@ -67,6 +69,15 @@ public class ProductController {
         return productService.findByIdWithRating(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/related")
+    public List<ProductService.RelatedProduct> related(@PathVariable Long id,
+                                                        @RequestParam(defaultValue = "6") int limit) {
+        if (limit < 1 || limit > MAX_RELATED_LIMIT) {
+            throw new IllegalArgumentException("limit must be between 1 and " + MAX_RELATED_LIMIT);
+        }
+        return productService.findRelated(id, limit);
     }
 
     @PostMapping

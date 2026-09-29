@@ -12,10 +12,19 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.mercatto.catalog.repository.ProductSpecifications.categoryEquals;
+import static com.mercatto.catalog.repository.ProductSpecifications.categoryNot;
+import static com.mercatto.catalog.repository.ProductSpecifications.idNot;
+import static com.mercatto.catalog.repository.ProductSpecifications.inStock;
+import static com.mercatto.catalog.repository.ProductSpecifications.nameContainsAny;
 import static com.mercatto.catalog.repository.ProductSpecifications.nameContains;
 import static com.mercatto.catalog.repository.ProductSpecifications.priceAtLeast;
 import static com.mercatto.catalog.repository.ProductSpecifications.priceAtMost;
@@ -34,7 +43,15 @@ class ProductServiceImpl implements ProductService {
     // as seeded ones (see AmazonProductSeeder), rather than silently defaulting to "no warranty".
     private static final int DEFAULT_WARRANTY_MONTHS = 12;
 
+    // Related products from other categories only count when they share the brand or the name:
+    // a cross-category item that's merely cheaper or better rated isn't related to anything.
+    private static final Set<RelatedReason> CROSS_CATEGORY_REASONS =
+            EnumSet.of(RelatedReason.SAME_BRAND, RelatedReason.SIMILAR_NAME);
+    private static final int FALLBACK_NAME_TOKENS = 3;
+    private static final int FALLBACK_POOL_SIZE = 50;
+
     private final ProductRepository productRepository;
+    private final RelatedProductScorer relatedProductScorer = new RelatedProductScorer();
 
     @Override
     public Optional<ProductSummary> findById(Long id) {
@@ -130,6 +147,57 @@ class ProductServiceImpl implements ProductService {
     @Override
     public Optional<ProductView> findByIdWithRating(Long id) {
         return productRepository.findById(id).map(this::toView);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RelatedProduct> findRelated(Long productId, int limit) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ProductNotFoundException("Product not found: " + productId));
+        ProductView current = toView(product);
+        Double categoryTopRating = productRepository.findTopAverageRatingInCategory(product.getCategory());
+
+        List<Product> pool = productRepository.findTop200ByCategoryAndIdNotAndStockQuantityGreaterThan(
+                product.getCategory(), productId, 0);
+        List<RelatedProductScorer.Scored> scored = new ArrayList<>(pool.stream()
+                .map(candidate -> relatedProductScorer.score(current, toView(candidate), categoryTopRating))
+                .toList());
+
+        if (pool.size() < limit) {
+            crossCategoryCandidates(product).stream()
+                    .map(candidate -> relatedProductScorer.score(current, toView(candidate), categoryTopRating))
+                    .filter(candidate -> candidate.hasAnyReason(CROSS_CATEGORY_REASONS))
+                    .forEach(scored::add);
+        }
+
+        return scored.stream()
+                .sorted(RelatedProductScorer.ORDER)
+                .limit(limit)
+                .map(RelatedProductScorer.Scored::toRelatedProduct)
+                .toList();
+    }
+
+    // In-stock products outside the current category sharing its brand or one of its most
+    // specific name words, deduplicated by id. The scorer then decides whether they really match.
+    private List<Product> crossCategoryCandidates(Product product) {
+        Map<Long, Product> candidates = new LinkedHashMap<>();
+        if (RelatedProductScorer.isRealBrand(product.getBrand())) {
+            productRepository.findTop50ByBrandIgnoreCaseAndCategoryNotAndStockQuantityGreaterThan(
+                            product.getBrand().trim(), product.getCategory(), 0)
+                    .forEach(candidate -> candidates.putIfAbsent(candidate.getId(), candidate));
+        }
+        List<String> tokens = RelatedProductScorer.longestNameTokens(product.getName(), FALLBACK_NAME_TOKENS);
+        if (!tokens.isEmpty()) {
+            Specification<Product> spec = Specification.allOf(
+                    nameContainsAny(tokens),
+                    categoryNot(product.getCategory()),
+                    inStock(),
+                    idNot(product.getId()));
+            productRepository.findAll(spec, PageRequest.of(0, FALLBACK_POOL_SIZE))
+                    .forEach(candidate -> candidates.putIfAbsent(candidate.getId(), candidate));
+        }
+        candidates.remove(product.getId());
+        return List.copyOf(candidates.values());
     }
 
     private ProductSummary toSummary(Product product) {
