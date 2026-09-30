@@ -18,7 +18,10 @@ vi.mock('./services/api', () => ({
   },
   listsApi: {
     listMine: vi.fn(() => Promise.resolve([])),
-  }
+  },
+  recommendationsApi: {
+    home: vi.fn(() => Promise.resolve({ layer: 'TOP_RATED', items: [] })),
+  },
 }))
 import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'

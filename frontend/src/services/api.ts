@@ -145,6 +145,23 @@ export interface BoughtTogether {
   items: BoughtTogetherItem[]
 }
 
+// Which shelf the Home got (Card #225): PERSONALIZED is built from the signed-in user's purchases,
+// cart and lists ("Recommended for you"); TOP_RATED is the fallback for anonymous visitors and
+// users without enough history ("Top rated"). The backend sends no title — see homeSectionCopy.
+export type HomeRecommendationLayer = 'PERSONALIZED' | 'TOP_RATED'
+
+export type HomeRecommendationReason = 'BOUGHT_TOGETHER' | 'CATEGORY_AFFINITY' | 'TOP_RATED' | 'BEST_SELLER'
+
+export interface HomeRecommendationItem {
+  product: Product
+  reason: HomeRecommendationReason
+}
+
+export interface HomeRecommendations {
+  layer: HomeRecommendationLayer
+  items: HomeRecommendationItem[]
+}
+
 export interface Page<T> {
   content: T[]
   totalPages: number
@@ -204,6 +221,11 @@ export const catalogApi = {
   create: (input: ProductInput) => api.post<Product>('/api/catalog/products', input),
   update: (id: number, input: ProductInput) => api.put<Product>(`/api/catalog/products/${id}`, input),
   remove: (id: number) => api.delete<void>(`/api/catalog/products/${id}`),
+}
+
+export const recommendationsApi = {
+  // Works signed in or not: the token, when there is one, personalizes the shelf.
+  home: (limit = 12) => api.get<HomeRecommendations>(`/api/recommendations/home?limit=${limit}`),
 }
 
 export interface SellerOrderItem {
