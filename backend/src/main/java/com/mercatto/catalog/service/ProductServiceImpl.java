@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -191,6 +192,30 @@ class ProductServiceImpl implements ProductService {
             return List.of();
         }
         return productRepository.findAllById(ids).stream().map(this::toView).toList();
+    }
+
+    @Override
+    public List<ProductView> findTopRatedInStock(String category, int limit) {
+        Specification<Product> spec = Specification.allOf(categoryEquals(category), inStock());
+        return productRepository.findAll(spec, PageRequest.of(0, limit, ProductSort.RATING.toSort()))
+                .map(this::toView)
+                .getContent();
+    }
+
+    @Override
+    public List<ProductView> findTopRatedInStockPerCategory(int perCategory, int limit) {
+        List<Long> ids = productRepository.findTopRatedInStockIdsPerCategory(perCategory, limit);
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        // findAllById doesn't keep the order of the ids; restore the query's ranking.
+        Map<Long, Product> byId = new HashMap<>();
+        productRepository.findAllById(ids).forEach(product -> byId.put(product.getId(), product));
+        return ids.stream()
+                .map(byId::get)
+                .filter(Objects::nonNull)
+                .map(this::toView)
+                .toList();
     }
 
     @Override

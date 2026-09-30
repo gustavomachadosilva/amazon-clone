@@ -99,4 +99,28 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             + "where o.status = :status and oi.productId in :ids group by oi.productId")
     List<ProductBuyerCount> countBuyersByProduct(@Param("ids") Collection<Long> ids,
                                                  @Param("status") OrderStatus status);
+
+    /** A product a buyer has bought, and when they last bought it. */
+    interface PurchasedProductRow {
+        Long getProductId();
+
+        Instant getLastPurchasedAt();
+    }
+
+    // Purchase history for the Home's "Recommended for you" (#225): every product :buyerId has in
+    // an order in :status (PAID), newest purchase first. paidAt is null on orders paid before that
+    // column existed, so their creation time stands in for it.
+    @Query("select oi.productId as productId, max(coalesce(o.paidAt, o.createdAt)) as lastPurchasedAt "
+            + "from Order o join o.items oi "
+            + "where o.buyerId = :buyerId and o.status = :status group by oi.productId "
+            + "order by max(coalesce(o.paidAt, o.createdAt)) desc, oi.productId asc")
+    List<PurchasedProductRow> findPurchasedProducts(@Param("buyerId") Long buyerId,
+                                                    @Param("status") OrderStatus status);
+
+    // Best sellers for the Home's fallback (#225): products by distinct buyers with an order in
+    // :status, most first, then lowest id. The Pageable caps how many are read.
+    @Query("select oi.productId as productId, count(distinct o.buyerId) as buyers "
+            + "from Order o join o.items oi where o.status = :status group by oi.productId "
+            + "order by count(distinct o.buyerId) desc, oi.productId asc")
+    List<ProductBuyerCount> findBestSellers(@Param("status") OrderStatus status, Pageable pool);
 }

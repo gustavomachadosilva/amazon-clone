@@ -3,8 +3,9 @@
 [![CI](https://github.com/gustavomachadosilva/amazon-clone/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/gustavomachadosilva/amazon-clone/actions/workflows/ci.yml)
 
 A marketplace project (Amazon-like) being built for a college course, structured as a **modular
-monolith**: one Spring Boot deployable, one PostgreSQL database, five business modules
-(`users`, `catalog`, `orders`, `cart`, `sellers`) kept isolated by convention so the codebase doesn't
+monolith**: one Spring Boot deployable, one PostgreSQL database, business modules (`users`,
+`catalog`, `orders`, `cart`, `reviews`, `lists`, plus the read-only composition modules `sellers`
+and `recommendations`) kept isolated by convention so the codebase doesn't
 degrade into a ball of mud — and so it *could* be split into microservices later without a
 rewrite.
 
@@ -12,7 +13,8 @@ rewrite.
 
 - **Backend:** Java 21 + Spring Boot 3 (Maven), packages-by-module.
 - **Frontend:** React + Vite + TypeScript + Tailwind CSS.
-- **Database:** PostgreSQL, one schema per module (`users`, `catalog`, `orders`, `cart`).
+- **Database:** PostgreSQL, one schema per module (`users`, `catalog`, `orders`, `cart`, `reviews`,
+  `lists`). The composition modules (`sellers`, `recommendations`) own no data and no schema.
 - **Infra:** Docker Compose for local dev.
 
 ## Architecture: how modules talk to each other
@@ -45,6 +47,17 @@ history. A projection table fed by `OrderPlacedEvent` was rejected for now — t
 cancel/refund event to decrement it, it would need a backfill, and an `AFTER_COMMIT` listener
 without an outbox can silently lose increments. Revisit if the query gets slow or orders gain a
 cancellation/refund flow; a projection can replace the query behind the same interface.
+
+The Home's "Recommended for you" / "Top rated" shelf (#225) combines four modules — purchases
+(Orders), cart lines (Cart), wish lists (Lists) and product details (Catalog) — so none of them can
+host it without new cross-module dependencies. It lives in its own **composition module**,
+`recommendations`, like `sellers`: no schema, entities, repository or `@Transactional`; it only reads
+`catalog.service`, `orders.service`, `cart.service` and `lists.service`, and nothing depends on it
+(`ArchitectureBoundaryTest` enforces both). `GET /api/recommendations/home` is **optionally
+authenticated** (`config.JwtAuthenticationFilter`): without an `Authorization` header it serves
+anonymous visitors (the "Top rated" layer); with one, the token is validated as on any protected
+endpoint — an invalid token is a 401, never a silent downgrade to anonymous — and the shelf is
+personalized from that user's history. Algorithm and numbers: `docs/search-recommendation-baseline.md`.
 
 This is also why every cross-module reference in an entity is a bare foreign-key id
 (`Product.sellerId`, `Order.buyerId`, `OrderItem.productId`) and never a JPA `@ManyToOne` — no

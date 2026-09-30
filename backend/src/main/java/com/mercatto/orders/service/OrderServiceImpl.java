@@ -20,6 +20,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -317,6 +318,33 @@ class OrderServiceImpl implements OrderService {
                 .collect(Collectors.toMap(OrderRepository.ProductBuyerCount::getProductId,
                         count -> Math.toIntExact(count.getBuyers())));
         return coPurchaseScorer.rank(productId, coBuyers, popularity, limit);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PurchasedProduct> findPurchasedProducts(Long buyerId) {
+        return orderRepository.findPurchasedProducts(buyerId, OrderStatus.PAID).stream()
+                .map(row -> new PurchasedProduct(row.getProductId(), row.getLastPurchasedAt()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductPopularity> findBestSellers(int limit) {
+        return orderRepository.findBestSellers(OrderStatus.PAID, PageRequest.of(0, limit)).stream()
+                .map(count -> new ProductPopularity(count.getProductId(), Math.toIntExact(count.getBuyers())))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, Integer> countBuyers(Collection<Long> productIds) {
+        if (productIds == null || productIds.isEmpty()) {
+            return Map.of();
+        }
+        return orderRepository.countBuyersByProduct(productIds, OrderStatus.PAID).stream()
+                .collect(Collectors.toMap(OrderRepository.ProductBuyerCount::getProductId,
+                        count -> Math.toIntExact(count.getBuyers())));
     }
 
     private void validateStockForRetry(Order order) {
