@@ -370,6 +370,41 @@ endpoint, registrando aqui o número do placeholder atual e o da mudança.
   novo para cada nome do dataset e passa esse mapa nome → id ao `RecommendationDatasetLoader`, para que
   pedidos de outros testes não contaminem as contagens.
 
+### Recommended for you (#225)
+
+- **Antes:** a seção "Recommended for you" da Home era `catalogApi.search()` sem parâmetros — os 10
+  primeiros produtos por `id`, **iguais para todo mundo**, logado ou não. No seed de dev esses são as
+  linhas 0–9 do CSV; os itens `heldOut` de `forBuyer` estão nas linhas 81–302, então o **hit rate@12
+  de `forBuyer` era 0/6** (e não mudaria com o histórico de ninguém).
+- **Depois:** `GET /api/recommendations/home?limit=12` (módulo de composição `recommendations`, que só
+  lê `catalog`/`orders`/`cart`/`lists` pelos `service`s públicos) devolve `{ layer, items[] }`:
+  - **`PERSONALIZED`** (usuário logado com histórico): afinidade ponderada por categoria (e marca) a
+    partir de compras PAID (peso 3), carrinho incl. salvos para depois (2) e listas (1). Candidatos =
+    co-compras (#224) das 5 compras mais recentes, somadas, + os 20 mais bem avaliados em estoque de
+    cada uma das 4 categorias mais fortes. Score = `0,45·co-compra + 0,25·afinidade da categoria +
+    0,20·nota bayesiana/5 + 0,05·popularidade + 0,05·mesma marca` (nota bayesiana
+    `(n·média + 3·3,0)/(n + 3)`, para 1 review de 5★ não passar 20 reviews de 4,7★). No máximo 4 por
+    categoria; completado com o fallback.
+  - **`TOP_RATED`** (anônimo, sem histórico, ou menos de 3 itens personalizados): os 3 mais bem
+    avaliados em estoque de cada categoria (pool de 120) + os 50 mais vendidos (compradores distintos,
+    PAID), score `0,6·nota bayesiana/5 + 0,4·popularidade`, **no máximo 2 por categoria**.
+  - Nunca entram: itens sem estoque, nem o que o usuário já comprou (qualquer pedido PAID, sem janela
+    de tempo), tem no carrinho ou em lista. Os limites por categoria só são relaxados quando a
+    prateleira ficaria incompleta sem isso.
+  - O título vem do `layer` no frontend: "Recommended for you" só para `PERSONALIZED`, senão "Top
+    rated".
+- **Medido** em `HomeRecommendationsIntegrationTest` (roda no `mvn test`; cada produto do dataset é
+  criado com a categoria do seed, prefixada por uma tag da execução): **hit rate@12 de `forBuyer` =
+  6/6 (1,0)**, os três compradores com `layer = PERSONALIZED` e os `heldOut` no topo da lista —
+  `gamer-3` nas posições 1 e 2 (PS5, DualSense), `beauty-2` em 1 e 2 (sérum, hidratante), `home-2` em
+  2 e 3 (chaleira, chá; a posição 1 é a prateleira WOPITUES, de Home Decor, categoria mais forte
+  dela). Nenhum desses acertos vem de co-compra — os três compradores não compartilham compra com
+  quem comprou os `heldOut` — e sim da afinidade de categoria + nota + popularidade. O teste também
+  verifica que `gamer-3` e `beauty-2` recebem prateleiras diferentes, cada uma nas categorias do seu
+  grupo; que ninguém recebe o que comprou/listou/pôs no carrinho; que o carrinho sozinho já
+  personaliza; que um parceiro de co-compra esgotado nunca aparece; e que o anônimo recebe 12 itens em
+  estoque com no máximo 2 por categoria.
+
 ## Como atualizar este documento
 
 - Cada card do epic roda `mvn test -Dtest=SearchEvalIT` antes e depois da mudança, na mesma máquina,

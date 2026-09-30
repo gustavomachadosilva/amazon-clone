@@ -28,4 +28,12 @@ public interface CartService {
     Optional<CartView> moveToCart(Long userId, Long productId);
 
     CartView clear(Long userId);
+
+    /**
+     * The ids of every product in the user's cart, saved-for-later lines included, without
+     * duplicates. Unlike {@link #getCart} it doesn't resolve the products through Catalog, so a
+     * product deleted since it was added is still listed. Used by the Home's "Recommended for
+     * you" (Card #225) as a taste signal and to avoid recommending what's already in the cart.
+     */
+    List<Long> findProductIds(Long userId);
 }

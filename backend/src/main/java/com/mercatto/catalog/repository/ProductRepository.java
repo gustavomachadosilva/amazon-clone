@@ -53,6 +53,24 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     List<Product> findTop50ByBrandIgnoreCaseAndCategoryNotAndStockQuantityGreaterThan(String brand, String category,
                                                                                       int stock);
 
+    /**
+     * Home fallback (#225): the ids of the best-rated in-stock products, at most
+     * {@code perCategory} from each category (so one big category can't fill the whole shelf),
+     * best first overall — rating, then review count, then id for a stable result.
+     */
+    @Query(nativeQuery = true, value = """
+            SELECT t.id
+            FROM (SELECT p.id, p.average_rating, p.review_count,
+                         row_number() OVER (PARTITION BY p.category
+                                            ORDER BY p.average_rating DESC, p.review_count DESC, p.id) AS rn
+                  FROM catalog.products p
+                  WHERE p.stock_quantity > 0) t
+            WHERE t.rn <= :perCategory
+            ORDER BY t.average_rating DESC, t.review_count DESC, t.id
+            LIMIT :limit
+            """)
+    List<Long> findTopRatedInStockIdsPerCategory(@Param("perCategory") int perCategory, @Param("limit") int limit);
+
     /** Best average rating among the reviewed products of {@code category}, or {@code null} if none is reviewed. */
     @Query("select max(p.averageRating) from Product p where p.category = :category and p.reviewCount > 0")
     Double findTopAverageRatingInCategory(@Param("category") String category);

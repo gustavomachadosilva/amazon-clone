@@ -9,7 +9,9 @@ import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -148,4 +150,31 @@ public interface OrderService {
      * history, including for an unknown {@code productId}.
      */
     List<CoPurchase> coPurchasedWith(Long productId, int limit);
+
+    /** A product the buyer has in at least one PAID order, and when they last bought it. */
+    record PurchasedProduct(Long productId, Instant lastPurchasedAt) {}
+
+    /**
+     * Every product {@code buyerId} has bought — in PAID orders only, no time window — newest
+     * purchase first (ties by lowest product id). Used by the Home's "Recommended for you"
+     * (Card #225) both as a taste signal and to never recommend what was already bought. Empty for
+     * a buyer without paid orders.
+     */
+    List<PurchasedProduct> findPurchasedProducts(Long buyerId);
+
+    /** A product and how many distinct buyers have it in a PAID order. */
+    record ProductPopularity(Long productId, int buyers) {}
+
+    /**
+     * Up to {@code limit} best-selling products, by distinct buyers over PAID orders, most first
+     * (ties by lowest product id). Ids only, like {@link #coPurchasedWith}: the caller checks the
+     * products still exist and are in stock.
+     */
+    List<ProductPopularity> findBestSellers(int limit);
+
+    /**
+     * Distinct buyers with a PAID order containing each of {@code productIds}; a product nobody
+     * bought is absent from the map. Empty for an empty input.
+     */
+    Map<Long, Integer> countBuyers(Collection<Long> productIds);
 }

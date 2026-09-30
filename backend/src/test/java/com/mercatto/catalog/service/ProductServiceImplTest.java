@@ -476,6 +476,40 @@ class ProductServiceImplTest {
         verify(productRepository, never()).findAllById(any());
     }
 
+    @Test
+    void findTopRatedInStockAsksForTheRatingOrderCappedAtTheLimit() {
+        Product product = Product.builder().id(3L).name("Widget").price(BigDecimal.TEN).stockQuantity(5)
+                .category("tools").averageRating(4.5).reviewCount(8L).build();
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(product)));
+
+        List<ProductService.ProductView> result = productService.findTopRatedInStock("tools", 20);
+
+        assertThat(result).extracting(ProductService.ProductView::id).containsExactly(3L);
+        Pageable pageable = capturePageable();
+        assertThat(pageable.getPageNumber()).isZero();
+        assertThat(pageable.getPageSize()).isEqualTo(20);
+        assertThat(pageable.getSort()).isEqualTo(ProductSort.RATING.toSort());
+    }
+
+    @Test
+    void findTopRatedInStockPerCategoryKeepsTheQueryRankingAndSkipsVanishedIds() {
+        Product first = Product.builder().id(7L).name("A").price(BigDecimal.TEN).stockQuantity(5).category("x").build();
+        Product second = Product.builder().id(2L).name("B").price(BigDecimal.TEN).stockQuantity(5).category("y").build();
+        when(productRepository.findTopRatedInStockIdsPerCategory(3, 120)).thenReturn(List.of(7L, 99L, 2L));
+        when(productRepository.findAllById(List.of(7L, 99L, 2L))).thenReturn(List.of(second, first));
+
+        assertThat(productService.findTopRatedInStockPerCategory(3, 120))
+                .extracting(ProductService.ProductView::id).containsExactly(7L, 2L);
+    }
+
+    @Test
+    void findTopRatedInStockPerCategoryWithNothingInStockDoesNotLoadProducts() {
+        when(productRepository.findTopRatedInStockIdsPerCategory(3, 120)).thenReturn(List.of());
+
+        assertThat(productService.findTopRatedInStockPerCategory(3, 120)).isEmpty();
+        verify(productRepository, never()).findAllById(any());
+    }
+
     private static Product product(long id, String name, String category, String brand, String price) {
         return Product.builder().id(id).name(name).category(category).brand(brand).price(new BigDecimal(price))
                 .stockQuantity(5).sellerId(1L).build();

@@ -74,6 +74,20 @@ public interface ProductService {
     List<ProductView> findViewsByIds(Collection<Long> ids);
 
     /**
+     * Up to {@code limit} in-stock products of {@code category}, best rated first (same order as
+     * {@link ProductSort#RATING}: average rating, then review count, then id). Used by the Home's
+     * "Recommended for you" (Card #225) to fill a category the buyer shows interest in.
+     */
+    List<ProductView> findTopRatedInStock(String category, int limit);
+
+    /**
+     * Up to {@code limit} in-stock products, best rated first, taking at most {@code perCategory}
+     * from each category so the result spans several categories — the Home's "Top rated" fallback
+     * for anonymous visitors and buyers without history (Card #225).
+     */
+    List<ProductView> findTopRatedInStockPerCategory(int perCategory, int limit);
+
+    /**
      * A product recommended as related to another, with its similarity score and the reasons it
      * was picked ({@code reasons} in {@link RelatedReason} priority order, {@code primaryReason}
      * being the first). Every reason is checked against the data, so it can be shown as-is.
