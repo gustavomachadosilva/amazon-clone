@@ -34,9 +34,9 @@ export default function Product() {
   const lists = useLists()
 
   const [product, setProduct] = useState<ProductType | null>(null)
-  const [related, setRelated] = useState<RelatedProduct[]>([])
-  // Keyed by the product it was loaded for, so a bundle never shows next to another product
-  // while the next one's request is still in flight.
+  // Related list and bundle are keyed by the product they were loaded for, so neither shows next
+  // to another product while the next one's request is still in flight.
+  const [relatedState, setRelatedState] = useState<{ productId: number; items: RelatedProduct[] } | null>(null)
   const [bundleState, setBundleState] = useState<{ productId: number; bundle: BoughtTogether | null } | null>(null)
   const [qty, setQty] = useState(1)
   const [listTarget, setListTarget] = useState<number | null>(null)
@@ -73,7 +73,7 @@ export default function Product() {
       .related(product.id, 10)
       .catch(() => [] as RelatedProduct[])
       .then((items) => {
-        if (!cancelled) setRelated(items)
+        if (!cancelled) setRelatedState({ productId: product.id, items })
       })
     return () => {
       cancelled = true
@@ -140,6 +140,7 @@ export default function Product() {
     'Ships in recyclable, single-box packaging.',
   ].filter((bullet): bullet is string => Boolean(bullet))
 
+  const related = relatedState?.productId === product.id ? relatedState.items : []
   const bundle = bundleState?.productId === product.id ? bundleState.bundle : null
   const hasBundle = bundle !== null && bundle.items.length > 0
   const bundleItems = hasBundle ? [product, ...bundle.items.map((item) => item.product)] : []

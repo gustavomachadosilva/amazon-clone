@@ -120,6 +120,18 @@ class CatalogTextSearchIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aWordOver255CharsInTheCatalogDoesNotBreakTypoCorrection() {
+        TestUser seller = seller();
+        String tok = token();
+        // One unbroken 300-char token, like a pasted URL path or hash: levenshtein() rejects it.
+        create(seller, product("Gizmo " + tok).description("See " + randomLetters(300)));
+
+        String missingLetter = tok.substring(0, 4) + tok.substring(5);
+        assertThat(ids(search("query", missingLetter))).isNotEmpty();
+        assertThat(asLong(search("query", "zqxwvjkyx").get("totalElements"))).isZero();
+    }
+
+    @Test
     void textComposesWithFiltersSortingAndPaging() {
         TestUser seller = seller();
         String tok = token();
