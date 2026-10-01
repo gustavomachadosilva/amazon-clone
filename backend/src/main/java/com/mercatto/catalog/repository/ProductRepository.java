@@ -25,12 +25,15 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
      * description, unaccented and lowercased) closest to {@code term}, within {@code maxEdits}
      * Levenshtein edits and with trigram similarity ≥ 0.45; ties go to the word in more products.
      * Returns {@code term} itself when it is already a catalog word. Scans the whole vocabulary
-     * ({@code ts_stat}), so it's only called when a search found nothing.
+     * ({@code ts_stat}), so it's only called when a search found nothing. Words over 255 chars are
+     * skipped: {@code levenshtein} errors on them, and one long token (a pasted URL or hash) in a
+     * seller's description must not turn every zero-result search into a 500.
      */
     @Query(nativeQuery = true, value = """
             SELECT w.word
             FROM ts_stat('SELECT to_tsvector(''simple'', catalog.product_search_text(name, brand, category, description)) FROM catalog.products') w
-            WHERE public.levenshtein(w.word, catalog.immutable_unaccent(:term)) <= :maxEdits
+            WHERE length(w.word) <= 255
+              AND public.levenshtein(w.word, catalog.immutable_unaccent(:term)) <= :maxEdits
               AND public.similarity(w.word, catalog.immutable_unaccent(:term)) >= 0.45
             ORDER BY public.levenshtein(w.word, catalog.immutable_unaccent(:term)),
                      public.similarity(w.word, catalog.immutable_unaccent(:term)) DESC,

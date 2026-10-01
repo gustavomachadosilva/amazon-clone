@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { vi } from 'vitest'
 import { Route, Routes } from 'react-router-dom'
 import { renderWithProviders } from '../test/test-utils'
@@ -165,6 +165,23 @@ describe('Product page recommendations', () => {
     await waitFor(() => expect(mockedCatalogApi.related).toHaveBeenCalled())
     expect(screen.queryByRole('heading', { name: 'Similar items' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Recommended based on this item' })).not.toBeInTheDocument()
+  })
+
+  it("never shows the previous product's recommendations while the next one's are loading", async () => {
+    const next = product(2, { name: 'Next Product' })
+    mockedCatalogApi.getById.mockImplementation(async (id: number) => (id === 1 ? CURRENT : next))
+    mockedCatalogApi.related.mockImplementation((id: number) =>
+      id === 1 ? Promise.resolve([related(next, 'SAME_CATEGORY')]) : new Promise<RelatedProduct[]>(() => {}),
+    )
+
+    renderProduct()
+
+    await screen.findByRole('heading', { name: 'Similar items' })
+    fireEvent.click(screen.getAllByRole('link', { name: /Next Product/ })[0])
+
+    expect(await screen.findByRole('heading', { name: 'Next Product' })).toBeInTheDocument()
+    await waitFor(() => expect(mockedCatalogApi.related).toHaveBeenCalledWith(2, 10))
+    expect(screen.queryByRole('heading', { name: 'Similar items' })).not.toBeInTheDocument()
   })
 
   it('hides the sections when loading related products fails', async () => {
