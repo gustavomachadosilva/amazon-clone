@@ -232,4 +232,23 @@ describe('SellerDashboard products tab', () => {
     await screen.findByText('Product on page 2')
     expect(mockedSellersApi.getInventory).toHaveBeenLastCalledWith(10, 1, 10)
   })
+
+  it('shows each product with its photo', async () => {
+    mockedSellersApi.getInventory.mockResolvedValue({
+      content: [
+        { id: 1, name: 'Desk Lamp', stockQuantity: 5, price: 10, imageUrl: '/lamp.jpg' },
+        { id: 2, name: 'Unphotographed Chair', stockQuantity: 5, price: 10 },
+      ],
+      totalElements: 2,
+      totalPages: 1,
+      number: 0,
+      size: 10,
+    } as unknown as Awaited<ReturnType<typeof sellersApi.getInventory>>)
+
+    renderWithProviders(<SellerDashboard />, { route: '/seller' })
+
+    expect(await screen.findByRole('img', { name: 'Desk Lamp' })).toHaveAttribute('src', '/lamp.jpg')
+    expect(screen.getByText('Unphotographed Chair')).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Unphotographed Chair' })).not.toBeInTheDocument()
+  })
 })
