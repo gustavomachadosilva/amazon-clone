@@ -10,6 +10,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,8 +29,13 @@ public class SellerDashboardController {
 
     private final SellerDashboardService sellerDashboardService;
 
+    // Newest first: without an explicit order, a product the seller just created could land on any
+    // page (or past the first one) and look like it was never saved.
     @GetMapping("/products")
-    public Page<ProductService.ProductSummary> inventory(@PathVariable Long sellerId, Pageable pageable, Principal principal) {
+    public Page<ProductService.ProductSummary> inventory(
+            @PathVariable Long sellerId,
+            @PageableDefault(sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
+            Principal principal) {
         AuthenticatedUser authenticatedUser = (AuthenticatedUser) principal;
         authenticatedUser.requireRole(UserRole.SELLER);
         authenticatedUser.requireOwner(sellerId);
