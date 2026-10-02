@@ -14,6 +14,7 @@ vi.mock('../services/api', async (importOriginal) => {
     catalogApi: {
       ...actual.catalogApi,
       getCategories: vi.fn(),
+      search: vi.fn(),
     },
     recommendationsApi: {
       home: vi.fn(),
@@ -28,6 +29,7 @@ import {
   catalogApi,
   recommendationsApi,
   type HomeRecommendations,
+  type Page,
   type Product,
 } from '../services/api'
 import { AUTH_STORAGE_KEY } from '../services/auth-token'
@@ -52,6 +54,19 @@ function product(id: number, overrides: Partial<Product> = {}): Product {
     averageRating: 0,
     reviewCount: 0,
     ...overrides,
+  }
+}
+
+function page(...content: Product[]): Page<Product> {
+  return {
+    content,
+    totalPages: 1,
+    totalElements: content.length,
+    number: 0,
+    size: content.length,
+    first: true,
+    last: true,
+    empty: content.length === 0,
   }
 }
 
@@ -101,6 +116,7 @@ beforeEach(() => {
   localStorage.clear()
   vi.clearAllMocks()
   vi.mocked(catalogApi.getCategories).mockResolvedValue([])
+  vi.mocked(catalogApi.search).mockResolvedValue(page())
   vi.mocked(cartApi.get).mockResolvedValue({ userId: 1, items: [], savedForLater: [], itemCount: 0, total: 0 })
 })
 
@@ -177,5 +193,54 @@ describe('Home product shelf', () => {
     await waitFor(() => expect(screen.queryByText('Loading recommendations…')).not.toBeInTheDocument())
     expect(screen.queryByRole('heading', { name: 'Top rated' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Recommended for you' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Home hero collage', () => {
+  beforeEach(() => {
+    mockedRecommendationsApi.home.mockResolvedValue(shelf('TOP_RATED'))
+  })
+
+  it('shows top-rated products with photos, each linking to its page', async () => {
+    vi.mocked(catalogApi.search).mockResolvedValue(
+      page(
+        product(1, { name: 'Hero Drill', imageUrl: 'https://img/1.jpg' }),
+        product(2, { name: 'No Photo Saw' }),
+        product(3, { name: 'Hero Kettle', imageUrl: 'https://img/3.jpg' }),
+        product(4, { name: 'Hero Lamp', imageUrl: 'https://img/4.jpg' }),
+        product(5, { name: 'Hero Desk', imageUrl: 'https://img/5.jpg' }),
+      ),
+    )
+
+    renderHome()
+
+    expect(await screen.findByRole('link', { name: 'View Hero Drill' })).toHaveAttribute('href', '/product/1')
+    expect(screen.getByRole('link', { name: 'View Hero Kettle' })).toHaveAttribute('href', '/product/3')
+    expect(screen.getByRole('link', { name: 'View Hero Lamp' })).toHaveAttribute('href', '/product/4')
+    expect(screen.queryByRole('link', { name: 'View No Photo Saw' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'View Hero Desk' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Sample shipment')).not.toBeInTheDocument()
+    expect(catalogApi.search).toHaveBeenCalledWith({ sort: 'rating', size: 12 })
+  })
+
+  it('keeps the placeholder when fewer than three products have photos', async () => {
+    vi.mocked(catalogApi.search).mockResolvedValue(
+      page(product(1, { name: 'Hero Drill', imageUrl: 'https://img/1.jpg' }), product(2, { name: 'No Photo Saw' })),
+    )
+
+    renderHome()
+
+    await waitFor(() => expect(catalogApi.search).toHaveBeenCalled())
+    expect(screen.getByText('Sample shipment')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'View Hero Drill' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the placeholder when the catalog request fails', async () => {
+    vi.mocked(catalogApi.search).mockRejectedValue(new ApiRequestError(500))
+
+    renderHome()
+
+    await waitFor(() => expect(catalogApi.search).toHaveBeenCalled())
+    expect(screen.getByText('Sample shipment')).toBeInTheDocument()
   })
 })
