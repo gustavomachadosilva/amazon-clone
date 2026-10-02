@@ -20,7 +20,7 @@ Two primary audiences, both central to the product:
 Mercatto is a fictional general-merchandise marketplace (Amazon-like) built as coursework. It
 exists to demonstrate a correctly built full-stack application — a Java/Spring Boot modular
 monolith (`users`, `catalog`, `orders`, `cart`, `sellers` modules, one Postgres schema each, see
-`README.md`'s "Contrato de Modularidade") paired with a React/Vite/TypeScript/Tailwind frontend —
+`README.md`'s "Modularity Contract") paired with a React/Vite/TypeScript/Tailwind frontend —
 through a complete, working shopping journey end to end.
 
 Success means: the modular-monolith architecture stays correct (no cross-module JPA
@@ -76,8 +76,8 @@ is explicitly not a clone of any existing retailer.
 
 ## Product Principles
 
-1. Architecture correctness is a product requirement, not a background concern — the Contrato de
-   Modularidade constrains what any feature is allowed to touch.
+1. Architecture correctness is a product requirement, not a background concern — the Modularity
+   Contract constrains what any feature is allowed to touch.
 2. The shopping journey must stay complete and coherent end to end (browse through review), not
    just individually impressive in isolated screens.
 3. Originality matters: Mercatto must read as its own marketplace, never as a copy of an existing

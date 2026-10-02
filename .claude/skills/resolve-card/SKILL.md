@@ -1,98 +1,98 @@
 ---
 name: resolve-card
 description: Look up a card (issue) on this repo's GitHub Project board by number, show its full details, and ask the user how to proceed. Use when the user runs /resolve-card <NUMBER> or asks to look up/start a project card or issue by number.
-argument-hint: <NÚMERO DO CARD>
+argument-hint: <CARD NUMBER>
 allowed-tools: [Bash(gh repo view*), Bash(gh project list*), Bash(gh project item-list*), Bash(gh issue view*), Bash(gh pr create*), Bash(git status*), Bash(git checkout*), Bash(git pull*), Bash(git push*), Bash(git branch*), AskUserQuestion, Agent, Skill, EnterWorktree, ExitWorktree]
 ---
 
-# /resolve-card — Buscar card no GitHub Projects
+# /resolve-card — Look up a card on GitHub Projects
 
-Busca um card pelo número no GitHub Project associado a este repositório, apresenta
-suas informações ao usuário e pergunta como seguir. Não assuma uma ação (implementar,
-mover status, etc.) sem o usuário confirmar.
+Looks up a card by number in the GitHub Project associated with this repository, presents
+its information to the user and asks how to proceed. Don't assume an action (implement,
+move status, etc.) without the user confirming.
 
-## Argumento
+## Argument
 
-Número do card: `$ARGUMENTS`
+Card number: `$ARGUMENTS`
 
-Se `$ARGUMENTS` estiver vazio ou não for um número, pergunte ao usuário qual o número
-do card antes de continuar.
+If `$ARGUMENTS` is empty or not a number, ask the user for the card number before
+continuing.
 
-## Passos
+## Steps
 
-1. **Descobrir owner/repo:**
+1. **Find owner/repo:**
    ```bash
    gh repo view --json owner,name --jq '.owner.login + "/" + .name'
    ```
 
-2. **Descobrir o Project do repositório.** Liste os projects do owner e escolha o que
-   corresponde a este repositório (título igual ou contendo o nome do repo,
+2. **Find the repository's Project.** List the owner's projects and pick the one that
+   matches this repository (title equal to or containing the repo name,
    case-insensitive):
    ```bash
    gh project list --owner <owner> --format json
    ```
-   Guarde o `number` do project encontrado. Se houver mais de um candidato plausível,
-   pergunte ao usuário qual usar em vez de adivinhar.
+   Keep the `number` of the project found. If there's more than one plausible candidate,
+   ask the user which one to use instead of guessing.
 
-3. **Buscar o item do card pelo número da issue** (o campo `content.number` no JSON do
-   project é o número da issue/card):
+3. **Find the card's item by issue number** (the `content.number` field in the project
+   JSON is the issue/card number):
    ```bash
    gh project item-list <PROJECT_NUMBER> --owner <owner> --format json --limit 200 \
-     --jq '.items[] | select(.content.number == <NUMERO>)'
+     --jq '.items[] | select(.content.number == <NUMBER>)'
    ```
 
-4. **Se não encontrar no project**, tente a issue diretamente no repositório (pode
-   existir mas ainda não estar no board):
+4. **If it isn't found in the project**, try the issue directly in the repository (it may
+   exist but not be on the board yet):
    ```bash
-   gh issue view <NUMERO> --repo <owner>/<repo> --json number,title,state,body,labels,assignees,url
+   gh issue view <NUMBER> --repo <owner>/<repo> --json number,title,state,body,labels,assignees,url
    ```
-   Nesse caso, avise o usuário explicitamente que o card não está no board do project.
+   In that case, explicitly tell the user that the card isn't on the project board.
 
-5. **Se não encontrar em nenhum dos dois**, informe claramente que o card/issue
-   `<NUMERO>` não existe e pare — não invente dados.
+5. **If it isn't found in either**, clearly state that card/issue `<NUMBER>` doesn't
+   exist and stop — don't make up data.
 
-## Apresentação
+## Presentation
 
-Ao encontrar o card, mostre de forma organizada (sem inventar campos que não vieram da
-API):
+Once the card is found, show it in an organized way (without inventing fields that didn't
+come from the API):
 
-- Título e número (com link da URL)
-- Status, Priority, Size, Milestone (quando existirem no project)
+- Title and number (with the URL link)
+- Status, Priority, Size, Milestone (when they exist in the project)
 - Labels
 - Assignees
-- Corpo/descrição da issue (geralmente contém contexto e "Critérios de aceite")
-- Dependências, se mencionadas no corpo (ex.: "Depende de: ...")
+- Issue body/description (usually contains context and acceptance criteria)
+- Dependencies, if mentioned in the body (e.g. "Depends on: ...")
 
-## Depois de apresentar
+## After presenting
 
-Pergunte ao usuário como deseja seguir — não presuma a próxima ação. Ofereça
-alternativas plausíveis (ex.: começar a implementar agora, criar uma branch, apenas
-queria ver as informações, mover o status do card) mas deixe a decisão explicitamente
-com o usuário antes de tomar qualquer ação no código ou no board.
+Ask the user how they want to proceed — don't presume the next action. Offer plausible
+alternatives (e.g. start implementing now, create a branch, just wanted to see the
+information, move the card's status) but leave the decision explicitly with the user
+before taking any action in the code or on the board.
 
-Se o usuário confirmar que quer implementar o card agora, siga o fluxo orquestrado
-abaixo.
+If the user confirms they want to implement the card now, follow the orchestrated flow
+below.
 
-## Execução orquestrada (planejamento → implementação)
+## Orchestrated execution (planning → implementation)
 
-Quando o usuário confirmar que quer implementar o card, não implemente você mesmo
-diretamente nesta skill. Execute em duas etapas sequenciais, cada uma delegada a um
-agente diferente via `Agent`. Cada agente é disparado sem memória desta conversa, então
-todo prompt precisa ser autocontido: inclua número/título/URL do card, corpo completo e
-critérios de aceite, labels e dependências, o trecho relevante do "Contrato de
-Modularidade" (`README.md`) e o fluxo de Git do `CLAUDE.md`.
+When the user confirms they want to implement the card, don't implement it yourself
+directly in this skill. Run it in two sequential stages, each delegated to a different
+agent via `Agent`. Each agent starts with no memory of this conversation, so every prompt
+must be self-contained: include the card's number/title/URL, full body and acceptance
+criteria, labels and dependencies, the relevant part of the "Modularity Contract"
+(`README.md`) and the Git workflow from `CLAUDE.md`.
 
-A resolução do card é sempre feita em um worktree próprio da tarefa — nunca diretamente
-no diretório de trabalho principal da sessão. Isso isola as mudanças do card de qualquer
-outro trabalho em andamento e evita conflito com a branch `dev`.
+The card is always resolved in its own worktree for the task — never directly in the
+session's main working directory. This isolates the card's changes from any other work in
+progress and avoids conflicts with the `dev` branch.
 
-### Etapa 0 — Preparar o worktree
+### Stage 0 — Prepare the worktree
 
-Rode `git status` antes de qualquer coisa — se houver mudanças não commitadas de outra
-tarefa no diretório principal, avise o usuário e não descarte nada.
+Run `git status` before anything else — if there are uncommitted changes from another
+task in the main directory, warn the user and don't discard anything.
 
-O worktree precisa ser criado em cima da `dev` local **já atualizada**, então primeiro
-sincronize a `dev`:
+The worktree must be created on top of an **already updated** local `dev`, so sync `dev`
+first:
 
 ```bash
 git status
@@ -100,97 +100,94 @@ git checkout dev
 git pull
 ```
 
-Só então crie o worktree da tarefa com a ferramenta `EnterWorktree` (não use
-`git worktree add` manualmente — a ferramenta já cria o worktree em
-`.claude/worktrees/` e troca o diretório de trabalho da sessão para lá):
+Only then create the task's worktree with the `EnterWorktree` tool (don't use
+`git worktree add` manually — the tool already creates the worktree in
+`.claude/worktrees/` and switches the session's working directory there):
 
 ```
-EnterWorktree(name: "card-<NUMERO>-<slug-curto-do-título>")
+EnterWorktree(name: "card-<NUMBER>-<short-title-slug>")
 ```
 
-Depois de criado, confira o nome do branch gerado (`git branch --show-current`). O
-padrão de nome de branch já usado no repo é `feature/<numero>-<slug>` (ex.:
-`feature/37-login-endpoint`) — minúsculo, palavras separadas por hífen. Se o branch
-criado pelo `EnterWorktree` não seguir esse padrão, renomeie-o antes de prosseguir:
+Once it's created, check the generated branch name (`git branch --show-current`). The
+branch naming pattern already used in the repo is `feature/<number>-<slug>` (e.g.
+`feature/37-login-endpoint`) — lowercase, words separated by hyphens. If the branch
+created by `EnterWorktree` doesn't follow this pattern, rename it before proceeding:
 
 ```bash
-git branch -m feature/<NUMERO>-<slug-curto-do-título>
+git branch -m feature/<NUMBER>-<short-title-slug>
 ```
 
-As etapas seguintes (planejamento e implementação) rodam com o diretório de trabalho já
-dentro desse worktree.
+The following stages (planning and implementation) run with the working directory
+already inside that worktree.
 
-### Etapa 1 — Planejamento (agente `Plan`)
+### Stage 1 — Planning (`Plan` agent)
 
-Chame `Agent` com `subagent_type: "Plan"` e `run_in_background: false` (a etapa
-seguinte depende do resultado). No prompt, dê ao agente:
+Call `Agent` with `subagent_type: "Plan"` and `run_in_background: false` (the next stage
+depends on the result). In the prompt, give the agent:
 
-- Todos os dados do card (título, corpo, critérios de aceite, labels, dependências,
-  URL).
-- O(s) módulo(s) de backend/frontend provavelmente afetado(s).
-- As regras do "Contrato de Modularidade" (`README.md`) que se aplicam.
-- Peça um plano concreto e passo a passo: arquivos a criar/alterar, ordem das
-  mudanças, e estratégia de teste (ArchUnit/testes unitários no backend, lint/build no
-  frontend) — só o plano, sem escrever código.
+- All the card's data (title, body, acceptance criteria, labels, dependencies, URL).
+- The backend/frontend module(s) likely affected.
+- The "Modularity Contract" rules (`README.md`) that apply.
+- Ask for a concrete, step-by-step plan: files to create/change, order of changes, and
+  testing strategy (ArchUnit/unit tests on the backend, lint/build on the frontend) —
+  only the plan, without writing code.
 
-Quando o plano voltar, apresente ao usuário um resumo objetivo (passos principais,
-arquivos envolvidos) e pergunte se pode seguir para a implementação com esse plano ou
-se algo precisa ajustar antes. Não pule esta confirmação — é a única checagem antes de
-código ser escrito.
+When the plan comes back, present the user with an objective summary (main steps, files
+involved) and ask whether to proceed to implementation with this plan or whether
+something needs adjusting first. Don't skip this confirmation — it's the only check
+before code is written.
 
-### Etapa 2 — Implementação (agente diferente do planejamento)
+### Stage 2 — Implementation (an agent different from planning)
 
-Depois que o usuário aprovar o plano, chame `Agent` novamente com um `subagent_type`
-diferente do usado na Etapa 1 (ex.: `general-purpose`), passando o plano aprovado e os
-dados do card no prompt — de novo autocontido, este agente também não viu a conversa
-nem o plano. Instrua-o a:
+After the user approves the plan, call `Agent` again with a `subagent_type` different
+from the one used in Stage 1 (e.g. `general-purpose`), passing the approved plan and the
+card's data in the prompt — again self-contained, this agent hasn't seen the
+conversation or the plan either. Instruct it to:
 
-- Implementar seguindo o plano e o Contrato de Modularidade.
-- Rodar `mvn test` (backend) e/ou `npm run lint && npm run build` (frontend), conforme
-  o que foi alterado — o mesmo gate descrito no `CLAUDE.md`.
-- Reportar o que foi feito, o que passou/falhou nos testes, e qualquer desvio do plano
-  original com o motivo.
+- Implement following the plan and the Modularity Contract.
+- Run `mvn test` (backend) and/or `npm run lint && npm run build` (frontend), depending
+  on what changed — the same gate described in `CLAUDE.md`.
+- Report what was done, what passed/failed in the tests, and any deviation from the
+  original plan with the reason.
 
-Rode esta etapa em foreground (`run_in_background: false`) quando o usuário estiver
-esperando o resultado nesta conversa. Para cards grandes, pode oferecer rodar em
-background e avisar o usuário quando terminar — mas confirme essa preferência com ele
-antes, não decida sozinho.
+Run this stage in the foreground (`run_in_background: false`) when the user is waiting
+for the result in this conversation. For large cards, you may offer to run it in the
+background and notify the user when it finishes — but confirm that preference with them
+first, don't decide on your own.
 
-### Depois da implementação
+### After implementation
 
-Resuma o que foi feito e pergunte ao usuário como quer seguir (`AskUserQuestion`),
-oferecendo **abrir a PR direto** como opção padrão/recomendada — isso agora é o
-comportamento normal desta skill, não é mais preciso confirmar cada vez com
-antecedência. Mencione `/pr-check` (testes + revisão de código + checklist do Contrato
-de Modularidade) como sugestão para quem quiser essa checagem extra antes, mas deixe
-claro que não é obrigatório.
+Summarize what was done and ask the user how they want to proceed (`AskUserQuestion`),
+offering **open the PR directly** as the default/recommended option — this is now this
+skill's normal behavior, there's no need to confirm it ahead of time every time. Mention
+`/pr-check` (tests + code review + Modularity Contract checklist) as a suggestion for
+anyone who wants that extra check first, but make it clear it isn't mandatory.
 
-- **Se o usuário escolher abrir a PR direto**: push da branch criada na Etapa 0 e
-  `gh pr create`:
+- **If the user chooses to open the PR directly**: push the branch created in Stage 0
+  and run `gh pr create`:
   ```bash
-  git push -u origin feature/<NUMERO>-<slug>
-  gh pr create --base dev --title "<título do card>" \
-    --body "Closes #<NUMERO>
+  git push -u origin feature/<NUMBER>-<slug>
+  gh pr create --base dev --title "<card title>" \
+    --body "Closes #<NUMBER>
 
-  <resumo curto do que foi implementado, com base no plano da Etapa 1>"
+  <short summary of what was implemented, based on the Stage 1 plan>"
   ```
-  Informe a URL da PR criada ao final.
+  Report the created PR's URL at the end.
 
-- **Se o usuário escolher rodar o `/pr-check` antes**: chame
-  `Skill(skill: "pr-check")` e, com o resultado em mãos, pergunte novamente como
-  seguir (abrir a PR, corrigir algo primeiro, etc.).
+- **If the user chooses to run `/pr-check` first**: call `Skill(skill: "pr-check")` and,
+  with the result in hand, ask again how to proceed (open the PR, fix something first,
+  etc.).
 
-### Depois de abrir a PR — o que fazer com o worktree
+### After opening the PR — what to do with the worktree
 
-A PR já foi aberta a partir do worktree da Etapa 0. Não decida sozinho o destino desse
-worktree — apresente as opções ao usuário (`AskUserQuestion`) e só então aja:
+The PR has already been opened from the Stage 0 worktree. Don't decide the worktree's
+fate on your own — present the options to the user (`AskUserQuestion`) and only then act:
 
-- **Manter o worktree**: útil se o usuário for continuar trabalhando nesse card (ex.:
-  ajustes pedidos na revisão da PR). Use `ExitWorktree(action: "keep")` se for sair da
-  sessão dele, ou simplesmente não faça nada e continue nele.
-- **Remover o worktree agora**: já que o trabalho está commitado e com push feito para
-  a PR remota, é seguro liberar o espaço em disco. Use
-  `ExitWorktree(action: "remove")`. Se houver qualquer mudança não commitada ou commit
-  fora da branch da PR, a ferramenta recusa a remoção a menos que
-  `discard_changes: true` seja passado — nesse caso, confirme com o usuário antes de
-  forçar, para não descartar trabalho sem querer.
+- **Keep the worktree**: useful if the user will keep working on this card (e.g. changes
+  requested in the PR review). Use `ExitWorktree(action: "keep")` if leaving it for their
+  session, or simply do nothing and keep working in it.
+- **Remove the worktree now**: since the work is committed and pushed to the remote PR,
+  it's safe to free the disk space. Use `ExitWorktree(action: "remove")`. If there are
+  any uncommitted changes or commits outside the PR branch, the tool refuses the removal
+  unless `discard_changes: true` is passed — in that case, confirm with the user before
+  forcing it, so no work is discarded by accident.

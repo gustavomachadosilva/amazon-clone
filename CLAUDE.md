@@ -4,7 +4,7 @@ A marketplace project (Amazon-like) being built for a college course. Structured
 monolith: Java 21 + Spring Boot backend (`/backend`, packages-by-module: `users`, `catalog`,
 `orders`, `cart`, `sellers`), React + Vite + TypeScript + Tailwind frontend (`/frontend`), one PostgreSQL
 database with one schema per module. See `README.md` for the module-communication rules
-("Contrato de Modularidade") — cross-module calls go through a module's public `service`
+("Modularity Contract") — cross-module calls go through a module's public `service`
 interface or `ApplicationEvent`s only, never direct repository/entity access or a shared
 transaction.
 
@@ -17,16 +17,16 @@ transaction.
   screens (see its `README.md`); not production code to copy directly — recreate the screens as
   React components using the frontend's own stack, mapping these tokens onto Tailwind.
 
-## Fluxo de trabalho no GitHub
+## GitHub workflow
 
-- Antes de começar qualquer implementação, atualize a `dev` local (`git checkout dev && git
-  pull`) e crie uma branch nova a partir dela para o trabalho. `dev` é a branch de integração e
-  default branch do repositório — não existe `main`.
-- Nunca faça push direto para a `dev`. Toda mudança entra por Pull Request da branch de trabalho
-  para a `dev`.
-- Antes de abrir a PR, rode os testes e verificações do código afetado para garantir que nada
-  quebrou: `mvn test` em `/backend` para mudanças de backend, e `npm run lint` / `npm run build`
-  em `/frontend` para mudanças de frontend. O skill `/pr-check` automatiza isso (testes +
-  revisão de código + checagem do Contrato de Modularidade). Se o usuário pedir para abrir a PR
-  sem ter rodado `/pr-check` na conversa, recomende rodar antes — mas a decisão de rodar ou ir
-  direto para a PR é dele.
+- Before starting any implementation, update the local `dev` (`git checkout dev && git pull`)
+  and create a new branch from it for the work. `dev` is the integration branch and the
+  repository's default branch — there is no `main`.
+- Never push directly to `dev`. Every change goes in through a Pull Request from the work branch
+  into `dev`.
+- Before opening the PR, run the tests and checks for the affected code to make sure nothing
+  broke: `mvn test` in `/backend` for backend changes, and `npm run lint` / `npm run build` in
+  `/frontend` for frontend changes. The `/pr-check` skill automates this (tests + code review +
+  Modularity Contract check). If the user asks to open the PR without having run `/pr-check` in
+  the conversation, recommend running it first — but whether to run it or go straight to the PR
+  is their call.

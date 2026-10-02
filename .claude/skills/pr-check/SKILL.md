@@ -1,25 +1,25 @@
 ---
 name: pr-check
-description: Roda os testes do backend e/ou frontend e revisa o código alterado no branch atual antes de abrir uma PR. Use quando o usuário rodar /pr-check, pedir para "rodar os testes antes da PR", "verificar se está pronto pra PR", ou revisar as mudanças antes de abrir um pull request.
-argument-hint: "[branch base opcional, padrão main]"
+description: Runs the backend and/or frontend tests and reviews the code changed on the current branch before opening a PR. Use when the user runs /pr-check, asks to "run the tests before the PR", "check if it's ready for a PR", or review the changes before opening a pull request.
+argument-hint: "[optional base branch, default main]"
 allowed-tools: [Bash(git*), Bash(mvn*), Bash(npm*), Bash(gh*), Read, Grep, Glob, Skill, AskUserQuestion]
 ---
 
-# /pr-check — Testar e revisar antes de abrir PR
+# /pr-check — Test and review before opening a PR
 
-Gate de qualidade a rodar **antes** de abrir uma PR neste repo. Faz três coisas, nesta
-ordem, e só recomenda abrir a PR se as três passarem: (1) roda os testes relevantes,
-(2) revisa o diff em busca de bugs/simplificações, (3) confere as mudanças contra as
-regras de modularidade específicas deste projeto (`README.md` → "Contrato de
-Modularidade"), que uma revisão genérica não conhece.
+Quality gate to run **before** opening a PR in this repo. It does three things, in this
+order, and only recommends opening the PR if all three pass: (1) runs the relevant tests,
+(2) reviews the diff for bugs/simplifications, (3) checks the changes against this
+project's specific modularity rules (`README.md` → "Modularity Contract"), which a generic
+review doesn't know about.
 
-Não abra, não faça push nem crie a PR sozinho — este skill só reporta o resultado e
-pergunta como o usuário quer seguir.
+Don't open, push or create the PR on your own — this skill only reports the result and
+asks the user how they want to proceed.
 
-## 0. Escopo do diff
+## 0. Diff scope
 
-Branch base: `$ARGUMENTS` se fornecido, senão `main` (branch principal deste repo,
-conforme `CLAUDE.md`).
+Base branch: `$ARGUMENTS` if provided, otherwise `main` (this repo's main branch, per
+`CLAUDE.md`).
 
 ```bash
 git status
@@ -29,104 +29,101 @@ git diff <base>...HEAD --stat
 git diff <base>...HEAD --name-only
 ```
 
-Se houver mudanças não commitadas (`git status` sujo), inclua-as no escopo da revisão
-(rode `git diff` sem range também) mas avise o usuário que elas ainda não foram
-commitadas.
+If there are uncommitted changes (dirty `git status`), include them in the review scope
+(also run `git diff` without a range) but warn the user that they haven't been committed
+yet.
 
-Classifique os arquivos alterados:
-- **backend**: qualquer coisa em `backend/`
-- **frontend**: qualquer coisa em `frontend/` (fora de `design-reference/`)
-- **infra/outros**: `docker-compose.yml`, `.env.example`, `README.md`, etc.
+Classify the changed files:
+- **backend**: anything in `backend/`
+- **frontend**: anything in `frontend/` (outside `design-reference/`)
+- **infra/other**: `docker-compose.yml`, `.env.example`, `README.md`, etc.
 
-Se nada mudou em relação à base, informe isso e pare — não há o que testar ou revisar.
+If nothing changed relative to the base, say so and stop — there's nothing to test or
+review.
 
-## 1. Rodar os testes
+## 1. Run the tests
 
-Só rode a suíte de um lado se houve mudança nesse lado (ou se o usuário pediu
-explicitamente para rodar tudo).
+Only run a side's suite if that side changed (or if the user explicitly asked to run
+everything).
 
-**Backend** (Maven — inclui os testes ArchUnit que impõem o "Contrato de
-Modularidade" descrito no README):
+**Backend** (Maven — includes the ArchUnit tests that enforce the "Modularity Contract"
+described in the README):
 ```bash
 cd backend && mvn -q test
 ```
 
-> **Nota:** em Mac com Homebrew, `mvn` pode resolver para um JDK mais novo que o Java 21
-> do projeto, fazendo `ArchitectureBoundaryTest` falhar com `Unsupported class file major
-> version 70` — não é uma violação real de regra de arquitetura, é o ArchUnit não lendo
-> bytecode de uma JVM mais nova do que ele suporta. Se isso acontecer, aponte
-> `JAVA_HOME` para o JDK 21 local antes de rodar `mvn test` (ver README, seção "Running
-> locally").
+> **Note:** on a Mac with Homebrew, `mvn` may resolve to a JDK newer than the project's
+> Java 21, making `ArchitectureBoundaryTest` fail with `Unsupported class file major
+> version 70` — that's not a real architecture rule violation, it's ArchUnit failing to
+> read bytecode from a JVM newer than it supports. If that happens, point `JAVA_HOME` at
+> the local JDK 21 before running `mvn test` (see the README, "Running locally" section).
 
-**Frontend** — hoje não há framework de teste configurado (`frontend/package.json` só
-tem `lint`, `build`, `dev`, `preview`). Rode o que existe como gate de qualidade:
+**Frontend** — there's currently no test framework configured (`frontend/package.json`
+only has `lint`, `build`, `dev`, `preview`). Run what exists as the quality gate:
 ```bash
 cd frontend && npm run lint
 cd frontend && npm run build
 ```
-Se as mudanças de frontend adicionaram lógica não-trivial (hooks, funções de
-transformação de dados, etc.) e não há testes automatizados cobrindo isso, sinalize
-isso como lacuna no resumo final — não instale um test runner novo por conta própria
-sem o usuário pedir.
+If the frontend changes added non-trivial logic (hooks, data transformation functions,
+etc.) and no automated tests cover it, flag that as a gap in the final summary — don't
+install a new test runner on your own without the user asking.
 
-Se qualquer comando falhar, **pare de tratar como bloqueio**: mostre a falha
-relevante (não o log inteiro) e vá direto para o resumo final marcando o teste como
-FALHOU. Ainda vale continuar para os passos 2 e 3 se for rápido, para dar um panorama
-completo de uma vez — mas deixe claro que a PR não deve ser aberta com testes
-quebrados.
+If any command fails, **don't treat it as a hard stop**: show the relevant failure (not
+the whole log) and go straight to the final summary marking the test as FAILED. It's still
+worth continuing to steps 2 and 3 if it's quick, to give a complete picture at once — but
+make it clear that the PR should not be opened with broken tests.
 
-## 2. Revisão de código
+## 2. Code review
 
-Delegue a revisão geral (bugs de corretude, simplificação, reuso, eficiência) ao skill
-`code-review` já existente neste repo, sobre o mesmo diff/branch:
+Delegate the general review (correctness bugs, simplification, reuse, efficiency) to the
+existing `code-review` skill, over the same diff/branch:
 
 ```
 Skill(skill: "code-review")
 ```
 
-Deixe o nível de esforço no padrão dele (reaproveita o último usado, ou o padrão do
-skill) a menos que o usuário peça um nível específico.
+Leave its effort level at its default (it reuses the last one used, or the skill's
+default) unless the user asks for a specific level.
 
-## 3. Checklist do Contrato de Modularidade
+## 3. Modularity Contract checklist
 
-Além da revisão genérica, confira manualmente os arquivos Java alterados (`git diff
-<base>...HEAD -- 'backend/**/*.java'`) contra as 6 regras do README
-(seção "Contrato de Modularidade"). Para cada arquivo alterado/novo em
-`backend/src/main/java/com/mercatto/<modulo>/...`:
+Besides the generic review, manually check the changed Java files (`git diff
+<base>...HEAD -- 'backend/**/*.java'`) against the 6 rules in the README
+("Modularity Contract" section). For each changed/new file in
+`backend/src/main/java/com/mercatto/<module>/...`:
 
-1. **Sem relação JPA cross-module**: nenhum `@ManyToOne`/`@OneToMany`/`@JoinColumn`
-   apontando para entidade de outro módulo. Referências cross-module devem ser um id
-   simples (`Long`).
-2. **Sem transação cruzando módulos**: um método `@Transactional` não deve chamar
-   método de *mutação* do `service` de outro módulo dentro da mesma transação — isso
-   deveria ser um `ApplicationEvent` (`@TransactionalEventListener(phase =
+1. **No cross-module JPA relationships**: no `@ManyToOne`/`@OneToMany`/`@JoinColumn`
+   pointing to another module's entity. Cross-module references must be a plain id
+   (`Long`).
+2. **No transaction spanning modules**: a `@Transactional` method must not call a
+   *mutating* method of another module's `service` inside the same transaction — that
+   should be an `ApplicationEvent` (`@TransactionalEventListener(phase =
    AFTER_COMMIT)`).
-3. **Só `service`/`event` são API pública**: nenhuma classe de um módulo deve
-   importar `<outromodulo>.repository.*` ou a entidade de outro módulo diretamente.
-   Implementações (`*ServiceImpl`) devem ser package-private quando possível.
-4. **Integrações externas são ports**: nenhuma lógica de negócio deve importar SDK de
-   terceiro (Stripe, gateway de pagamento, etc.) diretamente — deve haver uma
-   interface (`service.PaymentGateway`-style) com mock/stub.
-5. **Uma tabela, um schema**: entidades novas usam `@Table(schema = "<modulo>")`
-   coerente com o módulo dono, nunca `public` nem schema de outro módulo.
-6. **Fronteira = pacote**: nenhuma classe foi movida para dentro do pacote de outro
-   módulo só para "facilitar" o acesso.
+3. **Only `service`/`event` are public API**: no class in one module may import
+   `<othermodule>.repository.*` or another module's entity directly. Implementations
+   (`*ServiceImpl`) should be package-private when possible.
+4. **External integrations are ports**: no business logic may import a third-party SDK
+   (Stripe, payment gateway, etc.) directly — there must be an interface
+   (`service.PaymentGateway`-style) with a mock/stub.
+5. **One table, one schema**: new entities use `@Table(schema = "<module>")` matching the
+   owning module, never `public` or another module's schema.
+6. **Boundary = package**: no class was moved into another module's package just to
+   "make access easier".
 
-Use `grep`/`Read` nos arquivos do diff para checar isso — não é necessário ler o
-módulo inteiro, só o que mudou e os imports que ele referencia. Se algo violar uma
-regra, cite arquivo:linha.
+Use `grep`/`Read` on the diff's files to check this — no need to read the whole module,
+only what changed and the imports it references. If something violates a rule, cite
+file:line.
 
-## 4. Resumo final
+## 4. Final summary
 
-Apresente um resumo curto e direto, nesta ordem:
+Present a short, direct summary, in this order:
 
-- **Testes**: backend (passou/falhou/não rodou — motivo), frontend
-  lint+build (idem), lacunas de cobertura relevantes.
-- **Revisão de código**: principais achados do `code-review` (ou "nenhum achado").
-- **Contrato de Modularidade**: violações encontradas (arquivo:linha + regra) ou "sem
-  violações".
-- **Veredito**: pronto para abrir PR, ou lista do que precisa ser corrigido antes.
+- **Tests**: backend (passed/failed/not run — reason), frontend lint+build (same),
+  relevant coverage gaps.
+- **Code review**: main findings from `code-review` (or "no findings").
+- **Modularity Contract**: violations found (file:line + rule) or "no violations".
+- **Verdict**: ready to open the PR, or a list of what needs fixing first.
 
-Não abra a PR, não dê `git push` nem `gh pr create` automaticamente — pergunte ao
-usuário como quer seguir (corrigir agora, abrir mesmo assim, etc.), a menos que ele já
-tenha pedido explicitamente para abrir a PR ao chamar este skill.
+Don't open the PR, `git push` or `gh pr create` automatically — ask the user how they
+want to proceed (fix now, open anyway, etc.), unless they already explicitly asked to
+open the PR when invoking this skill.
