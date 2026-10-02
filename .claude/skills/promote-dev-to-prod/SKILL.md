@@ -1,31 +1,31 @@
 ---
 name: promote-dev-to-prod
-description: Atualiza a branch dev local, roda o gate de qualidade (pr-check: testes + revisão + Contrato de Modularidade) sobre o trabalho que será promovido e abre a PR de dev para prod. Use quando o usuário rodar /promote-dev-to-prod, pedir para "promover dev pra prod", "subir pra prod", "liberar pra produção" ou "abrir a PR de promoção dev → prod".
+description: Updates the local dev branch, runs the quality gate (pr-check: tests + review + Modularity Contract) over the work being promoted and opens the PR from dev to prod. Use when the user runs /promote-dev-to-prod, asks to "promote dev to prod", "push to prod", "release to production" or "open the dev → prod promotion PR".
 allowed-tools: [Bash(git*), Bash(gh*), Read, Skill, AskUserQuestion]
 ---
 
-# /promote-dev-to-prod — Promover dev para prod
+# /promote-dev-to-prod — Promote dev to prod
 
-Este skill existe para garantir uma única coisa: **nenhum código chega em `prod` sem
-ter sido testado e revisado**. `dev` é a branch de desenvolvimento (branch padrão do
-repositório); `prod` é protegida e só aceita merge via Pull Request (ver `CLAUDE.md` →
-"Fluxo de trabalho no GitHub"). Este skill automatiza o caminho: atualizar `dev` local
-→ rodar `/pr-check` sobre o que será promovido → abrir a PR `dev` → `prod`.
+This skill exists to guarantee one thing: **no code reaches `prod` without having been
+tested and reviewed**. `dev` is the development branch (the repository's default branch);
+`prod` is protected and only accepts merges via Pull Request (see `CLAUDE.md` → "GitHub
+workflow"). This skill automates the path: update local `dev` → run `/pr-check` over what
+will be promoted → open the `dev` → `prod` PR.
 
-Se o gate de qualidade falhar em qualquer ponto, **não abra a PR**. Pare, reporte o
-que falhou e pergunte ao usuário como seguir.
+If the quality gate fails at any point, **don't open the PR**. Stop, report what failed
+and ask the user how to proceed.
 
-## 0. Estado do repositório local
+## 0. Local repository state
 
 ```bash
 git status
 ```
 
-Se houver mudanças não commitadas, **não descarte nada**: avise o usuário e pergunte
-se quer commitar, stashar (`git stash -u`) ou abortar antes de trocar de branch. Só
-prossiga com working tree limpa (ou com o aval do usuário).
+If there are uncommitted changes, **don't discard anything**: warn the user and ask
+whether they want to commit, stash (`git stash -u`) or abort before switching branches.
+Only proceed with a clean working tree (or with the user's go-ahead).
 
-## 1. Atualizar dev local
+## 1. Update local dev
 
 ```bash
 git fetch origin --quiet
@@ -33,81 +33,82 @@ git checkout dev
 git pull origin dev
 ```
 
-Se o `checkout` ou o `pull` falharem (branch `dev` não existe localmente, divergência,
-conflito), pare e reporte o erro — não tente resolver com `reset --hard` ou `clean`
-por conta própria.
+If the `checkout` or the `pull` fails (`dev` branch doesn't exist locally, divergence,
+conflict), stop and report the error — don't try to fix it with `reset --hard` or `clean`
+on your own.
 
-## 2. Confirmar que há algo para promover
+## 2. Confirm there's something to promote
 
 ```bash
 git fetch origin prod --quiet 2>/dev/null || true
 git log origin/prod..dev --oneline
 ```
 
-Se não houver commits em `dev` que ainda não estão em `prod`, informe isso ao usuário
-e pare — não há nada para promover.
+If there are no commits in `dev` that aren't in `prod` yet, tell the user and stop —
+there's nothing to promote.
 
-Também verifique se já existe uma PR aberta de `dev` para `prod`, para não duplicar:
+Also check whether there's already an open PR from `dev` to `prod`, to avoid duplicating
+it:
 
 ```bash
 gh pr list --base prod --head dev --state open
 ```
 
-Se já existir, mostre o link ao usuário e pergunte se quer reaproveitá-la (pular para
-o passo 5) ou seguir mesmo assim.
+If one already exists, show the user the link and ask whether they want to reuse it (skip
+to step 5) or proceed anyway.
 
-## 3. Rodar o gate de qualidade (pr-check)
+## 3. Run the quality gate (pr-check)
 
-Delegue ao skill `pr-check` já existente neste repo, comparando `dev` contra `prod`
-(é esse o diff que efetivamente vai para produção):
+Delegate to the existing `pr-check` skill, comparing `dev` against `prod` (that's the
+diff that actually goes to production):
 
 ```
 Skill(skill: "pr-check", args: "prod")
 ```
 
-Isso cobre, nesta ordem: testes (`mvn test` no backend, `lint`+`build` no frontend),
-revisão de código (bugs/simplificação/reuso/eficiência) e o checklist do Contrato de
-Modularidade.
+This covers, in this order: tests (`mvn test` on the backend, `lint`+`build` on the
+frontend), code review (bugs/simplification/reuse/efficiency) and the Modularity Contract
+checklist.
 
-**Importante:** o `pr-check` não troca de branch — ele roda os testes sobre o working
-tree atual, que já é `dev` (checked out no passo 1). O argumento `"prod"` é só a
-branch base usada para calcular o diff (`prod...dev`), para que a revisão de código e
-o checklist de modularidade olhem exatamente o que vai ser promovido, em vez do
-default do `pr-check` (que compararia contra `main`). Os testes em si sempre validam o
-código real de `dev`, nunca o de `prod`.
+**Important:** `pr-check` doesn't switch branches — it runs the tests over the current
+working tree, which is already `dev` (checked out in step 1). The `"prod"` argument is
+only the base branch used to compute the diff (`prod...dev`), so that the code review and
+the modularity checklist look at exactly what will be promoted, instead of `pr-check`'s
+default (which would compare against `main`). The tests themselves always validate the
+actual `dev` code, never `prod`'s.
 
-## 4. Avaliar o resultado
+## 4. Evaluate the result
 
-- **Testes falharam** → pare. Não abra a PR. Reporte a falha e pergunte se o usuário
-  quer corrigir agora ou cancelar a promoção.
-- **Revisão de código encontrou bug/achado bloqueante**, ou **violação do Contrato de
-  Modularidade** → pare. Reporte os achados com arquivo:linha e pergunte como seguir.
-  Não abra a PR "mesmo assim" sem confirmação explícita do usuário — indicar que sabe
-  dos riscos e quer prosseguir de qualquer forma.
-- **Tudo passou** (ou o usuário confirmou explicitamente que quer prosseguir mesmo com
-  ressalvas não-bloqueantes) → siga para o passo 5.
+- **Tests failed** → stop. Don't open the PR. Report the failure and ask whether the user
+  wants to fix it now or cancel the promotion.
+- **Code review found a blocking bug/finding**, or a **Modularity Contract violation** →
+  stop. Report the findings with file:line and ask how to proceed. Don't open the PR
+  "anyway" without the user's explicit confirmation — stating that they know the risks
+  and want to proceed regardless.
+- **Everything passed** (or the user explicitly confirmed they want to proceed despite
+  non-blocking caveats) → go to step 5.
 
-## 5. Abrir a PR de dev para prod
+## 5. Open the dev to prod PR
 
 ```bash
-gh pr create --base prod --head dev --title "Promover dev para prod" --body "$(cat <<'EOF'
-## Resumo
-<liste os commits/mudanças relevantes de `git log origin/prod..dev --oneline`>
+gh pr create --base prod --head dev --title "Promote dev to prod" --body "$(cat <<'EOF'
+## Summary
+<list the relevant commits/changes from `git log origin/prod..dev --oneline`>
 
-## Gate de qualidade (pr-check)
-- Testes: <passou/falhou>
-- Revisão de código: <resumo ou "sem achados">
-- Contrato de Modularidade: <sem violações / lista>
+## Quality gate (pr-check)
+- Tests: <passed/failed>
+- Code review: <summary or "no findings">
+- Modularity Contract: <no violations / list>
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
 )"
 ```
 
-Preencha o corpo com o resultado real do passo 3/4, não um placeholder genérico.
+Fill the body with the actual result from steps 3/4, not a generic placeholder.
 
-## 6. Fechar o loop
+## 6. Close the loop
 
-Retorne ao usuário o link da PR criada (ou reaproveitada) e um resumo de uma linha do
-veredito do gate de qualidade. Não faça merge da PR — a promoção final para `prod` é
-decisão do usuário (e do processo de review no GitHub).
+Return to the user the link to the created (or reused) PR and a one-line summary of the
+quality gate's verdict. Don't merge the PR — the final promotion to `prod` is the user's
+decision (and the GitHub review process's).
