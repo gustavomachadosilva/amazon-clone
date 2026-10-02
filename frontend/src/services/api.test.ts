@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
 import {
   ApiRequestError,
+  catalogApi,
   isOutOfStockError,
   ordersApi,
   resolveApiUrl,
@@ -251,5 +252,64 @@ describe('sellersApi.advanceFulfillment', () => {
     expect(url).toMatch(/\/api\/sellers\/10\/orders\/42\/fulfillment$/)
     expect(init.method).toBe('POST')
     expect(init.body).toBe(JSON.stringify({ status: 'SHIPPED' }))
+  })
+})
+
+describe('catalogApi.search', () => {
+  function respondWithEmptyPage() {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ content: [], totalElements: 0, totalPages: 0 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+  }
+
+  function requestedParams(): URLSearchParams {
+    const [url] = fetchMock.mock.calls[0] as [string]
+    expect(url).toMatch(/\/api\/catalog\/products\?/)
+    return new URL(url).searchParams
+  }
+
+  it('sends every filter, the sort and the page to the backend', async () => {
+    respondWithEmptyPage()
+
+    await catalogApi.search({
+      query: 'drill',
+      category: 'Tools',
+      minPrice: 10,
+      maxPrice: 200,
+      minRating: 4,
+      sort: 'price_desc',
+      page: 2,
+      size: 20,
+    })
+
+    expect(Object.fromEntries(requestedParams())).toEqual({
+      query: 'drill',
+      category: 'Tools',
+      minPrice: '10',
+      maxPrice: '200',
+      minRating: '4',
+      sort: 'price_desc',
+      page: '2',
+      size: '20',
+    })
+  })
+
+  it('omits undefined filters and the default relevance sort', async () => {
+    respondWithEmptyPage()
+
+    await catalogApi.search({ query: undefined, maxPrice: undefined, sort: 'relevance', page: 1 })
+
+    expect(Object.fromEntries(requestedParams())).toEqual({ page: '1', size: '10' })
+  })
+
+  it('asks for the first page of 10 when called without params', async () => {
+    respondWithEmptyPage()
+
+    await catalogApi.search()
+
+    expect(requestedParams().toString()).toBe('page=0&size=10')
   })
 })

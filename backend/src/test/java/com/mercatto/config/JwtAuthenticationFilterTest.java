@@ -112,6 +112,30 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void publicPath_boughtTogether_withoutHeader_callsChain() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/orders/bought-together/1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(chain.getRequest()).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void protectedPath_orderById_withoutHeader_returns401() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/orders/1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(chain.getRequest()).isNull();
+        assertThat(response.getStatus()).isEqualTo(401);
+    }
+
+    @Test
     void protectedPath_withoutHeader_returns401AndDoesNotCallChain() throws ServletException, IOException {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/orders");
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -194,5 +218,92 @@ class JwtAuthenticationFilterTest {
         assertThat(forwardedRequest).isNotNull();
         Principal principal = forwardedRequest.getUserPrincipal();
         assertThat(principal).isEqualTo(authenticatedUser);
+    }
+
+    @Test
+    void optionalPath_homeRecommendations_withoutHeader_callsChainWithoutPrincipal() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/recommendations/home");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        jakarta.servlet.http.HttpServletRequest forwardedRequest =
+                (jakarta.servlet.http.HttpServletRequest) chain.getRequest();
+        assertThat(forwardedRequest).isNotNull();
+        assertThat(forwardedRequest.getUserPrincipal()).isNull();
+        assertThat(response.getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void optionalPath_homeRecommendations_withValidToken_callsChainWithAuthenticatedPrincipal()
+            throws ServletException, IOException {
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(7L, UserRole.BUYER);
+        when(tokenService.validate("good-token")).thenReturn(authenticatedUser);
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/recommendations/home");
+        request.addHeader("Authorization", "Bearer good-token");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        jakarta.servlet.http.HttpServletRequest forwardedRequest =
+                (jakarta.servlet.http.HttpServletRequest) chain.getRequest();
+        assertThat(forwardedRequest).isNotNull();
+        assertThat(forwardedRequest.getUserPrincipal()).isEqualTo(authenticatedUser);
+    }
+
+    @Test
+    void optionalPath_homeRecommendations_withInvalidToken_returns401InsteadOfGoingAnonymous()
+            throws ServletException, IOException {
+        when(tokenService.validate("bad-token")).thenThrow(new InvalidTokenException("expired"));
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/recommendations/home");
+        request.addHeader("Authorization", "Bearer bad-token");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(chain.getRequest()).isNull();
+        assertThat(response.getStatus()).isEqualTo(401);
+    }
+
+    @Test
+    void optionalPath_homeRecommendations_withMalformedHeader_returns401() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/recommendations/home");
+        request.addHeader("Authorization", "not-a-bearer-token");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(chain.getRequest()).isNull();
+        assertThat(response.getStatus()).isEqualTo(401);
+    }
+
+    @Test
+    void optionalPath_homeRecommendations_postWithoutHeader_returns401() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/recommendations/home");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(chain.getRequest()).isNull();
+        assertThat(response.getStatus()).isEqualTo(401);
+    }
+
+    @Test
+    void otherRecommendationPaths_withoutHeader_return401() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/recommendations/home/extra");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(chain.getRequest()).isNull();
+        assertThat(response.getStatus()).isEqualTo(401);
     }
 }

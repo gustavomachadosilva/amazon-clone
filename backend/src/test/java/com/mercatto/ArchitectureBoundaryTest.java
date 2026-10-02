@@ -14,7 +14,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 public class ArchitectureBoundaryTest {
 
     private static final List<String> BUSINESS_MODULES =
-        List.of("users", "catalog", "orders", "sellers", "cart", "reviews", "lists");
+        List.of("users", "catalog", "orders", "sellers", "cart", "reviews", "lists", "recommendations");
 
     private final JavaClasses classes = new ClassFileImporter().importPackages("com.mercatto");
 
@@ -22,6 +22,36 @@ public class ArchitectureBoundaryTest {
     void catalog_should_not_depend_on_orders_or_sellers() {
         noClasses().that().resideInAPackage("..catalog..")
             .should().dependOnClassesThat().resideInAnyPackage("..orders..", "..sellers..", "..cart..")
+            .because("orders/sellers/cart depend on catalog.service; reads combining them with catalog "
+                + "data (e.g. frequently bought together, #224) are composed on their side")
+            .check(classes);
+    }
+
+    @Test
+    void reviews_should_not_depend_on_catalog() {
+        noClasses().that().resideInAPackage("..reviews..")
+            .should().dependOnClassesThat().resideInAPackage("..catalog..")
+            .as("catalog depends on reviews (ratings); reviews reaches catalog only by publishing "
+                + "ReviewCreatedEvent, never by calling it")
+            .check(classes);
+    }
+
+    @Test
+    void no_module_should_depend_on_recommendations() {
+        noClasses().that().resideOutsideOfPackage("..recommendations..")
+            .should().dependOnClassesThat().resideInAPackage("..recommendations..")
+            .as("recommendations is a leaf composition module (Home shelf, #225): it reads catalog, "
+                + "orders, cart and lists through their services, and nothing may depend on it")
+            .check(classes);
+    }
+
+    @Test
+    void recommendations_should_have_no_persistence() {
+        noClasses().that().resideInAPackage("..recommendations..")
+            .should().dependOnClassesThat().resideInAnyPackage("jakarta.persistence..",
+                "org.springframework.data.jpa..", "org.springframework.transaction..")
+            .as("recommendations owns no schema, entities, repositories or transactions; it only "
+                + "reads other modules through their public services (Contrato de Modularidade regra 2/5)")
             .check(classes);
     }
 

@@ -30,6 +30,7 @@ class AmazonProductSeederTest {
         seeder.seedProducts(List.of(1L));
 
         verify(productRepository, never()).saveAll(org.mockito.ArgumentMatchers.any());
+        verify(productRepository, never()).refreshStatistics();
     }
 
     @Test
@@ -67,6 +68,7 @@ class AmazonProductSeederTest {
             assertThat(p.getListPrice()).isNull();
         });
         assertThat(products).extracting(Product::getSellerId).contains(10L, 20L);
+        verify(productRepository).refreshStatistics();
     }
 
     @Test

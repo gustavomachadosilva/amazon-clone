@@ -1,7 +1,9 @@
 package com.mercatto.catalog.api;
 
 import com.mercatto.catalog.domain.Product;
+import com.mercatto.catalog.service.ProductSearchCriteria;
 import com.mercatto.catalog.service.ProductService;
+import com.mercatto.catalog.service.ProductSort;
 import com.mercatto.users.domain.UserRole;
 import com.mercatto.users.service.AuthenticatedUser;
 import jakarta.validation.Valid;
@@ -12,7 +14,6 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
 import java.security.Principal;
+import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -33,14 +35,33 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ProductController {
 
+    static final int MAX_PAGE_SIZE = 100;
+    static final int MAX_RELATED_LIMIT = 20;
+
     private final ProductService productService;
 
+    // page/size are bound explicitly instead of through a Pageable argument: Spring's Pageable
+    // resolver would also read ?sort= and turn e.g. sort=price_asc into an ORDER BY on a
+    // non-existent "price_asc" property (a 500). Sorting is ProductSort's job here.
     @GetMapping
     public Page<ProductService.ProductView> search(
             @RequestParam(required = false) String query,
             @RequestParam(required = false) String category,
-            Pageable pageable) {
-        return productService.searchWithRating(query, category, pageable);
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) Double minRating,
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        if (page < 0) {
+            throw new IllegalArgumentException("page must be >= 0");
+        }
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new IllegalArgumentException("size must be between 1 and " + MAX_PAGE_SIZE);
+        }
+        ProductSearchCriteria criteria = new ProductSearchCriteria(
+                query, category, minPrice, maxPrice, minRating, ProductSort.fromParam(sort));
+        return productService.searchWithRating(criteria, page, size);
     }
 
     @GetMapping("/{id}")
@@ -48,6 +69,15 @@ public class ProductController {
         return productService.findByIdWithRating(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/related")
+    public List<ProductService.RelatedProduct> related(@PathVariable Long id,
+                                                        @RequestParam(defaultValue = "6") int limit) {
+        if (limit < 1 || limit > MAX_RELATED_LIMIT) {
+            throw new IllegalArgumentException("limit must be between 1 and " + MAX_RELATED_LIMIT);
+        }
+        return productService.findRelated(id, limit);
     }
 
     @PostMapping

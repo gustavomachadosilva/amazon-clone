@@ -21,6 +21,15 @@ spring:
         hbm2ddl:
           create_namespaces: true
     open-in-view: false
+    # Run spring.sql.init scripts only after Hibernate has created/updated the tables, so the
+    # post-DDL script can build functions and indexes on them.
+    defer-datasource-initialization: true
+  sql:
+    init:
+      # Every startup, on every database (not only embedded ones): the script is idempotent.
+      # Catalog full-text search: extensions, catalog.* search functions and indexes (#220).
+      mode: always
+      schema-locations: classpath:db/post-ddl/catalog-search.sql
   servlet:
     multipart:
       # Per-file cap matches the largest allowed media (videos, 50 MB); per-request cap fits

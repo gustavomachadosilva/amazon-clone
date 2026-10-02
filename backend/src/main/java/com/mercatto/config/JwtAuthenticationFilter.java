@@ -20,7 +20,8 @@ import java.time.Instant;
 
 /**
  * Validates the {@code Authorization: Bearer <token>} header on every request except the public
- * endpoints listed below, and — when valid — exposes the resulting {@link AuthenticatedUser} as
+ * endpoints listed below (and, when the header is absent, the optionally authenticated ones), and
+ * — when valid — exposes the resulting {@link AuthenticatedUser} as
  * the request's {@link Principal} so controllers read {@code userId}/{@code role} from the token
  * instead of trusting a value supplied by the client.
  *
@@ -49,6 +50,12 @@ class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String header = request.getHeader(AUTH_HEADER);
+        // Optional authentication: without a header the request goes on anonymously; with one, it
+        // is validated like any other and a bad token is still a 401 (never silently anonymous).
+        if (header == null && isOptionallyAuthenticated(request)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
         if (header == null || !header.startsWith(BEARER_PREFIX)) {
             writeUnauthorized(request, response, "Missing or malformed Authorization header");
             return;
@@ -90,8 +97,19 @@ class JwtAuthenticationFilter extends OncePerRequestFilter {
         if ("GET".equals(method) && path.startsWith("/api/reviews/media/")) {
             return true;
         }
+        // The product page's frequently-bought-together bundle (#224) is shown to anonymous
+        // visitors too. Only this sub-path: every other /api/orders endpoint stays behind the token.
+        if ("GET".equals(method) && path.startsWith("/api/orders/bought-together/")) {
+            return true;
+        }
         return "GET".equals(method)
                 && (path.startsWith("/api/catalog/products") || path.startsWith("/api/catalog/categories"));
+    }
+
+    // Endpoints that serve anonymous visitors but personalize for a signed-in user: the Home's
+    // recommendations (#225). Only GET; any other method there still requires the token.
+    private boolean isOptionallyAuthenticated(HttpServletRequest request) {
+        return "GET".equals(request.getMethod()) && "/api/recommendations/home".equals(request.getRequestURI());
     }
 
     private void writeUnauthorized(HttpServletRequest request, HttpServletResponse response, String message)

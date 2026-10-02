@@ -1,0 +1,437 @@
+{
+  "version": 1,
+  "description": "Reference search queries over the 500-product seed catalog (backend/src/main/resources/seed/amazon-products-sample.csv), with the products judged relevant by intent (not by substring). A query's relevant set is the union of \"relevant\" (exact product names) and every product in \"relevantCategories\". See docs/search-recommendation-baseline.md (#219).",
+  "pageSize": 10,
+  "queries": [
+    {
+      "id": "exact-playstation",
+      "type": "exact",
+      "query": "playstation",
+      "relevant": [
+        "PlayStation 5 Console (PS5)",
+        "PlayStation DualSense Wireless Controller – Midnight Black",
+        "Mortal Kombat 1 - PlayStation5",
+        "Final Fantasy VII Rebirth - Deluxe Edition (PS5)",
+        "MARVEL’S SPIDER-MAN 2 – PS5 Launch Edition"
+      ],
+      "relevantCategories": [],
+      "notes": "PlayStation console, controller and PS5 games (two games only say \"PS5\", not \"PlayStation\"). The PS5 power cord (Home Audio) is an accessory and is not relevant."
+    },
+    {
+      "id": "exact-lipstick",
+      "type": "exact",
+      "query": "lipstick",
+      "relevant": [
+        "ROSE GOLD 2 In 1 Matte Lipstick & Liquid Lipstick, Matte Finish, Nude, Full Color Lipstick, Long Lasting Waterproof Velvet Lip Gloss (04)",
+        "tarte maracuja juicy lip crème Peachy Pink",
+        "ETUDE Dear Darling Water Gel Tint Plum Red #PK002 (21AD)| Long-lasting Effect up with Fruity, Juicy, Moist, and Vivid coloring"
+      ],
+      "relevantCategories": [],
+      "notes": "Lip colour products: the lipstick plus a lip creme and a lip tint that do not contain the word. The collagen lip plumper mentions \"lipstick\" but is not one."
+    },
+    {
+      "id": "exact-serum",
+      "type": "exact",
+      "query": "serum",
+      "relevant": [
+        "Physicians Formula Rosé All Day Serum| Helps to Brighten and Clear Skin, Even Tone and Prevent Wrinkles | Dermatologist Tested, Clinicially Tested",
+        "Shankara Anti-Age Vitamin C Serum for Face - Herbal Anti Aging Serum Hydrating Formulation, Naturally Nourishes & Rejuvenates Skin, For Face Care and Neck Area (30ml)",
+        "Beauty Guru Vitamin C Under Eye Serum (Pack of 1) - Anti Aging Eye Roller with Sea Buckthorn Oil, Reduces Dark Circles and Puffiness, Plumps, Moisturizes and Brightens Skin (8ml)"
+      ],
+      "relevantCategories": [],
+      "notes": "Face/eye serums. The castor oil and the 5-piece skin care set mention \"serum\" further down the name but are not serums."
+    },
+    {
+      "id": "exact-handbag",
+      "type": "exact",
+      "query": "handbag",
+      "relevant": [
+        "Crossbody bags for Women Crossbody Purse Shoulder Bag",
+        "Shoulder Bags for Women, Cute Hobo Tote Handbag Mini Clutch Purse with Zipper Closure",
+        "Crossbody",
+        "Women's Small Crossbody Shoulder Bags, Clutch Purses Wristlet Phone Wallet for Women with Credit Card Holder",
+        "Women's Joy Shoulder Bag",
+        "PU Leather Bag Purses Sets for Women, Large Tote Bag and Wallet, Portable Quilted Shoulder Bag Versatile Handbag with Purse",
+        "Crossbody Bags for Women 2PCS Vegan Leather Hobo Purses Wallet Set Shoulder Handbags With Wide Shoulder Strap",
+        "Jet Set Travel Signature PVC Medium Logo Chain Crossbody Flight Bag",
+        "Clear Delicate Crossbody Purse Bag, Stadium Approved Transparent Bag for Festivals, Sports Events, Small Concerts Bag",
+        "Sanrio Hello Kitty Halloween Cosplay Womens Double Strap Shoulder Bag Purse",
+        "Anti-Theft Heritage Crossbody Bag",
+        "Small Crossbody Bag for Women,Leather Wristlet Clutch Wallet Purses Women Shoulder Handbag with Credit Card Slots",
+        "Women's Ankara Wristlet Pouch",
+        "Women's Jet Set Item Lg Crossbody",
+        "Wrangler Tote Bag Western Purses for Women Shoulder Boho Aztec Handbags",
+        "Clear Purse for Women Stadium Approved, Clear Crossbody Bag with Zipper Closure, Transparent Purse for Concert Sports",
+        "Large Crossbody Bags Ladies Shoulder Handbags Purse and Wallet Set for Women Totes Hobo Purses"
+      ],
+      "relevantCategories": [],
+      "notes": "Bags and purses from Women's Handbags; most do not contain the word \"handbag\". The backpack and the two plain wallets are excluded."
+    },
+    {
+      "id": "exact-camera",
+      "type": "exact",
+      "query": "camera",
+      "relevant": [
+        "ZWO ASI120MM-MINI 1.2 MP CMOS Monochrome Astronomy Camera with USB 2.0# ASI120MM-MINI",
+        "GoPro HERO10 Black (Hero 10) - Waterproof Action Camera with Front LCD and Touch Rear Screens, New GP2 Engine, 5K HD Video, 23MP Photos, Live Streaming, 64GB Extreme Pro Card and Extra Battery",
+        "Swann Add-On DVR Bullet Security Camera System with Sensor Spotlight, 1080p Full HD Video, Indoor or Outdoor Design, Dusk to Dawn Color Night Vision Plus True Detect™ Heat and Motion Detection",
+        "Canon EOS Rebel T7 Digital SLR Camera with EF-S 18-55mm f/3.5-5.6 is STM Lens + 64GB Memory Card + Wide Angle and Telephoto Lens + Tripod + Extra Battery + Remote + Slave Flash (Renewed)"
+      ],
+      "relevantCategories": [],
+      "notes": "Actual cameras only. Camera accessories (flash, film, case, backpack) and tablets/tripods that mention a camera are not relevant."
+    },
+    {
+      "id": "exact-samsung",
+      "type": "exact",
+      "query": "samsung",
+      "relevant": [
+        "SAMSUNG Galaxy Tab A7 Lite 8.7\" 32GB WiFi Android Tablet, Compact, Slim Design, Kid Friendly, Sturdy Metal Frame, Long Lasting Battery, US Version, 2021, Gray",
+        "Samsung Galaxy Buds Live, Wireless Earbuds w/Active Noise Cancelling, Mystic Black, International Version",
+        "SAMSUNG Galaxy Buds 2 Pro True Wireless Bluetooth Earbuds w/ Noise Cancelling, Hi-Fi Sound, 360 Audio, Comfort Ear Fit, HD Voice, Conversation Mode, IPX7 Water Resistant, US Version, Graphite",
+        "SAMSUNG HW-C450 2.1ch Soundbar w/DTS Virtual X, Subwoofer Included, Bass Boost, Adaptive Sound Lite, Game Mode, Bluetooth, Wireless Surround Sound Compatible (Newest Model),Black",
+        "SAMSUNG Galaxy Tab S6 Lite 10.4\" 64GB Android Tablet, S Pen Included, Slim Metal Design, AKG Dual Speakers, Long Lasting Battery, US Version, 2020, Oxford Gray",
+        "SAMSUNG Galaxy Buds 2 True Wireless Earbuds Noise Cancelling Ambient Sound Bluetooth Lightweight Comfort Fit Touch Control US Version, Graphite"
+      ],
+      "relevantCategories": [],
+      "notes": "Samsung-branded products. Third-party items \"for Samsung\" (TV remote, dryer part, USB-C cable) are not relevant."
+    },
+    {
+      "id": "multi-wireless-earbuds",
+      "type": "multi_term",
+      "query": "wireless earbuds",
+      "relevant": [
+        "Wireless Earbuds Bluetooth V5.3 Headphones 50H Playback Deep Bass Stereo Ear Buds with LED Power Display Charging Case IPX7 Waterproof Earphones with Mic Headset for Laptop Pad Android/iOS Phones",
+        "ZIUTY Wireless Earbuds, Bluetooth 5.3 Headphones 50H Playtime with LED Digital Display Charging Case, IPX5 Sweatproof Cordless Earphones with Microphone for iPhone Android Phone Laptop Sports (Black)",
+        "TAGRY Bluetooth Headphones True Wireless Earbuds 60H Playback LED Power Display Earphones with Wireless Charging Case IPX5 Waterproof in-Ear Earbuds with Mic for TV Smart Phone Computer Laptop Sports",
+        "EarFun Air Pro 3 Noise Cancelling Wireless Earbuds, Qualcomm® aptX™ Adaptive Sound, 6 Mics CVC 8.0 ENC, Bluetooth 5.3 Earbuds, Multipoint Connection, 45H Playtime, App Customize EQ, Wireless Charging",
+        "Wireless Earbuds, Bluetooth 5.3 Earphones with 4 HD ENC Noise Canceling Mic, 42H Playtime, Bluetooth Sport Headphones Touch Control with LED Display, In Ear Wireless Headphones for Android iOS Black",
+        "Raycon The Everyday Bluetooth Wireless Earbuds with Microphone- Stereo Sound in-Ear Bluetooth Headset True Wireless Earbuds 32 Hours Playtime (Matte Black)",
+        "Soundodo Wireless Earbuds for Tv Listening Watching with 5.1 Transmitter Charging Dock,2023 New TWS Ture Wireless Earbuds for tv with Transmitter Set,Optical,3.5mm AUX,RCA,Plug n Play,60ft Long Range",
+        "Samsung Galaxy Buds Live, Wireless Earbuds w/Active Noise Cancelling, Mystic Black, International Version",
+        "Raycon The Everyday Bluetooth Wireless Earbuds with Microphone- Stereo Sound in-Ear Bluetooth Headset True Wireless Earbuds 32 Hours Playtime (Matte Blue)",
+        "Status Audio Between Pro True Wireless Earbuds - Small Charging Case - 4 Microphones - Hybrid Triple Driver - 12 + 36 Hour Battery - Bluetooth 5.2 - Noise-Isolating Fit - IPX5 Water Resistant Ear Buds",
+        "SAMSUNG Galaxy Buds 2 Pro True Wireless Bluetooth Earbuds w/ Noise Cancelling, Hi-Fi Sound, 360 Audio, Comfort Ear Fit, HD Voice, Conversation Mode, IPX7 Water Resistant, US Version, Graphite",
+        "Wireless Earbuds Bluetooth Headphones 60H Playtime Ear Buds with LED Power Display Charging Case Earphones in-Ear Earbud with Microphone for Android Cell Phone Gaming Computer Laptop Sport Black",
+        "JBL Tune 130NC TWS True Wireless In-Ear Noise Cancelling Headphones",
+        "Bluetooth Headphones Wireless Earbuds 80hrs Playtime Wireless Charging Case Digital Display Sports Ear buds with Earhook Premium Deep Bass IPX7 Waterproof Over-Ear Earphones for TV Phone Laptop Black",
+        "PIFFA Bluetooth Headphones Wireless Earbuds, 132Hr Playtime Sports Ear Buds with 1800mAh Digital Display Charging Case, IPX5 Waterproof Headset with Microphone Cordless Earphone for iPhone Android TV",
+        "JLab Go Air Pop True Wireless Bluetooth Earbuds + Charging Case - Slate - Dual Connect - IPX4 Sweat Resistance - Bluetooth 5.1 Connection - 3 EQ Sound Settings Signature, Balanced, Bass Boost",
+        "SAMSUNG Galaxy Buds 2 True Wireless Earbuds Noise Cancelling Ambient Sound Bluetooth Lightweight Comfort Fit Touch Control US Version, Graphite"
+      ],
+      "relevantCategories": [],
+      "notes": "True wireless / Bluetooth earbuds in Headphones & Earbuds and Cell Phones & Accessories. Wired earbuds are excluded."
+    },
+    {
+      "id": "multi-earbuds-wireless",
+      "type": "multi_term",
+      "query": "earbuds wireless",
+      "relevant": [
+        "Wireless Earbuds Bluetooth V5.3 Headphones 50H Playback Deep Bass Stereo Ear Buds with LED Power Display Charging Case IPX7 Waterproof Earphones with Mic Headset for Laptop Pad Android/iOS Phones",
+        "ZIUTY Wireless Earbuds, Bluetooth 5.3 Headphones 50H Playtime with LED Digital Display Charging Case, IPX5 Sweatproof Cordless Earphones with Microphone for iPhone Android Phone Laptop Sports (Black)",
+        "TAGRY Bluetooth Headphones True Wireless Earbuds 60H Playback LED Power Display Earphones with Wireless Charging Case IPX5 Waterproof in-Ear Earbuds with Mic for TV Smart Phone Computer Laptop Sports",
+        "EarFun Air Pro 3 Noise Cancelling Wireless Earbuds, Qualcomm® aptX™ Adaptive Sound, 6 Mics CVC 8.0 ENC, Bluetooth 5.3 Earbuds, Multipoint Connection, 45H Playtime, App Customize EQ, Wireless Charging",
+        "Wireless Earbuds, Bluetooth 5.3 Earphones with 4 HD ENC Noise Canceling Mic, 42H Playtime, Bluetooth Sport Headphones Touch Control with LED Display, In Ear Wireless Headphones for Android iOS Black",
+        "Raycon The Everyday Bluetooth Wireless Earbuds with Microphone- Stereo Sound in-Ear Bluetooth Headset True Wireless Earbuds 32 Hours Playtime (Matte Black)",
+        "Soundodo Wireless Earbuds for Tv Listening Watching with 5.1 Transmitter Charging Dock,2023 New TWS Ture Wireless Earbuds for tv with Transmitter Set,Optical,3.5mm AUX,RCA,Plug n Play,60ft Long Range",
+        "Samsung Galaxy Buds Live, Wireless Earbuds w/Active Noise Cancelling, Mystic Black, International Version",
+        "Raycon The Everyday Bluetooth Wireless Earbuds with Microphone- Stereo Sound in-Ear Bluetooth Headset True Wireless Earbuds 32 Hours Playtime (Matte Blue)",
+        "Status Audio Between Pro True Wireless Earbuds - Small Charging Case - 4 Microphones - Hybrid Triple Driver - 12 + 36 Hour Battery - Bluetooth 5.2 - Noise-Isolating Fit - IPX5 Water Resistant Ear Buds",
+        "SAMSUNG Galaxy Buds 2 Pro True Wireless Bluetooth Earbuds w/ Noise Cancelling, Hi-Fi Sound, 360 Audio, Comfort Ear Fit, HD Voice, Conversation Mode, IPX7 Water Resistant, US Version, Graphite",
+        "Wireless Earbuds Bluetooth Headphones 60H Playtime Ear Buds with LED Power Display Charging Case Earphones in-Ear Earbud with Microphone for Android Cell Phone Gaming Computer Laptop Sport Black",
+        "JBL Tune 130NC TWS True Wireless In-Ear Noise Cancelling Headphones",
+        "Bluetooth Headphones Wireless Earbuds 80hrs Playtime Wireless Charging Case Digital Display Sports Ear buds with Earhook Premium Deep Bass IPX7 Waterproof Over-Ear Earphones for TV Phone Laptop Black",
+        "PIFFA Bluetooth Headphones Wireless Earbuds, 132Hr Playtime Sports Ear Buds with 1800mAh Digital Display Charging Case, IPX5 Waterproof Headset with Microphone Cordless Earphone for iPhone Android TV",
+        "JLab Go Air Pop True Wireless Bluetooth Earbuds + Charging Case - Slate - Dual Connect - IPX4 Sweat Resistance - Bluetooth 5.1 Connection - 3 EQ Sound Settings Signature, Balanced, Bass Boost",
+        "SAMSUNG Galaxy Buds 2 True Wireless Earbuds Noise Cancelling Ambient Sound Bluetooth Lightweight Comfort Fit Touch Control US Version, Graphite"
+      ],
+      "relevantCategories": [],
+      "notes": "Same intent as \"wireless earbuds\" with the words swapped; tests term order sensitivity."
+    },
+    {
+      "id": "multi-running-shoes",
+      "type": "multi_term",
+      "query": "running shoes",
+      "relevant": [
+        "Men's AL0A7R6F Torin 6 - Wide Road Running Shoe",
+        "Men's Sneaker,Running Shoes",
+        "Men's Speedcross 5 Trail Running Shoes",
+        "Men's Lite Racer Adapt 5.0 Running Shoe",
+        "Men's Low Neck Running Shoes",
+        "Women's Athletic Walking Shoes - Casual Knit Lightweight Running Slip On Sneakers"
+      ],
+      "relevantCategories": [],
+      "notes": "Running shoes, including names that use the singular \"Running Shoe\" and the women's running slip-on sneakers."
+    },
+    {
+      "id": "multi-usb-c-cable",
+      "type": "multi_term",
+      "query": "usb c cable",
+      "relevant": [
+        "Anker USB C to USB C Cable (3.3ft 100W, 2Pack), USB 2.0 Type C Charging Cable Fast Charge for iPhone 15/15Pro/15Plus/15ProMax, MacBook Pro 2020, iPad Pro 2020, iPad Air4, Samsung Galaxy S23 (Black)"
+      ],
+      "relevantCategories": [],
+      "notes": "The only USB-C cable in the seed."
+    },
+    {
+      "id": "multi-noise-cancelling-headphones",
+      "type": "multi_term",
+      "query": "noise cancelling headphones",
+      "relevant": [
+        "Bose QuietComfort 45 Bluetooth Wireless Noise Cancelling Headphones - Triple Black (Renewed)",
+        "Bose QuietComfort 45 Wireless Bluetooth Noise Cancelling Headphones, Over-Ear Headphones with Microphone, Personalized Noise Cancellation and Sound, White Smoke",
+        "JBL Tune 130NC TWS True Wireless In-Ear Noise Cancelling Headphones",
+        "Samsung Galaxy Buds Live, Wireless Earbuds w/Active Noise Cancelling, Mystic Black, International Version",
+        "SAMSUNG Galaxy Buds 2 Pro True Wireless Bluetooth Earbuds w/ Noise Cancelling, Hi-Fi Sound, 360 Audio, Comfort Ear Fit, HD Voice, Conversation Mode, IPX7 Water Resistant, US Version, Graphite",
+        "EarFun Air Pro 3 Noise Cancelling Wireless Earbuds, Qualcomm® aptX™ Adaptive Sound, 6 Mics CVC 8.0 ENC, Bluetooth 5.3 Earbuds, Multipoint Connection, 45H Playtime, App Customize EQ, Wireless Charging",
+        "SAMSUNG Galaxy Buds 2 True Wireless Earbuds Noise Cancelling Ambient Sound Bluetooth Lightweight Comfort Fit Touch Control US Version, Graphite"
+      ],
+      "relevantCategories": [],
+      "notes": "Headphones/earbuds with active noise cancelling, whether or not the words are contiguous."
+    },
+    {
+      "id": "multi-nintendo-switch",
+      "type": "multi_term",
+      "query": "nintendo switch",
+      "relevant": [
+        "Nintendo Switch – OLED Model w/ White Joy-Con",
+        "Nintendo Switch™ with Neon Blue and Neon Red Joy‑Con™",
+        "The Legend of Zelda: Tears of the Kingdom - Nintendo Switch (US Version)",
+        "Unicorn Overlord: Collector's Edition - Nintendo Switch"
+      ],
+      "relevantCategories": [],
+      "notes": "Switch consoles and Switch games. The soundbar and phone stand that list Switch compatibility are not relevant."
+    },
+    {
+      "id": "plural-boots",
+      "type": "plural_singular",
+      "query": "boots",
+      "relevant": [
+        "Women's Classic Ultra Mini Fashion Boot",
+        "Men's Neumel Boot",
+        "Women's Classic Ultra Mini Platform Fashion Boot",
+        "Womens Winter Boots Warm: Womens Waterproof Snow Boots Ankle Casual Cold Weather Fur Lined Comfortable Booties",
+        "Women's Snow Boots Anti-Slip Waterproof Outdoor Shoes Winter Snow Boots Warm Fur Lined Comfortable Shoes for Women",
+        "Men's Moab 2 Mid Gtx Hiking Boot",
+        "American Heritage 8” Moc Toe Work Boots For Men Breathable Leather Boots With Slip-Resistant MAXWear Wedge Outsole and Goodyear Storm Welt",
+        "Rubber Hunting Boots with 800g Insulation, Waterproof Insulated Realtree Xtra Camo Warm Rubber Boots with 7mm Neoprene, Durable Outdoor Hunting Boots for Men (Size 5-14)",
+        "Women's Elastic Chelsea Boots Chunky Block Heel Platform Lug Sole Ankle Booties",
+        "Women's Classic Mini II Winter Boot"
+      ],
+      "relevantCategories": [],
+      "notes": "All boots in the seed, whether the name says \"Boot\" or \"Boots\". The shoe organizer is not relevant."
+    },
+    {
+      "id": "plural-boot",
+      "type": "plural_singular",
+      "query": "boot",
+      "relevant": [
+        "Women's Classic Ultra Mini Fashion Boot",
+        "Men's Neumel Boot",
+        "Women's Classic Ultra Mini Platform Fashion Boot",
+        "Womens Winter Boots Warm: Womens Waterproof Snow Boots Ankle Casual Cold Weather Fur Lined Comfortable Booties",
+        "Women's Snow Boots Anti-Slip Waterproof Outdoor Shoes Winter Snow Boots Warm Fur Lined Comfortable Shoes for Women",
+        "Men's Moab 2 Mid Gtx Hiking Boot",
+        "American Heritage 8” Moc Toe Work Boots For Men Breathable Leather Boots With Slip-Resistant MAXWear Wedge Outsole and Goodyear Storm Welt",
+        "Rubber Hunting Boots with 800g Insulation, Waterproof Insulated Realtree Xtra Camo Warm Rubber Boots with 7mm Neoprene, Durable Outdoor Hunting Boots for Men (Size 5-14)",
+        "Women's Elastic Chelsea Boots Chunky Block Heel Platform Lug Sole Ankle Booties",
+        "Women's Classic Mini II Winter Boot"
+      ],
+      "relevantCategories": [],
+      "notes": "Singular form of \"boots\"; same relevant set."
+    },
+    {
+      "id": "plural-laptops",
+      "type": "plural_singular",
+      "query": "laptops",
+      "relevant": [
+        "HP 17 Laptop, 17.3” HD+ Display, 11th Gen Intel Core i3-1125G4 Processor, 16GB RAM, 1TB SSD, Wi-Fi, HDMI, Webcam, Windows 11 Home, Silver",
+        "HP Latest Stream 14'' HD Laptop, Intel Celeron Processor, 4GB Memory, 64GB eMMC, Fast Charge, HDMI, Up to 11 Hours Long Battery Life, Office 365 1-Year, Win S, Microfiber Bundle, Pink Gold 4GB RAM",
+        "Gateway Newest Touchscreen 11.6 HD 2-in-1 Convertible Laptop in Blue Intel N4020 4GB RAM 64GB SSD Mini-HDMI Webcam Windows 10 S (Renewed) (GT-116)",
+        "jumper Laptop, 16GB RAM 512GB SSD, 12th Gen Intel N100 Processor, 16\" FHD IPS Screen(16:10), Notebook Computer with 2.4G/5G WiFi, 4 Stereo Speakers, Cooling System, 38WH Battery, Type-C.",
+        "Lenovo IdeaPad Flex 5-2023 - Touchscreen 2-in-1 Laptop - Windows 11 Home - 14\" FHD Display - 16GB Memory - 256GB Storage - AMD Ryzen 5 5500U - Abyss Blue",
+        "Late 2021 Apple MacBook Pro with Apple M1 Pro chip (16 inch, 16GB RAM, 1TB SSD) (QWERTY English) Space Gray (Renewed)",
+        "Microsoft Surface Pro X – 13\" Touch-Screen – SQ1 - 8GB Memory - 128GB Solid State Drive – Wifi, 4G Lte – Matte Black"
+      ],
+      "relevantCategories": [],
+      "notes": "Laptops and 2-in-1s (MacBook Pro, Surface Pro X). No product name contains the plural \"laptops\"."
+    },
+    {
+      "id": "plural-headphone",
+      "type": "plural_singular",
+      "query": "headphone",
+      "relevant": [
+        "EarFun Air Pro 3 Noise Cancelling Wireless Earbuds, Qualcomm® aptX™ Adaptive Sound, 6 Mics CVC 8.0 ENC, Bluetooth 5.3 Earbuds, Multipoint Connection, 45H Playtime, App Customize EQ, Wireless Charging",
+        "Headphones Wireless Bluetooth 70 Hours Playtime Bluetooth Headphones with Microphone,3EQ Modes,Over-Ear Headphones HiFi Stereo Foldable Lightweight,Deep Bass for Home Traver Work PC/Callphones",
+        "Raycon The Everyday Bluetooth Wireless Earbuds with Microphone- Stereo Sound in-Ear Bluetooth Headset True Wireless Earbuds 32 Hours Playtime (Matte Blue)",
+        "Wireless Earbuds Bluetooth Headphones 60H Playtime Ear Buds with LED Power Display Charging Case Earphones in-Ear Earbud with Microphone for Android Cell Phone Gaming Computer Laptop Sport Black",
+        "V8 Bluetooth Headphones, 80 Hours Playtime Wireless Headphones with Deep Bass,Lightweight Foldable Headphones Built-in Mic,HiFi Stereo Sound for Travel Work Laptop PC Cellphone",
+        "RORSOU R10 Kids Headphones with Microphone, Lightweight Folding Stereo Bass Headphones with 1.5M No-Tangle Cord, Portable Wired Headphones for Smartphone Tablet Computer MP3 / 4 (Black)",
+        "SHOKZ (AfterShokz OpenComm - Bone Conduction Open-Ear Stereo Bluetooth Headset with Noise-Canceling Boom Microphone - Wireless Headset for Mobile Use, with Bookmark",
+        "JLab Go Air Pop True Wireless Bluetooth Earbuds + Charging Case - Slate - Dual Connect - IPX4 Sweat Resistance - Bluetooth 5.1 Connection - 3 EQ Sound Settings Signature, Balanced, Bass Boost",
+        "POWMEE M1 Kids Headphones Wired Headphone for Kids,Foldable Adjustable Stereo Tangle-Free,3.5MM Jack Wire Cord On-Ear Headphone for Children (Blue)",
+        "SAMSUNG Galaxy Buds 2 True Wireless Earbuds Noise Cancelling Ambient Sound Bluetooth Lightweight Comfort Fit Touch Control US Version, Graphite"
+      ],
+      "relevantCategories": [
+        "Headphones & Earbuds"
+      ],
+      "notes": "Singular of \"headphones\": everything in Headphones & Earbuds plus the headphones/earbuds listed under Cell Phones & Accessories."
+    },
+    {
+      "id": "typo-headphnes",
+      "type": "typo",
+      "query": "headphnes",
+      "relevant": [
+        "EarFun Air Pro 3 Noise Cancelling Wireless Earbuds, Qualcomm® aptX™ Adaptive Sound, 6 Mics CVC 8.0 ENC, Bluetooth 5.3 Earbuds, Multipoint Connection, 45H Playtime, App Customize EQ, Wireless Charging",
+        "Headphones Wireless Bluetooth 70 Hours Playtime Bluetooth Headphones with Microphone,3EQ Modes,Over-Ear Headphones HiFi Stereo Foldable Lightweight,Deep Bass for Home Traver Work PC/Callphones",
+        "Raycon The Everyday Bluetooth Wireless Earbuds with Microphone- Stereo Sound in-Ear Bluetooth Headset True Wireless Earbuds 32 Hours Playtime (Matte Blue)",
+        "Wireless Earbuds Bluetooth Headphones 60H Playtime Ear Buds with LED Power Display Charging Case Earphones in-Ear Earbud with Microphone for Android Cell Phone Gaming Computer Laptop Sport Black",
+        "V8 Bluetooth Headphones, 80 Hours Playtime Wireless Headphones with Deep Bass,Lightweight Foldable Headphones Built-in Mic,HiFi Stereo Sound for Travel Work Laptop PC Cellphone",
+        "RORSOU R10 Kids Headphones with Microphone, Lightweight Folding Stereo Bass Headphones with 1.5M No-Tangle Cord, Portable Wired Headphones for Smartphone Tablet Computer MP3 / 4 (Black)",
+        "SHOKZ (AfterShokz OpenComm - Bone Conduction Open-Ear Stereo Bluetooth Headset with Noise-Canceling Boom Microphone - Wireless Headset for Mobile Use, with Bookmark",
+        "JLab Go Air Pop True Wireless Bluetooth Earbuds + Charging Case - Slate - Dual Connect - IPX4 Sweat Resistance - Bluetooth 5.1 Connection - 3 EQ Sound Settings Signature, Balanced, Bass Boost",
+        "POWMEE M1 Kids Headphones Wired Headphone for Kids,Foldable Adjustable Stereo Tangle-Free,3.5MM Jack Wire Cord On-Ear Headphone for Children (Blue)",
+        "SAMSUNG Galaxy Buds 2 True Wireless Earbuds Noise Cancelling Ambient Sound Bluetooth Lightweight Comfort Fit Touch Control US Version, Graphite"
+      ],
+      "relevantCategories": [
+        "Headphones & Earbuds"
+      ],
+      "notes": "Misspelling of \"headphones\" (missing \"o\"); same relevant set as plural-headphone."
+    },
+    {
+      "id": "typo-playstaton",
+      "type": "typo",
+      "query": "playstaton",
+      "relevant": [
+        "PlayStation 5 Console (PS5)",
+        "PlayStation DualSense Wireless Controller – Midnight Black",
+        "Mortal Kombat 1 - PlayStation5",
+        "Final Fantasy VII Rebirth - Deluxe Edition (PS5)",
+        "MARVEL’S SPIDER-MAN 2 – PS5 Launch Edition"
+      ],
+      "relevantCategories": [],
+      "notes": "Misspelling of \"playstation\" (missing \"i\")."
+    },
+    {
+      "id": "typo-lipstik",
+      "type": "typo",
+      "query": "lipstik",
+      "relevant": [
+        "ROSE GOLD 2 In 1 Matte Lipstick & Liquid Lipstick, Matte Finish, Nude, Full Color Lipstick, Long Lasting Waterproof Velvet Lip Gloss (04)",
+        "tarte maracuja juicy lip crème Peachy Pink",
+        "ETUDE Dear Darling Water Gel Tint Plum Red #PK002 (21AD)| Long-lasting Effect up with Fruity, Juicy, Moist, and Vivid coloring"
+      ],
+      "relevantCategories": [],
+      "notes": "Misspelling of \"lipstick\" (missing \"c\")."
+    },
+    {
+      "id": "category-video-games",
+      "type": "category_only",
+      "query": "video games",
+      "relevant": [],
+      "relevantCategories": [
+        "Video Games"
+      ],
+      "notes": "Matches the category name only; no product name contains \"video games\"."
+    },
+    {
+      "id": "category-home-appliances",
+      "type": "category_only",
+      "query": "home appliances",
+      "relevant": [],
+      "relevantCategories": [
+        "Home Appliances"
+      ],
+      "notes": "Matches the category name only."
+    },
+    {
+      "id": "category-computer-components",
+      "type": "category_only",
+      "query": "computer components",
+      "relevant": [],
+      "relevantCategories": [
+        "Computer Components"
+      ],
+      "notes": "Matches the category name only."
+    },
+    {
+      "id": "category-furniture",
+      "type": "category_only",
+      "query": "furniture",
+      "relevant": [],
+      "relevantCategories": [
+        "Furniture"
+      ],
+      "notes": "The whole Furniture category; only 2 of its 20 names contain \"furniture\" (plus a sofa cover in Home Decor, which is not relevant)."
+    },
+    {
+      "id": "special-100-percent",
+      "type": "special_chars",
+      "query": "100%",
+      "relevant": [
+        "SENTJO Premium 100% Hand-Made Ceramic Incense Burner, Incense Holder, Aromatherapy, Home Decor, Backflow Incense Powder, Cones and Stick, Made in France, (Red)",
+        "Tongue Scraper (2 Pack), Reduce Bad Breath (Medical Grade), Stainless Steel Tongue Cleaners, 100% Metal Tongue Scrapers Fresher Breath in Seconds",
+        "PURA D'OR Organic Coffee Bean Oil (4oz / 118mL) 100% Pure USDA Certified Premium Grade Natural Moisturizer, Cold Pressed, Unrefined, Hexane-Free Base Carrier Oil for DIY Skin Care For Men & Women",
+        "MLVOC Travel Pillow 100% Pure Memory Foam Neck Pillow, Comfortable & Breathable Cover, Machine Washable, Airplane Travel Kit with 3D Contoured Eye Masks, Earplugs, and Luxury Bag, Standard (Black)",
+        "Buddha Teas - Holy Basil - Organic Herbal Tea - For Cognitive Balance & Overall Health - Ayurvedic Tulsi - With Antioxidants - Caffeine Free - 100% Kosher & Non-GMO - 18 Tea Bags (Pack of 1)",
+        "3.2 Gallon Fruit Wine Press - 100% Nature Apple&Grape&Berries Crusher Manual Juice Maker for Kitchen, Solid Wood Basket with 6 Blocks Heavy Duty Cider Wine Making Press"
+      ],
+      "relevantCategories": [],
+      "notes": "Literal \"100%\": the products whose name contains the literal text \"100%\"."
+    },
+    {
+      "id": "special-percent",
+      "type": "special_chars",
+      "query": "%",
+      "relevant": [
+        "SENTJO Premium 100% Hand-Made Ceramic Incense Burner, Incense Holder, Aromatherapy, Home Decor, Backflow Incense Powder, Cones and Stick, Made in France, (Red)",
+        "Tongue Scraper (2 Pack), Reduce Bad Breath (Medical Grade), Stainless Steel Tongue Cleaners, 100% Metal Tongue Scrapers Fresher Breath in Seconds",
+        "PURA D'OR Organic Coffee Bean Oil (4oz / 118mL) 100% Pure USDA Certified Premium Grade Natural Moisturizer, Cold Pressed, Unrefined, Hexane-Free Base Carrier Oil for DIY Skin Care For Men & Women",
+        "MLVOC Travel Pillow 100% Pure Memory Foam Neck Pillow, Comfortable & Breathable Cover, Machine Washable, Airplane Travel Kit with 3D Contoured Eye Masks, Earplugs, and Luxury Bag, Standard (Black)",
+        "Buddha Teas - Holy Basil - Organic Herbal Tea - For Cognitive Balance & Overall Health - Ayurvedic Tulsi - With Antioxidants - Caffeine Free - 100% Kosher & Non-GMO - 18 Tea Bags (Pack of 1)",
+        "3.2 Gallon Fruit Wine Press - 100% Nature Apple&Grape&Berries Crusher Manual Juice Maker for Kitchen, Solid Wood Basket with 6 Blocks Heavy Duty Cider Wine Making Press"
+      ],
+      "relevantCategories": [],
+      "notes": "A bare \"%\": the only relevant products are the ones whose name contains a literal \"%\". Unescaped, it is a LIKE wildcard and matches everything."
+    },
+    {
+      "id": "special-underscore",
+      "type": "special_chars",
+      "query": "_",
+      "relevant": [],
+      "relevantCategories": [],
+      "notes": "No product name contains \"_\", so nothing should come back. Unescaped, \"_\" is a single-character LIKE wildcard and matches everything."
+    },
+    {
+      "id": "special-50-percent-off",
+      "type": "special_chars",
+      "query": "50% off",
+      "relevant": [],
+      "relevantCategories": [],
+      "notes": "No product has \"50% off\" in its name, so nothing should come back. Unescaped, the \"%\" makes it match \"50...off\" anywhere in a name."
+    },
+    {
+      "id": "none-xyzzy",
+      "type": "no_result",
+      "query": "xyzzy",
+      "relevant": [],
+      "relevantCategories": [],
+      "notes": "Nonsense word; nothing in the catalog."
+    },
+    {
+      "id": "none-blender",
+      "type": "no_result",
+      "query": "blender",
+      "relevant": [],
+      "relevantCategories": [],
+      "notes": "No blender in the seed catalog."
+    },
+    {
+      "id": "none-air-fryer",
+      "type": "no_result",
+      "query": "air fryer",
+      "relevant": [],
+      "relevantCategories": [],
+      "notes": "No air fryer in the seed catalog."
+    }
+  ]
+}

@@ -13,12 +13,14 @@ import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,11 +38,16 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 class OrderServiceImpl implements OrderService {
 
+    // How many co-purchased candidates (by raw buyer count) are read before the popularity
+    // normalization reorders them; far more than any page asks for.
+    static final int CO_PURCHASE_POOL_SIZE = 50;
+
     private final OrderRepository orderRepository;
     private final OrderReservationService orderReservationService;
     private final ProductService productService;
     private final PaymentGateway paymentGateway;
     private final ApplicationEventPublisher eventPublisher;
+    private final CoPurchaseScorer coPurchaseScorer = new CoPurchaseScorer();
 
     /**
      * Validates stock against the quantity read here before charging, so an
@@ -294,6 +301,50 @@ class OrderServiceImpl implements OrderService {
                     "Payment of order " + orderId + " is already being processed or was already paid");
         }
         return chargeClaimed(order);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CoPurchase> coPurchasedWith(Long productId, int limit) {
+        Map<Long, Integer> coBuyers = orderRepository.findCoPurchaseCounts(productId, OrderStatus.PAID,
+                        CoPurchaseScorer.MIN_SUPPORT, PageRequest.of(0, CO_PURCHASE_POOL_SIZE)).stream()
+                .collect(Collectors.toMap(OrderRepository.ProductBuyerCount::getProductId,
+                        count -> Math.toIntExact(count.getBuyers())));
+        if (coBuyers.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Integer> popularity = orderRepository.countBuyersByProduct(coBuyers.keySet(), OrderStatus.PAID)
+                .stream()
+                .collect(Collectors.toMap(OrderRepository.ProductBuyerCount::getProductId,
+                        count -> Math.toIntExact(count.getBuyers())));
+        return coPurchaseScorer.rank(productId, coBuyers, popularity, limit);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PurchasedProduct> findPurchasedProducts(Long buyerId) {
+        return orderRepository.findPurchasedProducts(buyerId, OrderStatus.PAID).stream()
+                .map(row -> new PurchasedProduct(row.getProductId(), row.getLastPurchasedAt()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductPopularity> findBestSellers(int limit) {
+        return orderRepository.findBestSellers(OrderStatus.PAID, PageRequest.of(0, limit)).stream()
+                .map(count -> new ProductPopularity(count.getProductId(), Math.toIntExact(count.getBuyers())))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, Integer> countBuyers(Collection<Long> productIds) {
+        if (productIds == null || productIds.isEmpty()) {
+            return Map.of();
+        }
+        return orderRepository.countBuyersByProduct(productIds, OrderStatus.PAID).stream()
+                .collect(Collectors.toMap(OrderRepository.ProductBuyerCount::getProductId,
+                        count -> Math.toIntExact(count.getBuyers())));
     }
 
     private void validateStockForRetry(Order order) {

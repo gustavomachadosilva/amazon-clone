@@ -3,8 +3,9 @@
 [![CI](https://github.com/gustavomachadosilva/amazon-clone/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/gustavomachadosilva/amazon-clone/actions/workflows/ci.yml)
 
 A marketplace project (Amazon-like) being built for a college course, structured as a **modular
-monolith**: one Spring Boot deployable, one PostgreSQL database, five business modules
-(`users`, `catalog`, `orders`, `cart`, `sellers`) kept isolated by convention so the codebase doesn't
+monolith**: one Spring Boot deployable, one PostgreSQL database, business modules (`users`,
+`catalog`, `orders`, `cart`, `reviews`, `lists`, plus the read-only composition modules `sellers`
+and `recommendations`) kept isolated by convention so the codebase doesn't
 degrade into a ball of mud — and so it *could* be split into microservices later without a
 rewrite.
 
@@ -12,7 +13,8 @@ rewrite.
 
 - **Backend:** Java 21 + Spring Boot 3 (Maven), packages-by-module.
 - **Frontend:** React + Vite + TypeScript + Tailwind CSS.
-- **Database:** PostgreSQL, one schema per module (`users`, `catalog`, `orders`, `cart`).
+- **Database:** PostgreSQL, one schema per module (`users`, `catalog`, `orders`, `cart`, `reviews`,
+  `lists`). The composition modules (`sellers`, `recommendations`) own no data and no schema.
 - **Infra:** Docker Compose for local dev.
 
 ## Architecture: how modules talk to each other
@@ -27,10 +29,35 @@ Two channels only, chosen deliberately per use case:
 2. **Spring `ApplicationEvent`s**, for side effects that belong to another module's data and don't
    need to block the triggering request (e.g. decrementing stock after an order is paid). The
    publishing module defines the event as part of its public contract
-   (`orders.event.OrderPlacedEvent`); listeners live in the module that owns the reaction
-   (`catalog.event.OrderPlacedEventListener`) and run via `@TransactionalEventListener(phase =
-   AFTER_COMMIT)`, so each module's transaction commits independently — a failure decrementing
-   stock never rolls back the order.
+   (`orders.event.OrderPlacedEvent`); listeners run via `@TransactionalEventListener(phase =
+   AFTER_COMMIT)` (e.g. `orders.event.OrderPlacedEventListener`, which decrements stock through
+   `catalog.service.ProductService`), so each module's transaction commits independently — a
+   failure decrementing stock never rolls back the order. Events also break what would otherwise
+   be a dependency cycle: Catalog reads ratings from Reviews, so Reviews never calls Catalog —
+   it publishes `reviews.event.ReviewCreatedEvent`, and `catalog.service.ReviewRatingSyncListener`
+   refreshes the product's denormalized rating (used to filter/sort search results).
+
+Reads that combine two modules' data live in the module that already depends on the other. The
+product page's "Frequently bought together" (#224) needs order history and product details, but
+Catalog may not depend on Orders (`ArchitectureBoundaryTest`), so Orders composes it:
+`orders.service.BoughtTogetherService` counts co-purchases with a live query over Orders' own tables
+(`OrderService.coPurchasedWith`, PAID orders only) and reads product details through
+`catalog.service.ProductService`, falling back to Catalog's similar products when there isn't enough
+history. A projection table fed by `OrderPlacedEvent` was rejected for now — there is no
+cancel/refund event to decrement it, it would need a backfill, and an `AFTER_COMMIT` listener
+without an outbox can silently lose increments. Revisit if the query gets slow or orders gain a
+cancellation/refund flow; a projection can replace the query behind the same interface.
+
+The Home's "Recommended for you" / "Top rated" shelf (#225) combines four modules — purchases
+(Orders), cart lines (Cart), wish lists (Lists) and product details (Catalog) — so none of them can
+host it without new cross-module dependencies. It lives in its own **composition module**,
+`recommendations`, like `sellers`: no schema, entities, repository or `@Transactional`; it only reads
+`catalog.service`, `orders.service`, `cart.service` and `lists.service`, and nothing depends on it
+(`ArchitectureBoundaryTest` enforces both). `GET /api/recommendations/home` is **optionally
+authenticated** (`config.JwtAuthenticationFilter`): without an `Authorization` header it serves
+anonymous visitors (the "Top rated" layer); with one, the token is validated as on any protected
+endpoint — an invalid token is a 401, never a silent downgrade to anonymous — and the shelf is
+personalized from that user's history. Algorithm and numbers: `docs/search-recommendation-baseline.md`.
 
 This is also why every cross-module reference in an entity is a bare foreign-key id
 (`Product.sellerId`, `Order.buyerId`, `OrderItem.productId`) and never a JPA `@ManyToOne` — no
@@ -53,6 +80,23 @@ entity ever joins across a schema boundary.
 
 Postgres runs the SQL in `backend/src/main/resources/db/init/` on first boot, creating the
 `users`, `catalog`, `orders`, and `cart` schemas before Hibernate touches the database.
+Objects that need the tables to exist (extensions, SQL functions, expression indexes) go in
+`backend/src/main/resources/db/post-ddl/` instead: Spring runs those scripts on **every** startup,
+right after Hibernate's `ddl-auto` (`spring.sql.init.mode: always` +
+`spring.jpa.defer-datasource-initialization: true`), so they must be idempotent
+(`CREATE ... IF NOT EXISTS`, `CREATE OR REPLACE`) and never contain `;` inside a function body.
+
+### Product search
+
+`GET /api/catalog/products?query=…` (#220) searches name, brand, category and description with
+PostgreSQL full-text search (`english` configuration, `db/post-ddl/catalog-search.sql`): every
+term must match, in any field and any order; case and accents are ignored, English plurals and
+inflections are stemmed ("laptops" finds "Laptop") and terms of 3+ characters match as prefixes.
+A term containing `%` or `_` is literal text. Only when a search finds nothing, words of 4+
+letters that aren't in the catalog are corrected to the closest catalog word (1 edit, 2 from 8
+letters) and the search runs once more. `sort=relevance` (the default) orders by full-text rank
+(name > brand/category > description). Details and measurements in
+[`docs/search-recommendation-baseline.md`](docs/search-recommendation-baseline.md).
 
 ### Running without Docker
 
@@ -121,6 +165,10 @@ o **Docker rodando**; sem ele essas classes são puladas (skipped), não falham.
 do Docker Desktop, exporte antes:
 `DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` e
 `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock`.
+
+A avaliação da busca (`SearchEvalIT`: consultas de referência, métricas e latência) fica fora do
+`mvn test` e roda sozinha com `mvn test -Dtest=SearchEvalIT`; metodologia e baseline em
+[`docs/search-recommendation-baseline.md`](docs/search-recommendation-baseline.md).
 
 ## Seed de dados (ambiente de desenvolvimento)
 

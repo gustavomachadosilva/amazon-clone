@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button, Input } from '../ui'
 import { useAuth } from '../../context/AuthContext'
-import { ApiRequestError, usersApi } from '../../services/api'
+import { ApiRequestError, usersApi, type UserProfile } from '../../services/api'
 
 const MAX_LENGTH = 255
 
@@ -17,20 +17,33 @@ function validate(name: string, email: string): FieldErrors {
   return errors
 }
 
+interface ProfileFormProps {
+  // The saved values: the form starts from them and "no changes" is measured against them.
+  initial: { name: string; email: string }
+  onSaved: (updated: UserProfile) => void
+  onCancel: () => void
+}
+
 // Edits the signed-in user's name and email (PATCH /api/users/me). On success the AuthContext
 // user is updated too, so the header greeting changes without signing in again.
-export default function ProfileForm() {
-  const { user, updateUser } = useAuth()
-  const [values, setValues] = useState({ name: user?.name ?? '', email: user?.email ?? '' })
+export default function ProfileForm({ initial, onSaved, onCancel }: ProfileFormProps) {
+  const { updateUser } = useAuth()
+  const [values, setValues] = useState(initial)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   // Field errors render inline through Input; this is only for errors not tied to one field.
   const [formError, setFormError] = useState<string | null>(null)
-  const [status, setStatus] = useState<{ kind: 'ok' | 'info'; message: string } | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const nameRef = useRef<HTMLInputElement>(null)
+
+  // The form opens in place of the read-only view, so move focus into it.
+  useEffect(() => {
+    nameRef.current?.focus()
+  }, [])
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
-    setStatus(null)
+    setInfo(null)
     setFormError(null)
 
     const name = values.name.trim()
@@ -39,8 +52,8 @@ export default function ProfileForm() {
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
 
-    if (name === user?.name && email === user?.email) {
-      setStatus({ kind: 'info', message: 'No changes to save.' })
+    if (name === initial.name && email === initial.email) {
+      setInfo('No changes to save.')
       return
     }
 
@@ -48,8 +61,7 @@ export default function ProfileForm() {
     try {
       const updated = await usersApi.updateMe({ name, email })
       updateUser({ name: updated.name, email: updated.email })
-      setValues({ name: updated.name, email: updated.email })
-      setStatus({ kind: 'ok', message: 'Your name and email have been updated.' })
+      onSaved(updated)
     } catch (e) {
       if (e instanceof ApiRequestError && e.status === 409) {
         setFieldErrors({ email: 'That email is already in use by another account.' })
@@ -66,8 +78,16 @@ export default function ProfileForm() {
   }
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-3">
+    <form
+      onSubmit={submit}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && !isSubmitting) onCancel()
+      }}
+      noValidate
+      className="flex flex-col gap-3"
+    >
       <Input
+        ref={nameRef}
         label="Name"
         autoComplete="name"
         value={values.name}
@@ -88,15 +108,18 @@ export default function ProfileForm() {
           {formError}
         </div>
       )}
-      {status && (
-        <p role="status" className={status.kind === 'ok' ? 'callout-ok' : 'text-[16.5px] text-paper-700'}>
-          {status.message}
+      {info && (
+        <p role="status" className="text-[16.5px] text-paper-700">
+          {info}
         </p>
       )}
 
-      <div>
+      <div className="flex flex-wrap gap-3">
         <Button variant="primary" type="submit" disabled={isSubmitting}>
-          Save changes
+          Save
+        </Button>
+        <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting}>
+          Cancel
         </Button>
       </div>
     </form>

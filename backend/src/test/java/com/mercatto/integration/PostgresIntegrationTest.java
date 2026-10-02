@@ -67,7 +67,7 @@ abstract class PostgresIntegrationTest {
         POSTGRES.start();
     }
 
-    private static final ParameterizedTypeReference<Map<String, Object>> MAP = new ParameterizedTypeReference<>() {};
+    protected static final ParameterizedTypeReference<Map<String, Object>> MAP = new ParameterizedTypeReference<>() {};
     private static final ParameterizedTypeReference<List<Map<String, Object>>> LIST_OF_MAPS =
             new ParameterizedTypeReference<>() {};
 
@@ -102,11 +102,16 @@ abstract class PostgresIntegrationTest {
 
     /** Creates a product owned by {@code seller} and returns its id. */
     protected Long createProduct(TestUser seller, String price, int stock) {
+        return createProduct(seller, price, stock, "Integration Tests");
+    }
+
+    /** Creates a product owned by {@code seller} in {@code category} and returns its id. */
+    protected Long createProduct(TestUser seller, String price, int stock, String category) {
         Map<String, Object> body = Map.of(
                 "name", "IT product " + UUID.randomUUID(),
                 "price", new BigDecimal(price),
                 "stockQuantity", stock,
-                "category", "Integration Tests");
+                "category", category);
         ResponseEntity<Map<String, Object>> created = rest.exchange("/api/catalog/products", HttpMethod.POST,
                 json(body, seller.token()), MAP);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -169,11 +174,11 @@ abstract class PostgresIntegrationTest {
         return new BigDecimal(number.toString());
     }
 
-    private static <T> HttpEntity<T> json(T body, String bearerToken) {
+    protected static <T> HttpEntity<T> json(T body, String bearerToken) {
         return new HttpEntity<>(body, jsonHeaders(bearerToken));
     }
 
-    private static HttpHeaders jsonHeaders(String bearerToken) {
+    protected static HttpHeaders jsonHeaders(String bearerToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));

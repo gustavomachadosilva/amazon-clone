@@ -138,4 +138,14 @@ class CartServiceImplTest {
         assertThat(view.itemCount()).isEqualTo(2);
         assertThat(view.total()).isEqualByComparingTo("20.00");
     }
+
+    @Test
+    void findProductIdsListsCartAndSavedForLaterLinesWithoutCallingCatalog() {
+        when(cartItemRepository.findByUserId(10L)).thenReturn(List.of(
+                CartItem.builder().id(1L).userId(10L).productId(1L).quantity(2).savedForLater(false).build(),
+                CartItem.builder().id(2L).userId(10L).productId(2L).quantity(1).savedForLater(true).build()));
+
+        assertThat(cartService.findProductIds(10L)).containsExactly(1L, 2L);
+        verify(productService, never()).findById(any());
+    }
 }

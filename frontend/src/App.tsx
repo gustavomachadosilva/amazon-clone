@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import RequireAuth from './components/auth/RequireAuth'
 import RequireRole from './components/auth/RequireRole'
 import Layout from './components/layout/Layout'
@@ -16,7 +16,6 @@ import Orders from './pages/Orders'
 import OrderDetails from './pages/OrderDetails'
 import SellerDashboard from './pages/SellerDashboard'
 import Account from './pages/Account'
-import LoginSecurity from './pages/LoginSecurity'
 
 export default function App() {
   useSignOutOnUnauthorized()
@@ -50,14 +49,8 @@ export default function App() {
             </RequireAuth>
           }
         />
-        <Route
-          path="/account/security"
-          element={
-            <RequireAuth>
-              <LoginSecurity />
-            </RequireAuth>
-          }
-        />
+        {/* Old Login & security page: name, email and password are now edited inline on /account. */}
+        <Route path="/account/security" element={<Navigate to="/account#account-info" replace />} />
       </Route>
       <Route
         path="/seller"

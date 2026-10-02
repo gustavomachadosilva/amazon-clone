@@ -86,7 +86,7 @@ export default function ProductGridCard({ product, compact = false }: ProductGri
             {inStock ? (lowStock ? 'Low stock' : 'In stock') : 'Sold out'}
           </span>
         </div>
-        {!compact && <div className="text-[16px] text-paper-600">{deriveDeliveryLabel(product)}</div>}
+        {!compact && <div className="text-[16px] text-paper-600">{deriveDeliveryLabel()}</div>}
         {!compact && (
           <Button variant="primary" block onClick={addToCart} onKeyDown={stopKeyPropagation} disabled={!inStock}>
             {inStock ? 'Add to cart' : 'Out of stock'}

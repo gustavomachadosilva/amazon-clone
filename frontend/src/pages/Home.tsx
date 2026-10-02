@@ -2,18 +2,45 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Blueprint, Placeholder, Button, Input, Select } from '../components/ui'
 import ProductGridCard from '../components/ProductGridCard'
-import { catalogApi, type Product } from '../services/api'
+import { useAuth } from '../context/AuthContext'
+import { homeSectionCopy } from '../lib/homeRecommendations'
+import { catalogApi, recommendationsApi, type HomeRecommendations } from '../services/api'
+
+const SHELF_SIZE = 12
+const SKELETON_CARDS = 6
 
 export default function Home() {
   const navigate = useNavigate()
-  const [products, setProducts] = useState<Product[]>([])
+  const { user } = useAuth()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All')
   const [categories, setCategories] = useState<string[]>([])
 
+  // The shelf depends on who is signed in (Card #225), so it's refetched when that changes. Kept
+  // together with the key it was loaded for: while the current key has no answer yet it's loading,
+  // and a shelf personalized for someone else is never shown. null recommendations = the request
+  // failed, and the section is hidden.
+  const shelfKey = user ? `user:${user.id}` : 'anonymous'
+  const [shelf, setShelf] = useState<{ key: string; recommendations: HomeRecommendations | null } | null>(null)
+
   useEffect(() => {
-    catalogApi.search().then((page) => setProducts(page.content))
-  }, [])
+    let cancelled = false
+    recommendationsApi
+      .home(SHELF_SIZE)
+      .then((recommendations) => {
+        if (!cancelled) setShelf({ key: shelfKey, recommendations })
+      })
+      .catch(() => {
+        if (!cancelled) setShelf({ key: shelfKey, recommendations: null })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [shelfKey])
+
+  const shelfLoading = shelf?.key !== shelfKey
+  const recommendations = shelf && !shelfLoading ? shelf.recommendations : null
+  const sectionCopy = recommendations ? homeSectionCopy(recommendations.layer) : null
 
   useEffect(() => {
     catalogApi.getCategories().then(setCategories)
@@ -64,7 +91,7 @@ export default function Home() {
             </Button>
           </form>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-            <Button variant="primary" onClick={() => navigate('/search?sort=low')}>
+            <Button variant="primary" onClick={() => navigate('/search?sort=price_asc')}>
               See today&rsquo;s deals
             </Button>
             <Button variant="secondary" onClick={() => navigate('/search')}>
@@ -99,19 +126,32 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="mt-10">
-        <div className="flex items-center justify-between">
-          <h2>Recommended for you</h2>
-          <Button variant="ghost" onClick={() => navigate('/search')}>
-            See all
-          </Button>
+      {shelfLoading && (
+        <div className="mt-10" aria-busy="true">
+          <span className="sr-only">Loading recommendations…</span>
+          <div className="mt-3 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+            {Array.from({ length: SKELETON_CARDS }, (_, index) => (
+              <Placeholder key={index} label="" aspect="1/1" />
+            ))}
+          </div>
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-          {products.slice(0, 12).map((product) => (
-            <ProductGridCard key={product.id} product={product} />
-          ))}
+      )}
+
+      {recommendations && sectionCopy && recommendations.items.length > 0 && (
+        <div className="mt-10">
+          <div className="flex items-center justify-between">
+            <h2>{sectionCopy.heading}</h2>
+            <Button variant="ghost" onClick={() => navigate(sectionCopy.seeAllHref)}>
+              See all
+            </Button>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+            {recommendations.items.map((item) => (
+              <ProductGridCard key={item.product.id} product={item.product} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

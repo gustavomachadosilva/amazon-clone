@@ -105,6 +105,14 @@ class CartServiceImpl implements CartService {
         return getCart(userId);
     }
 
+    @Override
+    public List<Long> findProductIds(Long userId) {
+        return cartItemRepository.findByUserId(userId).stream()
+                .map(CartItem::getProductId)
+                .distinct()
+                .toList();
+    }
+
     private CartView toView(Long userId, List<CartItem> cartItems) {
         List<CartItemView> items = new ArrayList<>();
         List<CartItemView> saved = new ArrayList<>();

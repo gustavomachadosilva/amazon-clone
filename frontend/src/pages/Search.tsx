@@ -3,12 +3,22 @@ import { useSearchParams } from 'react-router-dom'
 import { SlidersHorizontal } from 'lucide-react'
 import { Blueprint, Button, Pagination, Select } from '../components/ui'
 import ProductGridCard from '../components/ProductGridCard'
-import { catalogApi, type Page, type Product } from '../services/api'
+import { catalogApi, type Page, type Product, type ProductSort } from '../services/api'
 import { useCategories } from '../hooks/useCategories'
 import { usd } from '../lib/format'
-import { deriveFastDelivery } from '../lib/mockProductMeta'
 
 const RATING_OPTIONS = [4.5, 4, 3, 0]
+// The price slider's top stop means "no limit", so it is never sent to the API.
+const MAX_PRICE_NO_LIMIT = 600
+const SORTS: ProductSort[] = ['relevance', 'price_asc', 'price_desc', 'rating']
+// Old links (e.g. a bookmarked "today's deals") used these values before sorting moved to the API.
+const LEGACY_SORTS: Record<string, ProductSort> = { low: 'price_asc', high: 'price_desc' }
+
+function parseSort(value: string | null): ProductSort {
+  if (!value) return 'relevance'
+  if (value in LEGACY_SORTS) return LEGACY_SORTS[value]
+  return SORTS.includes(value as ProductSort) ? (value as ProductSort) : 'relevance'
+}
 
 export default function Search() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -16,13 +26,12 @@ export default function Search() {
 
   const q = searchParams.get('q') ?? ''
   const category = searchParams.get('category') ?? 'All'
-  const maxPrice = Number(searchParams.get('maxPrice') ?? 600)
+  const maxPrice = Number(searchParams.get('maxPrice') ?? MAX_PRICE_NO_LIMIT)
   const minRating = Number(searchParams.get('minRating') ?? 0)
-  const fastOnly = searchParams.get('fast') === '1'
-  const sort = searchParams.get('sort') ?? 'relevance'
+  const sort = parseSort(searchParams.get('sort'))
   const pageParam = Math.max(0, Number(searchParams.get('page') ?? 1) - 1)
 
-  const requestKey = `${q}|${category}|${pageParam}`
+  const requestKey = `${q}|${category}|${maxPrice}|${minRating}|${sort}|${pageParam}`
   const [pageData, setPageData] = useState<Page<Product> | null>(null)
   const [retryTick, setRetryTick] = useState(0)
   const attemptKey = `${requestKey}#${retryTick}`
@@ -34,7 +43,14 @@ export default function Search() {
   useEffect(() => {
     let cancelled = false
     catalogApi
-      .search(q || undefined, category === 'All' ? undefined : category, pageParam)
+      .search({
+        query: q || undefined,
+        category: category === 'All' ? undefined : category,
+        maxPrice: maxPrice < MAX_PRICE_NO_LIMIT ? maxPrice : undefined,
+        minRating: minRating > 0 ? minRating : undefined,
+        sort,
+        page: pageParam,
+      })
       .then((data) => {
         if (cancelled) return
         setPageData(data)
@@ -49,23 +65,12 @@ export default function Search() {
     return () => {
       cancelled = true
     }
-  }, [q, category, pageParam, attemptKey])
+  }, [q, category, maxPrice, minRating, sort, pageParam, attemptKey])
 
   const [filtersOpen, setFiltersOpen] = useState(false)
 
   const results = pageData?.content ?? []
-  const hasActiveFilters = maxPrice < 600 || minRating > 0 || fastOnly
-
-  let filtered = results.filter((product) => {
-    if (product.price > maxPrice) return false
-    if (minRating > 0 && product.averageRating < minRating) return false
-    if (fastOnly && !deriveFastDelivery(product)) return false
-    return true
-  })
-
-  if (sort === 'low') filtered = [...filtered].sort((a, b) => a.price - b.price)
-  else if (sort === 'high') filtered = [...filtered].sort((a, b) => b.price - a.price)
-  else if (sort === 'rating') filtered = [...filtered].sort((a, b) => b.averageRating - a.averageRating)
+  const totalResults = pageData?.totalElements ?? 0
 
   function setParam(key: string, value: string | null) {
     const next = new URLSearchParams(searchParams)
@@ -112,7 +117,7 @@ export default function Search() {
           <input
             type="range"
             min={20}
-            max={600}
+            max={MAX_PRICE_NO_LIMIT}
             step={10}
             value={maxPrice}
             onChange={(e) => setParam('maxPrice', e.target.value)}
@@ -136,14 +141,6 @@ export default function Search() {
             </label>
           ))}
         </div>
-
-        <div className="mt-5">
-          <label className="radio flex">
-            <input type="checkbox" checked={fastOnly} onChange={(e) => setParam('fast', e.target.checked ? '1' : null)} />
-            <span className="box" />
-            Arrives tomorrow
-          </label>
-        </div>
       </aside>
 
       <section>
@@ -153,9 +150,7 @@ export default function Search() {
               ? 'Loading…'
               : loadError
                 ? 'Search unavailable'
-                : hasActiveFilters
-                  ? `${filtered.length} of ${results.length} results on this page match your filters`
-                  : `${filtered.length} results`}{' '}
+                : `${totalResults} ${totalResults === 1 ? 'result' : 'results'}`}{' '}
             {!loading && !loadError && q && `for "${q}"`}{' '}
             {!loading && !loadError && category !== 'All' && `in ${category}`}
           </div>
@@ -165,8 +160,8 @@ export default function Search() {
             onChange={(e) => setParam('sort', e.target.value === 'relevance' ? null : e.target.value)}
           >
             <option value="relevance">Relevance</option>
-            <option value="low">Price: low to high</option>
-            <option value="high">Price: high to low</option>
+            <option value="price_asc">Price: low to high</option>
+            <option value="price_desc">Price: high to low</option>
             <option value="rating">Avg. customer review</option>
           </Select>
         </div>
@@ -183,7 +178,7 @@ export default function Search() {
               Retry
             </Button>
           </Blueprint>
-        ) : filtered.length === 0 ? (
+        ) : results.length === 0 ? (
           <Blueprint className="p-8 text-center">
             <h3>No results</h3>
             <p className="text-paper-700">Try another keyword or clear the filters.</p>
@@ -193,7 +188,7 @@ export default function Search() {
           </Blueprint>
         ) : (
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {filtered.map((product) => (
+            {results.map((product) => (
               <ProductGridCard key={product.id} product={product} />
             ))}
           </div>
@@ -203,7 +198,7 @@ export default function Search() {
           <Pagination
             currentPage={pageData.number}
             totalPages={pageData.totalPages}
-            totalElements={hasActiveFilters ? undefined : pageData.totalElements}
+            totalElements={pageData.totalElements}
             pageSize={pageData.size}
             onPageChange={(newPage) => setParam('page', (newPage + 1).toString())}
           />

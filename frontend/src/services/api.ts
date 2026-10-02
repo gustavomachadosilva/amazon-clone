@@ -110,6 +110,58 @@ export interface Product {
   reviewCount: number
 }
 
+// Why the backend recommended a product as related (Card #223) — each one checked against the
+// catalog data, listed in priority order; primaryReason is the first that holds.
+export type RelatedReason =
+  | 'TOP_RATED_IN_CATEGORY'
+  | 'LOWER_PRICE'
+  | 'SAME_BRAND'
+  | 'SIMILAR_NAME'
+  | 'HIGHER_RATED'
+  | 'SAME_CATEGORY'
+
+export interface RelatedProduct {
+  product: Product
+  score: number
+  primaryReason: RelatedReason
+  reasons: RelatedReason[]
+}
+
+// Where a product page's bundle came from (Card #224): CO_PURCHASE items were really bought
+// together by other customers; SIMILAR is the cold-start fallback (not enough purchase history)
+// and must never be presented as "bought together".
+export type BoughtTogetherSource = 'CO_PURCHASE' | 'SIMILAR'
+
+export interface BoughtTogetherItem {
+  product: Product
+  // Distinct customers who bought both; null when the source is SIMILAR.
+  timesBoughtTogether: number | null
+  // Why it is similar (Card #223); null when the source is CO_PURCHASE.
+  primaryReason: RelatedReason | null
+}
+
+export interface BoughtTogether {
+  source: BoughtTogetherSource
+  items: BoughtTogetherItem[]
+}
+
+// Which shelf the Home got (Card #225): PERSONALIZED is built from the signed-in user's purchases,
+// cart and lists ("Recommended for you"); TOP_RATED is the fallback for anonymous visitors and
+// users without enough history ("Top rated"). The backend sends no title — see homeSectionCopy.
+export type HomeRecommendationLayer = 'PERSONALIZED' | 'TOP_RATED'
+
+export type HomeRecommendationReason = 'BOUGHT_TOGETHER' | 'CATEGORY_AFFINITY' | 'TOP_RATED' | 'BEST_SELLER'
+
+export interface HomeRecommendationItem {
+  product: Product
+  reason: HomeRecommendationReason
+}
+
+export interface HomeRecommendations {
+  layer: HomeRecommendationLayer
+  items: HomeRecommendationItem[]
+}
+
 export interface Page<T> {
   content: T[]
   totalPages: number
@@ -134,20 +186,46 @@ export interface ProductInput {
   listPrice?: number
 }
 
+/** Orderings accepted by the backend's `?sort=` on the product search. */
+export type ProductSort = 'relevance' | 'price_asc' | 'price_desc' | 'rating'
+
+/** Product search filters, all applied server-side so totals/pagination match the results. */
+export interface ProductSearchParams {
+  query?: string
+  category?: string
+  minPrice?: number
+  maxPrice?: number
+  minRating?: number
+  sort?: ProductSort
+  page?: number
+  size?: number
+}
+
 export const catalogApi = {
-  search: (query?: string, category?: string, page: number = 0, size: number = 10) => {
+  search: ({ query, category, minPrice, maxPrice, minRating, sort, page = 0, size = 10 }: ProductSearchParams = {}) => {
     const params = new URLSearchParams()
     if (query) params.set('query', query)
     if (category) params.set('category', category)
+    if (minPrice !== undefined) params.set('minPrice', minPrice.toString())
+    if (maxPrice !== undefined) params.set('maxPrice', maxPrice.toString())
+    if (minRating !== undefined) params.set('minRating', minRating.toString())
+    if (sort && sort !== 'relevance') params.set('sort', sort)
     params.set('page', page.toString())
     params.set('size', size.toString())
     return api.get<Page<Product>>(`/api/catalog/products?${params.toString()}`)
   },
   getById: (id: number) => api.get<Product>(`/api/catalog/products/${id}`),
+  related: (id: number, limit = 10) =>
+    api.get<RelatedProduct[]>(`/api/catalog/products/${id}/related?limit=${limit}`),
   getCategories: () => api.get<string[]>('/api/catalog/categories'),
   create: (input: ProductInput) => api.post<Product>('/api/catalog/products', input),
   update: (id: number, input: ProductInput) => api.put<Product>(`/api/catalog/products/${id}`, input),
   remove: (id: number) => api.delete<void>(`/api/catalog/products/${id}`),
+}
+
+export const recommendationsApi = {
+  // Works signed in or not: the token, when there is one, personalizes the shelf.
+  home: (limit = 12) => api.get<HomeRecommendations>(`/api/recommendations/home?limit=${limit}`),
 }
 
 export interface SellerOrderItem {
@@ -252,6 +330,9 @@ export const ordersApi = {
   // means an item went out of stock (see isOutOfStockError) or the order isn't retryable anymore.
   retryPayment: (id: number, paymentMethod: PaymentMethod) =>
     api.post<Order>(`/api/orders/${id}/payment`, { paymentMethod }),
+  // Public (no sign-in needed): the product page's "Frequently bought together" bundle (#224).
+  boughtTogether: (productId: number, limit = 2) =>
+    api.get<BoughtTogether>(`/api/orders/bought-together/${productId}?limit=${limit}`),
 }
 
 // The 409s a payment retry can get share a status, so the out-of-stock case is told apart by the

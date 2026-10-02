@@ -3,26 +3,31 @@ package com.mercatto.catalog.service;
 import com.mercatto.catalog.domain.Product;
 import com.mercatto.catalog.repository.ProductRepository;
 import com.mercatto.catalog.service.ProductNotFoundException;
-import com.mercatto.reviews.service.ReviewService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -31,9 +36,6 @@ class ProductServiceImplTest {
 
     @Mock
     private ProductRepository productRepository;
-
-    @Mock
-    private ReviewService reviewService;
 
     @InjectMocks
     private ProductServiceImpl productService;
@@ -56,18 +58,6 @@ class ProductServiceImplTest {
         List<String> result = productService.listCategories();
 
         assertThat(result).isEmpty();
-    }
-
-    @Test
-    void searchDelegatesToRepository() {
-        Pageable pageable = Pageable.unpaged();
-        Page<Product> page = new PageImpl<>(List.of());
-        when(productRepository.search("query", "category", pageable)).thenReturn(page);
-
-        Page<Product> result = productService.search("query", "category", pageable);
-
-        assertThat(result).isSameAs(page);
-        verify(productRepository).search("query", "category", pageable);
     }
 
     @Test
@@ -310,19 +300,16 @@ class ProductServiceImplTest {
     }
 
     @Test
-    void searchWithRatingEnrichesEachProductUsingBatchAggregates() {
-        Pageable pageable = Pageable.unpaged();
+    void searchWithRatingBuildsViewsFromTheDenormalizedRatingWithoutCallingReviews() {
         Product product1 = Product.builder().id(1L).name("Widget").price(BigDecimal.TEN).stockQuantity(5)
-                .category("tools").build();
+                .category("tools").averageRating(4.5).reviewCount(2L).build();
         Product product2 = Product.builder().id(2L).name("Gadget").price(BigDecimal.ONE).stockQuantity(3)
                 .category("tools").build();
-        Page<Product> page = new PageImpl<>(List.of(product1, product2));
-        when(productRepository.search("query", "category", pageable)).thenReturn(page);
-        when(reviewService.getAggregates(List.of(1L, 2L))).thenReturn(Map.of(
-                1L, new ReviewService.RatingAggregate(1L, 4.5, 2L),
-                2L, ReviewService.RatingAggregate.empty(2L)));
+        when(productRepository.findAll(anySpecification(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(product1, product2)));
 
-        Page<ProductService.ProductView> result = productService.searchWithRating("query", "category", pageable);
+        Page<ProductService.ProductView> result = productService.searchWithRating(
+                criteria(ProductSort.RELEVANCE), 0, 10);
 
         assertThat(result.getContent()).hasSize(2);
         ProductService.ProductView view1 = result.getContent().get(0);
@@ -333,8 +320,134 @@ class ProductServiceImplTest {
         ProductService.ProductView view2 = result.getContent().get(1);
         assertThat(view2.averageRating()).isEqualTo(0.0);
         assertThat(view2.reviewCount()).isEqualTo(0L);
+    }
 
-        verify(reviewService).getAggregates(List.of(1L, 2L));
+    @ParameterizedTest
+    @EnumSource(value = ProductSort.class, names = "RELEVANCE", mode = EnumSource.Mode.EXCLUDE)
+    void searchWithRatingPassesPageSizeAndSortToRepository(ProductSort sort) {
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+
+        productService.searchWithRating(criteria(sort), 2, 25);
+
+        Pageable pageable = capturePageable();
+        assertThat(pageable.getPageNumber()).isEqualTo(2);
+        assertThat(pageable.getPageSize()).isEqualTo(25);
+        assertThat(pageable.getSort()).isEqualTo(sort.toSort());
+    }
+
+    @Test
+    void relevanceWithATextQueryLeavesTheOrderingToTheFullTextRank() {
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+
+        productService.searchWithRating(criteria(ProductSort.RELEVANCE), 2, 25);
+
+        Pageable pageable = capturePageable();
+        assertThat(pageable.getPageNumber()).isEqualTo(2);
+        assertThat(pageable.getPageSize()).isEqualTo(25);
+        assertThat(pageable.getSort().isUnsorted()).isTrue();
+    }
+
+    @Test
+    void relevanceWithoutATextQueryIsIdOrder() {
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+
+        productService.searchWithRating(criteria(null, ProductSort.RELEVANCE), 0, 10);
+
+        assertThat(capturePageable().getSort()).isEqualTo(ProductSort.RELEVANCE.toSort());
+    }
+
+    @Test
+    void relevanceWithOnlyLiteralTermsIsIdOrder() {
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+
+        productService.searchWithRating(criteria("100%", ProductSort.RELEVANCE), 0, 10);
+
+        assertThat(capturePageable().getSort()).isEqualTo(ProductSort.RELEVANCE.toSort());
+        verify(productRepository, never()).findClosestIndexedWord(any(), anyInt());
+    }
+
+    @Test
+    void zeroResultsRetryOnceWithCorrectedTerms() {
+        Product lipstick = Product.builder().id(7L).name("Lipstick").price(BigDecimal.TEN).stockQuantity(1)
+                .category("Makeup").build();
+        when(productRepository.findAll(anySpecification(), any(Pageable.class)))
+                .thenReturn(Page.empty())
+                .thenReturn(new PageImpl<>(List.of(lipstick)));
+        when(productRepository.findClosestIndexedWord("lipstik", 1)).thenReturn(Optional.of("lipstick"));
+        when(productRepository.findClosestIndexedWord("matte", 1)).thenReturn(Optional.of("matte"));
+
+        Page<ProductService.ProductView> result = productService.searchWithRating(
+                criteria("matte lipstik ps5", ProductSort.RELEVANCE), 0, 10);
+
+        assertThat(result.getContent()).extracting(ProductService.ProductView::id).containsExactly(7L);
+        verify(productRepository, times(2)).findAll(anySpecification(), any(Pageable.class));
+        // "ps5" has a digit: never corrected.
+        verify(productRepository, never()).findClosestIndexedWord(eq("ps5"), anyInt());
+    }
+
+    @Test
+    void typoCorrectedRetryAlsoLeavesTheOrderingToTheRelevanceScore() {
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+        when(productRepository.findClosestIndexedWord("lipstik", 1)).thenReturn(Optional.of("lipstick"));
+
+        productService.searchWithRating(criteria("lipstik", ProductSort.RELEVANCE), 1, 20);
+
+        ArgumentCaptor<Pageable> pageables = ArgumentCaptor.forClass(Pageable.class);
+        verify(productRepository, times(2)).findAll(anySpecification(), pageables.capture());
+        assertThat(pageables.getAllValues()).hasSize(2).allSatisfy(pageable -> {
+            assertThat(pageable.getSort().isUnsorted()).isTrue();
+            assertThat(pageable.getPageNumber()).isEqualTo(1);
+            assertThat(pageable.getPageSize()).isEqualTo(20);
+        });
+    }
+
+    @Test
+    void zeroResultsWithOnlyKnownWordsDoNotSearchAgain() {
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+        when(productRepository.findClosestIndexedWord("blender", 1)).thenReturn(Optional.of("blender"));
+
+        Page<ProductService.ProductView> result = productService.searchWithRating(
+                criteria("blender", ProductSort.RELEVANCE), 0, 10);
+
+        assertThat(result.getTotalElements()).isZero();
+        verify(productRepository, times(1)).findAll(anySpecification(), any(Pageable.class));
+    }
+
+    @Test
+    void zeroResultsWithoutACloseWordDoNotSearchAgain() {
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+        when(productRepository.findClosestIndexedWord("xyzzy", 1)).thenReturn(Optional.empty());
+
+        productService.searchWithRating(criteria("xyzzy", ProductSort.PRICE_ASC), 0, 10);
+
+        verify(productRepository, times(1)).findAll(anySpecification(), any(Pageable.class));
+    }
+
+    @Test
+    void typoCorrectionIsSkippedWhenTheSearchFoundSomething() {
+        // A later page may be empty while the search as a whole matched.
+        when(productRepository.findAll(anySpecification(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), Pageable.ofSize(10).withPage(3), 1));
+
+        productService.searchWithRating(criteria("lipstik", ProductSort.RELEVANCE), 3, 10);
+
+        verify(productRepository, never()).findClosestIndexedWord(any(), anyInt());
+        verify(productRepository, times(1)).findAll(anySpecification(), any(Pageable.class));
+    }
+
+    @Test
+    void typoCorrectionIsSkippedWithoutATextQuery() {
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+
+        productService.searchWithRating(criteria(null, ProductSort.RELEVANCE), 0, 10);
+
+        verify(productRepository, never()).findClosestIndexedWord(any(), anyInt());
+    }
+
+    private Pageable capturePageable() {
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(productRepository).findAll(anySpecification(), pageable.capture());
+        return pageable.getValue();
     }
 
     @Test
@@ -345,16 +458,171 @@ class ProductServiceImplTest {
     }
 
     @Test
-    void findByIdWithRatingUsesSingleAggregateCall() {
+    void findByIdWithRatingUsesTheDenormalizedRating() {
         Product product = Product.builder().id(1L).name("Widget").price(BigDecimal.TEN).stockQuantity(5)
-                .category("tools").build();
+                .category("tools").averageRating(3.0).reviewCount(4L).build();
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(reviewService.getAggregate(1L)).thenReturn(new ReviewService.RatingAggregate(1L, 3.0, 4L));
 
         Optional<ProductService.ProductView> result = productService.findByIdWithRating(1L);
 
         assertThat(result).isPresent();
         assertThat(result.get().averageRating()).isEqualTo(3.0);
         assertThat(result.get().reviewCount()).isEqualTo(4L);
+    }
+
+    @Test
+    void findViewsByIdsReturnsTheFoundProductsWithTheirRatingAndSkipsUnknownIds() {
+        Product product = Product.builder().id(2L).name("Widget").price(BigDecimal.TEN).stockQuantity(5)
+                .category("tools").averageRating(4.0).reviewCount(2L).build();
+        when(productRepository.findAllById(List.of(2L, 99L))).thenReturn(List.of(product));
+
+        List<ProductService.ProductView> result = productService.findViewsByIds(List.of(2L, 99L));
+
+        assertThat(result).singleElement().satisfies(view -> {
+            assertThat(view.id()).isEqualTo(2L);
+            assertThat(view.averageRating()).isEqualTo(4.0);
+            assertThat(view.reviewCount()).isEqualTo(2L);
+        });
+    }
+
+    @Test
+    void findViewsByIdsWithNoIdsDoesNotQuery() {
+        assertThat(productService.findViewsByIds(List.of())).isEmpty();
+
+        verify(productRepository, never()).findAllById(any());
+    }
+
+    @Test
+    void findTopRatedInStockAsksForTheRatingOrderCappedAtTheLimit() {
+        Product product = Product.builder().id(3L).name("Widget").price(BigDecimal.TEN).stockQuantity(5)
+                .category("tools").averageRating(4.5).reviewCount(8L).build();
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(product)));
+
+        List<ProductService.ProductView> result = productService.findTopRatedInStock("tools", 20);
+
+        assertThat(result).extracting(ProductService.ProductView::id).containsExactly(3L);
+        Pageable pageable = capturePageable();
+        assertThat(pageable.getPageNumber()).isZero();
+        assertThat(pageable.getPageSize()).isEqualTo(20);
+        assertThat(pageable.getSort()).isEqualTo(ProductSort.RATING.toSort());
+    }
+
+    @Test
+    void findTopRatedInStockPerCategoryKeepsTheQueryRankingAndSkipsVanishedIds() {
+        Product first = Product.builder().id(7L).name("A").price(BigDecimal.TEN).stockQuantity(5).category("x").build();
+        Product second = Product.builder().id(2L).name("B").price(BigDecimal.TEN).stockQuantity(5).category("y").build();
+        when(productRepository.findTopRatedInStockIdsPerCategory(3, 120)).thenReturn(List.of(7L, 99L, 2L));
+        when(productRepository.findAllById(List.of(7L, 99L, 2L))).thenReturn(List.of(second, first));
+
+        assertThat(productService.findTopRatedInStockPerCategory(3, 120))
+                .extracting(ProductService.ProductView::id).containsExactly(7L, 2L);
+    }
+
+    @Test
+    void findTopRatedInStockPerCategoryWithNothingInStockDoesNotLoadProducts() {
+        when(productRepository.findTopRatedInStockIdsPerCategory(3, 120)).thenReturn(List.of());
+
+        assertThat(productService.findTopRatedInStockPerCategory(3, 120)).isEmpty();
+        verify(productRepository, never()).findAllById(any());
+    }
+
+    private static Product product(long id, String name, String category, String brand, String price) {
+        return Product.builder().id(id).name(name).category(category).brand(brand).price(new BigDecimal(price))
+                .stockQuantity(5).sellerId(1L).build();
+    }
+
+    private static final Product CURRENT = product(1L, "Acme Cordless Drill Kit", "tools", "Acme", "100");
+
+    @Test
+    void findRelatedThrowsWhenProductNotFound() {
+        when(productRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> productService.findRelated(99L, 6))
+                .isInstanceOf(ProductNotFoundException.class);
+
+        verify(productRepository, never())
+                .findTop200ByCategoryAndIdNotAndStockQuantityGreaterThan(any(), any(), anyInt());
+    }
+
+    @Test
+    void findRelatedExcludesTheProductAndOutOfStockAndReturnsTheBestScoredFirst() {
+        when(productRepository.findById(1L)).thenReturn(Optional.of(CURRENT));
+        when(productRepository.findTopAverageRatingInCategory("tools")).thenReturn(null);
+        when(productRepository.findTop200ByCategoryAndIdNotAndStockQuantityGreaterThan("tools", 1L, 0))
+                .thenReturn(List.of(
+                        product(2L, "Garden Hose", "tools", null, "500"),
+                        product(3L, "Acme Cordless Drill Driver", "tools", "Acme", "90"),
+                        product(4L, "Cordless Drill Battery", "tools", null, "100")));
+
+        List<ProductService.RelatedProduct> result = productService.findRelated(1L, 2);
+
+        assertThat(result).extracting(r -> r.product().id()).containsExactly(3L, 4L);
+        assertThat(result.get(0).primaryReason()).isEqualTo(RelatedReason.LOWER_PRICE);
+        assertThat(result.get(1).primaryReason()).isEqualTo(RelatedReason.SIMILAR_NAME);
+        assertThat(result.get(0).score()).isGreaterThan(result.get(1).score());
+        verify(productRepository).findTop200ByCategoryAndIdNotAndStockQuantityGreaterThan("tools", 1L, 0);
+        // The same-category pool already fills the limit: no cross-category lookup.
+        verify(productRepository, never())
+                .findTop50ByBrandIgnoreCaseAndCategoryNotAndStockQuantityGreaterThan(any(), any(), anyInt());
+        verify(productRepository, never()).findAll(anySpecification(), any(Pageable.class));
+    }
+
+    @Test
+    void findRelatedFallsBackToOtherCategoriesKeepingOnlyBrandOrNameMatches() {
+        Product sameBrand = product(10L, "Acme Leaf Blower", "garden", "ACME", "300");
+        Product similarName = product(11L, "Cordless Drill Holster", "apparel", null, "20");
+        Product unrelated = product(12L, "Kitchen Knife", "kitchen", null, "100");
+        when(productRepository.findById(1L)).thenReturn(Optional.of(CURRENT));
+        when(productRepository.findTop200ByCategoryAndIdNotAndStockQuantityGreaterThan("tools", 1L, 0))
+                .thenReturn(List.of(product(2L, "Garden Hose", "tools", null, "100")));
+        when(productRepository.findTop50ByBrandIgnoreCaseAndCategoryNotAndStockQuantityGreaterThan("Acme", "tools", 0))
+                .thenReturn(List.of(sameBrand));
+        when(productRepository.findAll(anySpecification(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(sameBrand, similarName, unrelated)));
+
+        List<ProductService.RelatedProduct> result = productService.findRelated(1L, 6);
+
+        // Never padded with the unrelated item: fewer than the limit is fine.
+        assertThat(result).extracting(r -> r.product().id()).containsExactlyInAnyOrder(2L, 10L, 11L);
+        assertThat(result).filteredOn(r -> r.product().id() == 10L).singleElement()
+                .extracting(ProductService.RelatedProduct::primaryReason).isEqualTo(RelatedReason.SAME_BRAND);
+        assertThat(result).filteredOn(r -> r.product().id() == 11L).singleElement()
+                .extracting(ProductService.RelatedProduct::primaryReason).isEqualTo(RelatedReason.SIMILAR_NAME);
+    }
+
+    @Test
+    void findRelatedSkipsTheBrandLookupForAGenericSeedBrand() {
+        Product current = product(1L, "Women's Running Shoe", "shoes", "Women's", "80");
+        when(productRepository.findById(1L)).thenReturn(Optional.of(current));
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+
+        productService.findRelated(1L, 6);
+
+        verify(productRepository, never())
+                .findTop50ByBrandIgnoreCaseAndCategoryNotAndStockQuantityGreaterThan(any(), any(), anyInt());
+    }
+
+    @Test
+    void findRelatedReturnsEmptyWhenNothingIsRelated() {
+        Product current = product(1L, "Acme Cordless Drill Kit", "tools", null, "100");
+        when(productRepository.findById(1L)).thenReturn(Optional.of(current));
+        when(productRepository.findTop200ByCategoryAndIdNotAndStockQuantityGreaterThan("tools", 1L, 0))
+                .thenReturn(List.of());
+        when(productRepository.findAll(anySpecification(), any(Pageable.class))).thenReturn(Page.empty());
+
+        assertThat(productService.findRelated(1L, 6)).isEmpty();
+    }
+
+    private static ProductSearchCriteria criteria(ProductSort sort) {
+        return criteria("query", sort);
+    }
+
+    private static ProductSearchCriteria criteria(String query, ProductSort sort) {
+        return new ProductSearchCriteria(query, "category", null, null, null, sort);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Specification<Product> anySpecification() {
+        return any(Specification.class);
     }
 }

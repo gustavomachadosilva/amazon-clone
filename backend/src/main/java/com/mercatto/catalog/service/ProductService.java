@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,8 +14,6 @@ import java.util.Optional;
  * Public API of the Catalog module.
  */
 public interface ProductService {
-
-    Page<Product> search(String query, String category, Pageable pageable);
 
     /**
      * A persistence-free read model of a {@link Product}, used for every cross-module read
@@ -42,16 +41,68 @@ public interface ProductService {
     List<String> listCategories();
 
     /**
-     * A {@link Product} enriched with its aggregate rating, resolved read-only from the
-     * Reviews module. Additive read model: existing {@link #search}/{@link #findById}
-     * callers (cart, sellers, orders) keep returning the plain {@link Product} untouched.
+     * A {@link Product} with its aggregate rating. The rating is Catalog's denormalized copy of
+     * the Reviews module's aggregate, refreshed by {@code ReviewRatingSyncListener} whenever a
+     * review is created, so searches can filter and sort by it in SQL.
      */
     record ProductView(Long id, String name, String description, BigDecimal price, Integer stockQuantity,
                         String category, String imageUrl, String brand, Integer warrantyMonths,
                         String modelNumber, BigDecimal listPrice, Long sellerId, Instant createdAt,
                         double averageRating, long reviewCount) {}
 
-    Page<ProductView> searchWithRating(String query, String category, Pageable pageable);
+    /**
+     * One page of the products matching {@code criteria}, filtered and ordered in the database so
+     * {@code totalElements}/{@code totalPages} describe the whole filtered result.
+     *
+     * <p>The free-text {@code query} (#220) is matched against name, brand, category and
+     * description. Every term must match (in any field, in any order); matching ignores case and
+     * accents, stems English words ("laptops" finds "Laptop") and treats terms of 3+ characters as
+     * prefixes. A term containing {@code %} or {@code _} is matched as literal text. Only when a
+     * search finds nothing, each word of 4+ letters that isn't in the catalog is replaced by the
+     * closest catalog word (1 edit, 2 from 8 letters) and the search runs once more with the same
+     * filters. With {@link ProductSort#RELEVANCE}, results are ordered by full-text rank.
+     */
+    Page<ProductView> searchWithRating(ProductSearchCriteria criteria, int page, int size);
 
     Optional<ProductView> findByIdWithRating(Long id);
+
+    /**
+     * Batch version of {@link #findByIdWithRating} for callers that already know which products
+     * to show (e.g. Orders' frequently-bought-together, Card #224). Unknown ids are skipped and
+     * the result's order is not guaranteed — callers re-order by their own ranking.
+     */
+    List<ProductView> findViewsByIds(Collection<Long> ids);
+
+    /**
+     * Up to {@code limit} in-stock products of {@code category}, best rated first (same order as
+     * {@link ProductSort#RATING}: average rating, then review count, then id). Used by the Home's
+     * "Recommended for you" (Card #225) to fill a category the buyer shows interest in.
+     */
+    List<ProductView> findTopRatedInStock(String category, int limit);
+
+    /**
+     * Up to {@code limit} in-stock products, best rated first, taking at most {@code perCategory}
+     * from each category so the result spans several categories — the Home's "Top rated" fallback
+     * for anonymous visitors and buyers without history (Card #225).
+     */
+    List<ProductView> findTopRatedInStockPerCategory(int perCategory, int limit);
+
+    /**
+     * A product recommended as related to another, with its similarity score and the reasons it
+     * was picked ({@code reasons} in {@link RelatedReason} priority order, {@code primaryReason}
+     * being the first). Every reason is checked against the data, so it can be shown as-is.
+     */
+    record RelatedProduct(ProductView product, double score, RelatedReason primaryReason,
+                          List<RelatedReason> reasons) {}
+
+    /**
+     * Up to {@code limit} in-stock products related to {@code productId}, most related first
+     * (Card #223). Candidates come from the same category; only when that yields fewer than
+     * {@code limit} are products from other categories considered, and then only those sharing
+     * the brand or a similar name — the result is never padded with unrelated items, so it may be
+     * shorter than {@code limit} or empty.
+     *
+     * @throws ProductNotFoundException when {@code productId} doesn't exist
+     */
+    List<RelatedProduct> findRelated(Long productId, int limit);
 }

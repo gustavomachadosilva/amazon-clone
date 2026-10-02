@@ -9,6 +9,7 @@ import com.mercatto.orders.domain.ShippingAddress;
 import com.mercatto.orders.domain.ShippingMethod;
 import com.mercatto.orders.event.OrderPlacedEvent;
 import com.mercatto.orders.repository.OrderRepository;
+import com.mercatto.orders.repository.OrderRepository.ProductBuyerCount;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -21,10 +22,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -937,5 +940,99 @@ class OrderServiceImplTest {
                 .isInstanceOf(IllegalArgumentException.class);
 
         verifyNoInteractions(orderRepository, orderReservationService, productService, paymentGateway);
+    }
+
+    @Test
+    void findPurchasedProductsReadsOnlyPaidOrdersNewestFirst() {
+        Instant newer = Instant.parse("2026-09-02T00:00:00Z");
+        Instant older = Instant.parse("2026-09-01T00:00:00Z");
+        when(orderRepository.findPurchasedProducts(7L, OrderStatus.PAID))
+                .thenReturn(List.of(purchasedRow(20L, newer), purchasedRow(10L, older)));
+
+        assertThat(orderService.findPurchasedProducts(7L)).containsExactly(
+                new OrderService.PurchasedProduct(20L, newer),
+                new OrderService.PurchasedProduct(10L, older));
+    }
+
+    @Test
+    void findBestSellersCountsPaidOrdersAndCapsThePool() {
+        when(orderRepository.findBestSellers(eq(OrderStatus.PAID), any(Pageable.class)))
+                .thenReturn(List.of(buyerCount(10L, 5), buyerCount(20L, 3)));
+
+        assertThat(orderService.findBestSellers(50)).containsExactly(
+                new OrderService.ProductPopularity(10L, 5), new OrderService.ProductPopularity(20L, 3));
+        ArgumentCaptor<Pageable> pool = ArgumentCaptor.forClass(Pageable.class);
+        verify(orderRepository).findBestSellers(eq(OrderStatus.PAID), pool.capture());
+        assertThat(pool.getValue().getPageSize()).isEqualTo(50);
+    }
+
+    @Test
+    void countBuyersExposesThePaidPopularityOfEachProduct() {
+        when(orderRepository.countBuyersByProduct(Set.of(10L, 20L), OrderStatus.PAID))
+                .thenReturn(List.of(buyerCount(10L, 4)));
+
+        assertThat(orderService.countBuyers(Set.of(10L, 20L))).containsExactly(java.util.Map.entry(10L, 4));
+    }
+
+    @Test
+    void countBuyersOfNothingDoesNotQuery() {
+        assertThat(orderService.countBuyers(List.of())).isEmpty();
+
+        verify(orderRepository, never()).countBuyersByProduct(any(), any());
+    }
+
+    private static OrderRepository.PurchasedProductRow purchasedRow(long productId, Instant lastPurchasedAt) {
+        return new OrderRepository.PurchasedProductRow() {
+            @Override
+            public Long getProductId() {
+                return productId;
+            }
+
+            @Override
+            public Instant getLastPurchasedAt() {
+                return lastPurchasedAt;
+            }
+        };
+    }
+
+    private static ProductBuyerCount buyerCount(long productId, long buyers) {
+        return new ProductBuyerCount() {
+            @Override
+            public Long getProductId() {
+                return productId;
+            }
+
+            @Override
+            public long getBuyers() {
+                return buyers;
+            }
+        };
+    }
+
+    @Test
+    void coPurchasedWithCountsOnlyPaidOrdersWithTheMinimumSupportAndRanksByNormalizedScore() {
+        when(orderRepository.findCoPurchaseCounts(eq(1L), eq(OrderStatus.PAID), eq((long) CoPurchaseScorer.MIN_SUPPORT),
+                any(Pageable.class)))
+                .thenReturn(List.of(buyerCount(10L, 4), buyerCount(20L, 3)));
+        when(orderRepository.countBuyersByProduct(Set.of(10L, 20L), OrderStatus.PAID))
+                .thenReturn(List.of(buyerCount(10L, 100), buyerCount(20L, 3)));
+
+        List<OrderService.CoPurchase> result = orderService.coPurchasedWith(1L, 2);
+
+        assertThat(result).extracting(OrderService.CoPurchase::productId, OrderService.CoPurchase::buyers)
+                .containsExactly(tuple(20L, 3), tuple(10L, 4));
+        ArgumentCaptor<Pageable> pool = ArgumentCaptor.forClass(Pageable.class);
+        verify(orderRepository).findCoPurchaseCounts(eq(1L), eq(OrderStatus.PAID), anyLong(), pool.capture());
+        assertThat(pool.getValue().getPageSize()).isEqualTo(OrderServiceImpl.CO_PURCHASE_POOL_SIZE);
+    }
+
+    @Test
+    void coPurchasedWithSkipsThePopularityQueryWhenNothingWasBoughtTogether() {
+        when(orderRepository.findCoPurchaseCounts(eq(1L), eq(OrderStatus.PAID), anyLong(), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        assertThat(orderService.coPurchasedWith(1L, 2)).isEmpty();
+
+        verify(orderRepository, never()).countBuyersByProduct(any(), any());
     }
 }
