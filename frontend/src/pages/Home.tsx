@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Blueprint, Placeholder, Button, Input, Select } from '../components/ui'
+import HeroCollage from '../components/HeroCollage'
 import ProductGridCard from '../components/ProductGridCard'
 import { useAuth } from '../context/AuthContext'
 import { homeSectionCopy } from '../lib/homeRecommendations'
@@ -100,9 +101,9 @@ export default function Home() {
           </div>
         </div>
         <div className="relative">
-          <Placeholder label="Sample shipment" aspect="16/10" />
+          <HeroCollage />
           <span
-            className="stamp absolute -bottom-4 -left-4 origin-bottom-left text-[17px]"
+            className="stamp pointer-events-none absolute -bottom-4 -left-4 origin-bottom-left text-[17px]"
             style={{ transform: 'rotate(-8deg) scale(1.3)' }}
           >
             Verified cargo
