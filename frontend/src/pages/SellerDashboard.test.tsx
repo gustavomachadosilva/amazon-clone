@@ -50,8 +50,10 @@ function makeOrder(overrides: Partial<SellerOrder> = {}): SellerOrder {
     status: 'PAID',
     fulfillmentStatus: 'NOT_SHIPPED',
     createdAt: '2026-08-12T15:00:00Z',
-    items: [{ productId: 5, quantity: 2, unitPrice: 10 }],
+    items: [{ productId: 5, productName: 'Desk Lamp', imageUrl: null, quantity: 2, unitPrice: 10 }],
     subtotal: 20,
+    shippingAddress: { fullName: 'Ana Souza', street: 'Rua A, 1', city: 'Porto Alegre', state: 'RS', zip: '90000-000' },
+    shippingMethod: 'EXPRESS',
     ...overrides,
   }
 }
@@ -99,9 +101,43 @@ describe('SellerDashboard orders tab', () => {
     ])
 
     expect(within(rowFor(1)).getByText('—')).toBeInTheDocument()
-    expect(within(rowFor(1)).queryByRole('button')).not.toBeInTheDocument()
+    expect(within(rowFor(1)).queryByRole('button', { name: /^mark as/i })).not.toBeInTheDocument()
     expect(within(rowFor(2)).getByText('Delivered')).toBeInTheDocument()
-    expect(within(rowFor(2)).queryByRole('button')).not.toBeInTheDocument()
+    expect(within(rowFor(2)).queryByRole('button', { name: /^mark as/i })).not.toBeInTheDocument()
+  })
+
+  it('names each item and links it to its product page', async () => {
+    await renderOrdersTab([makeOrder()])
+
+    const link = within(rowFor(42)).getByRole('link', { name: 'Desk Lamp' })
+    expect(link).toHaveAttribute('href', '/product/5')
+    expect(within(rowFor(42)).getByText('2×', { exact: false })).toBeInTheDocument()
+  })
+
+  it('labels an item whose product was deleted without linking it', async () => {
+    await renderOrdersTab([
+      makeOrder({ items: [{ productId: 5, productName: null, imageUrl: null, quantity: 1, unitPrice: 10 }] }),
+    ])
+
+    expect(within(rowFor(42)).getByText('Product #5 (no longer listed)')).toBeInTheDocument()
+    expect(within(rowFor(42)).queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('expands an order to show its items and where to ship it', async () => {
+    await renderOrdersTab([makeOrder()])
+    const toggle = within(rowFor(42)).getByRole('button', { name: 'Show details for order #42' })
+
+    fireEvent.click(toggle)
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const details = document.getElementById('seller-order-42-details') as HTMLElement
+    expect(within(details).getByText('Ana Souza')).toBeInTheDocument()
+    expect(within(details).getByText('Porto Alegre, RS 90000-000')).toBeInTheDocument()
+    expect(within(details).getByText('Express — arrives tomorrow')).toBeInTheDocument()
+    expect(within(details).getByRole('link', { name: 'Desk Lamp' })).toBeInTheDocument()
+
+    fireEvent.click(within(rowFor(42)).getByRole('button', { name: 'Hide details for order #42' }))
+    expect(document.getElementById('seller-order-42-details')).not.toBeInTheDocument()
   })
 
   it('advances the order and updates the row with the returned status', async () => {

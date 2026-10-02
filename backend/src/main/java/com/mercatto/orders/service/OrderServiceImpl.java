@@ -366,7 +366,11 @@ class OrderServiceImpl implements OrderService {
         List<OrderItemView> items = order.getItems().stream()
                 .map(item -> new OrderItemView(item.getProductId(), item.getSellerId(), item.getQuantity(), item.getUnitPrice()))
                 .toList();
+        ShippingAddress address = order.getAddress();
+        ShippingAddressView addressView = address == null ? null : new ShippingAddressView(
+                address.getFullName(), address.getStreet(), address.getCity(), address.getState(), address.getZip());
+        String shippingMethod = order.getShippingMethod() == null ? null : order.getShippingMethod().name();
         return new OrderView(order.getId(), order.getBuyerId(), order.getStatus(), order.getFulfillmentStatus(),
-                order.getCreatedAt(), items);
+                order.getCreatedAt(), items, addressView, shippingMethod);
     }
 }

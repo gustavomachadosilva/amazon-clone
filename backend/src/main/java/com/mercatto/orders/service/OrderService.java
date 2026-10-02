@@ -57,7 +57,15 @@ public interface OrderService {
             OrderStatus status,
             FulfillmentStatus fulfillmentStatus,
             Instant createdAt,
-            List<OrderItemView> items) {}
+            List<OrderItemView> items,
+            ShippingAddressView shippingAddress,
+            String shippingMethod) {}
+
+    /**
+     * Read-model copy of the order's shipping address snapshot. Null on the {@link OrderView} for
+     * legacy orders placed before the address was recorded.
+     */
+    record ShippingAddressView(String fullName, String street, String city, String state, String zip) {}
 
     /**
      * Returns the complete orders (all their items, even items belonging to

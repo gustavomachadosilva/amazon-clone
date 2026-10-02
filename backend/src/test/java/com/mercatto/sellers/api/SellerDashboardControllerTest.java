@@ -2,6 +2,7 @@ package com.mercatto.sellers.api;
 
 import com.mercatto.catalog.service.ProductService;
 import com.mercatto.orders.service.FulfillmentStatus;
+import com.mercatto.orders.service.OrderService;
 import com.mercatto.orders.service.InvalidFulfillmentTransitionException;
 import com.mercatto.orders.service.OrderAccessDeniedException;
 import com.mercatto.orders.service.OrderNotFoundException;
@@ -88,14 +89,18 @@ class SellerDashboardControllerTest {
     @Test
     void receivedOrdersAsOwnSeller_returns200() throws Exception {
         SellerOrderView order = new SellerOrderView(1L, 20L, OrderStatus.PAID, FulfillmentStatus.NOT_SHIPPED, Instant.now(),
-                List.of(new SellerOrderItemView(5L, 2, BigDecimal.TEN)), BigDecimal.valueOf(20));
+                List.of(new SellerOrderItemView(5L, "Desk Lamp", "/lamp.jpg", 2, BigDecimal.TEN)), BigDecimal.valueOf(20),
+                new OrderService.ShippingAddressView("Ana Souza", "Rua A, 1", "Porto Alegre", "RS", "90000-000"), "STANDARD");
         when(sellerDashboardService.getReceivedOrders(10L)).thenReturn(List.of(order));
 
         mockMvc.perform(get("/api/sellers/10/orders").principal(SELLER))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].orderId").value(1))
                 .andExpect(jsonPath("$[0].fulfillmentStatus").value("NOT_SHIPPED"))
-                .andExpect(jsonPath("$[0].items[0].productId").value(5));
+                .andExpect(jsonPath("$[0].items[0].productId").value(5))
+                .andExpect(jsonPath("$[0].items[0].productName").value("Desk Lamp"))
+                .andExpect(jsonPath("$[0].shippingAddress.city").value("Porto Alegre"))
+                .andExpect(jsonPath("$[0].shippingMethod").value("STANDARD"));
 
         verify(sellerDashboardService).getReceivedOrders(10L);
     }
@@ -119,7 +124,8 @@ class SellerDashboardControllerTest {
     @Test
     void advanceFulfillmentAsOwnSeller_returns200WithUpdatedOrder() throws Exception {
         SellerOrderView order = new SellerOrderView(1L, 20L, OrderStatus.PAID, FulfillmentStatus.SHIPPED, Instant.now(),
-                List.of(new SellerOrderItemView(5L, 2, BigDecimal.TEN)), BigDecimal.valueOf(20));
+                List.of(new SellerOrderItemView(5L, "Desk Lamp", "/lamp.jpg", 2, BigDecimal.TEN)), BigDecimal.valueOf(20),
+                new OrderService.ShippingAddressView("Ana Souza", "Rua A, 1", "Porto Alegre", "RS", "90000-000"), "STANDARD");
         when(sellerDashboardService.advanceFulfillment(10L, 1L, FulfillmentStatus.SHIPPED)).thenReturn(order);
 
         mockMvc.perform(advanceRequest("{\"status\":\"SHIPPED\"}").principal(SELLER))

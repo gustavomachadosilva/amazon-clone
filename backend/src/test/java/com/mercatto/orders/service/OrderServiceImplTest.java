@@ -452,7 +452,7 @@ class OrderServiceImplTest {
 
         assertThat(result).containsExactly(new OrderService.OrderView(5L, 20L, OrderStatus.PAID,
                 FulfillmentStatus.NOT_SHIPPED, order.getCreatedAt(),
-                List.of(new OrderService.OrderItemView(1L, 10L, 2, BigDecimal.TEN))));
+                List.of(new OrderService.OrderItemView(1L, 10L, 2, BigDecimal.TEN)), null, null));
     }
 
     @Test
@@ -467,6 +467,22 @@ class OrderServiceImplTest {
 
         assertThat(result).extracting(OrderService.OrderView::fulfillmentStatus)
                 .containsExactly(FulfillmentStatus.OUT_FOR_DELIVERY);
+    }
+
+    @Test
+    void findBySellerIdMapsShippingAddressAndMethod() {
+        Order order = Order.builder().id(5L).buyerId(20L).status(OrderStatus.PAID)
+                .address(new ShippingAddress("Ana Souza", "Rua A, 1", "Porto Alegre", "RS", "90000-000"))
+                .shippingMethod(ShippingMethod.EXPRESS).build();
+        order.addItem(OrderItem.builder().productId(1L).sellerId(10L).quantity(1).unitPrice(BigDecimal.TEN).build());
+        when(orderRepository.findOrderIdsByItemsSellerId(10L)).thenReturn(List.of(5L));
+        when(orderRepository.findByIdInWithItems(List.of(5L))).thenReturn(List.of(order));
+
+        OrderService.OrderView result = orderService.findBySellerId(10L).get(0);
+
+        assertThat(result.shippingAddress()).isEqualTo(
+                new OrderService.ShippingAddressView("Ana Souza", "Rua A, 1", "Porto Alegre", "RS", "90000-000"));
+        assertThat(result.shippingMethod()).isEqualTo("EXPRESS");
     }
 
     // --- advanceFulfillment ---------------------------------------------------------------
