@@ -167,3 +167,33 @@ describe('SellerDashboard orders tab', () => {
     expect(second).toBeDisabled()
   })
 })
+
+describe('SellerDashboard products tab', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.clearAllMocks()
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(AUTH_USER))
+    mockedCartApi.get.mockResolvedValue({ userId: 10, items: [], savedForLater: [], itemCount: 0, total: 0 })
+    mockedCatalogApi.getCategories.mockResolvedValue([])
+    mockedSellersApi.getOrders.mockResolvedValue([])
+    mockedSellersApi.getMetrics.mockResolvedValue({ totalRevenue: 0, lowStockProducts: [] })
+  })
+
+  it('pages through an inventory larger than one page', async () => {
+    mockedSellersApi.getInventory.mockImplementation(async (_sellerId, page = 0) => ({
+      content: [{ id: 100 - page, name: `Product on page ${page + 1}`, stockQuantity: 5, price: 10 }],
+      totalElements: 25,
+      totalPages: 3,
+      number: page,
+      size: 10,
+    }) as unknown as Awaited<ReturnType<typeof sellersApi.getInventory>>)
+
+    renderWithProviders(<SellerDashboard />, { route: '/seller' })
+    await screen.findByText('Product on page 1')
+
+    fireEvent.click(screen.getByRole('button', { name: '2' }))
+
+    await screen.findByText('Product on page 2')
+    expect(mockedSellersApi.getInventory).toHaveBeenLastCalledWith(10, 1, 10)
+  })
+})

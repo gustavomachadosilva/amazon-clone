@@ -9,7 +9,7 @@ import {
   SellerOrder,
   sellersApi,
 } from '../services/api'
-import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui'
+import { Button, Pagination, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui'
 import ProductForm from '../components/ProductForm'
 import { useAuth } from '../context/AuthContext'
 import { useSignOut } from '../hooks/useSignOut'
@@ -22,6 +22,8 @@ interface Feedback {
 }
 
 type Tab = 'products' | 'orders'
+
+const INVENTORY_PAGE_SIZE = 10
 
 const STATUS_STYLES: Record<SellerOrder['status'], string> = {
   PAID: 'bg-accent2-100 text-accent2-800',
@@ -36,6 +38,9 @@ export default function SellerDashboard() {
   const signOut = useSignOut()
   const [activeTab, setActiveTab] = useState<Tab>('products')
   const [products, setProducts] = useState<Product[]>([])
+  const [inventoryPage, setInventoryPage] = useState(0)
+  const [inventoryTotalPages, setInventoryTotalPages] = useState(0)
+  const [inventoryTotal, setInventoryTotal] = useState(0)
   const [categories, setCategories] = useState<string[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -52,8 +57,20 @@ export default function SellerDashboard() {
 
   const fetchInventory = useCallback(() => {
     if (!user) return
-    sellersApi.getInventory(user.id).then((page) => setProducts(page.content)).catch(console.error)
-  }, [user])
+    sellersApi
+      .getInventory(user.id, inventoryPage, INVENTORY_PAGE_SIZE)
+      .then((page) => {
+        // Deleting the last product of the last page leaves us past the end; step back a page.
+        if (page.content.length === 0 && inventoryPage > 0 && inventoryPage >= page.totalPages) {
+          setInventoryPage(Math.max(page.totalPages - 1, 0))
+          return
+        }
+        setProducts(page.content)
+        setInventoryTotalPages(page.totalPages)
+        setInventoryTotal(page.totalElements)
+      })
+      .catch(console.error)
+  }, [user, inventoryPage])
 
   useEffect(() => {
     fetchInventory()
@@ -105,7 +122,9 @@ export default function SellerDashboard() {
         setFeedback({ type: 'success', message: 'Product created successfully.' })
       }
       closeForm()
-      fetchInventory()
+      // The inventory is newest first, so a new product shows up at the top of page 1.
+      if (!editingProduct && inventoryPage !== 0) setInventoryPage(0)
+      else fetchInventory()
     } finally {
       setIsSubmitting(false)
     }
@@ -236,37 +255,46 @@ export default function SellerDashboard() {
       )}
 
       {activeTab === 'products' && (
-        <div className="overflow-x-auto">
-          <Table className="min-w-[560px]">
-            <TableHead>
-              <TableRow>
-                <TableHeader>Product</TableHeader>
-                <TableHeader>Stock</TableHeader>
-                <TableHeader>Price</TableHeader>
-                <TableHeader>Actions</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {products.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>{product.name}</TableCell>
-                  <TableCell className="readout">{product.stockQuantity}</TableCell>
-                  <TableCell className="readout font-semibold">{usd(product.price)}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button variant="secondary" onClick={() => openEditForm(product)}>
-                        Edit
-                      </Button>
-                      <Button variant="secondary" onClick={() => handleDelete(product)}>
-                        Delete
-                      </Button>
-                    </div>
-                  </TableCell>
+        <>
+          <div className="overflow-x-auto">
+            <Table className="min-w-[560px]">
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Product</TableHeader>
+                  <TableHeader>Stock</TableHeader>
+                  <TableHeader>Price</TableHeader>
+                  <TableHeader>Actions</TableHeader>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHead>
+              <TableBody>
+                {products.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell>{product.name}</TableCell>
+                    <TableCell className="readout">{product.stockQuantity}</TableCell>
+                    <TableCell className="readout font-semibold">{usd(product.price)}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button variant="secondary" onClick={() => openEditForm(product)}>
+                          Edit
+                        </Button>
+                        <Button variant="secondary" onClick={() => handleDelete(product)}>
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <Pagination
+            currentPage={inventoryPage}
+            totalPages={inventoryTotalPages}
+            totalElements={inventoryTotal}
+            pageSize={INVENTORY_PAGE_SIZE}
+            onPageChange={setInventoryPage}
+          />
+        </>
       )}
 
       {activeTab === 'orders' &&
