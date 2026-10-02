@@ -230,6 +230,9 @@ export const recommendationsApi = {
 
 export interface SellerOrderItem {
   productId: number
+  // Looked up from the catalog when the orders are read; null once the product has been deleted.
+  productName: string | null
+  imageUrl: string | null
   quantity: number
   unitPrice: number
 }
@@ -242,6 +245,9 @@ export interface SellerOrder {
   createdAt: string
   items: SellerOrderItem[]
   subtotal: number
+  // Null on legacy orders placed before the address and shipping method were recorded.
+  shippingAddress: OrderAddress | null
+  shippingMethod: 'STANDARD' | 'EXPRESS' | 'PICKUP' | null
 }
 
 export interface SellerMetrics {

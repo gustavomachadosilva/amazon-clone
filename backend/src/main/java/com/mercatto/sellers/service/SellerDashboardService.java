@@ -2,6 +2,7 @@ package com.mercatto.sellers.service;
 
 import com.mercatto.catalog.service.ProductService;
 import com.mercatto.orders.service.FulfillmentStatus;
+import com.mercatto.orders.service.OrderService;
 import com.mercatto.orders.service.OrderStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,7 +19,12 @@ import java.util.List;
  */
 public interface SellerDashboardService {
 
-    record SellerOrderItemView(Long productId, int quantity, BigDecimal unitPrice) {}
+    /**
+     * {@code productName} and {@code imageUrl} come from the catalog at read time, so they are
+     * null when the product has since been deleted (the order item itself survives).
+     */
+    record SellerOrderItemView(Long productId, String productName, String imageUrl, int quantity,
+                               BigDecimal unitPrice) {}
 
     /**
      * A seller's own view of an order: only the line items that belong to
@@ -27,7 +33,8 @@ public interface SellerDashboardService {
      * order's overall total, which may include other sellers' revenue).
      */
     record SellerOrderView(Long orderId, Long buyerId, OrderStatus status, FulfillmentStatus fulfillmentStatus,
-                            Instant createdAt, List<SellerOrderItemView> items, BigDecimal subtotal) {}
+                            Instant createdAt, List<SellerOrderItemView> items, BigDecimal subtotal,
+                            OrderService.ShippingAddressView shippingAddress, String shippingMethod) {}
 
     record SellerMetricsView(BigDecimal totalRevenue, List<ProductService.ProductSummary> lowStockProducts) {}
 

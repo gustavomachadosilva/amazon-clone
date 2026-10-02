@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { ChevronDown, ChevronRight, X } from 'lucide-react'
 import {
   ApiRequestError,
   catalogApi,
@@ -7,14 +8,16 @@ import {
   ProductInput,
   SellerMetrics,
   SellerOrder,
+  SellerOrderItem,
   sellersApi,
 } from '../services/api'
-import { Button, Pagination, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui'
+import { Button, Pagination, Placeholder, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui'
 import ProductForm from '../components/ProductForm'
 import { useAuth } from '../context/AuthContext'
 import { useSignOut } from '../hooks/useSignOut'
 import { usd } from '../lib/format'
 import { nextFulfillmentAction, shipmentBadge } from '../lib/orderStatus'
+import { SHIPPING_OPTIONS } from '../lib/constants'
 
 interface Feedback {
   type: 'success' | 'error'
@@ -24,6 +27,94 @@ interface Feedback {
 type Tab = 'products' | 'orders'
 
 const INVENTORY_PAGE_SIZE = 10
+const ORDER_TABLE_COLUMNS = 6
+
+function itemLabel(item: SellerOrderItem): string {
+  return item.productName ?? `Product #${item.productId} (no longer listed)`
+}
+
+// Opens the storefront page in a new tab: /seller lives outside the store Layout, so following the
+// link in place would drop the seller out of the dashboard.
+function ProductLink({ item, className = '' }: { item: SellerOrderItem; className?: string }) {
+  if (!item.productName) return <span className={`text-neutral-600 ${className}`}>{itemLabel(item)}</span>
+  return (
+    <Link to={`/product/${item.productId}`} target="_blank" rel="noopener noreferrer" className={className}>
+      {item.productName}
+    </Link>
+  )
+}
+
+// The Placeholder's text label doesn't fit a thumbnail this small, so a missing photo is just the
+// blank ledger-paper tile.
+function ItemThumbnail({ item, className }: { item: SellerOrderItem; className: string }) {
+  return (
+    <div className={`shrink-0 ${className}`}>
+      {item.imageUrl ? (
+        <Placeholder label={itemLabel(item)} aspect="1/1" src={item.imageUrl} />
+      ) : (
+        <div className="ph" style={{ aspectRatio: '1/1' }} aria-hidden="true" />
+      )}
+    </div>
+  )
+}
+
+function OrderItemsSummary({ items }: { items: SellerOrderItem[] }) {
+  return (
+    <ul className="flex flex-col gap-2">
+      {items.map((item) => (
+        <li key={item.productId} className="flex items-center gap-2">
+          <ItemThumbnail item={item} className="w-10" />
+          <span className="min-w-0">
+            <span className="readout">{item.quantity}× </span>
+            <ProductLink item={item} className="line-clamp-2" />
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function OrderDetailsPanel({ order }: { order: SellerOrder }) {
+  const address = order.shippingAddress
+  return (
+    <div className="grid gap-6 py-2 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div>
+        <div className="mb-2 text-xs uppercase tracking-wide text-neutral-600">Your items in this order</div>
+        <ul className="flex flex-col divide-y divide-neutral-200">
+          {order.items.map((item) => (
+            <li key={item.productId} className="flex items-center gap-3 py-2">
+              <ItemThumbnail item={item} className="w-14" />
+              <div className="min-w-0 flex-1">
+                <ProductLink item={item} className="font-medium" />
+                <div className="text-xs text-neutral-600">Product #{item.productId}</div>
+              </div>
+              <div className="readout text-right text-sm">
+                {item.quantity} × {usd(item.unitPrice)}
+                <div className="font-semibold">{usd(item.quantity * item.unitPrice)}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <div className="mb-2 text-xs uppercase tracking-wide text-neutral-600">Ship to</div>
+        {address ? (
+          <address className="text-sm not-italic">
+            <div className="font-medium">{address.fullName}</div>
+            <div>{address.street}</div>
+            <div>
+              {address.city}, {address.state} {address.zip}
+            </div>
+          </address>
+        ) : (
+          <p className="text-sm text-neutral-600">No shipping address on record.</p>
+        )}
+        <div className="mb-1 mt-4 text-xs uppercase tracking-wide text-neutral-600">Shipping method</div>
+        <p className="text-sm">{order.shippingMethod ? SHIPPING_OPTIONS[order.shippingMethod] : 'Not available'}</p>
+      </div>
+    </div>
+  )
+}
 
 const STATUS_STYLES: Record<SellerOrder['status'], string> = {
   PAID: 'bg-accent2-100 text-accent2-800',
@@ -54,6 +145,16 @@ export default function SellerDashboard() {
   // the state drives the disabled attribute.
   const advancingRef = useRef(new Set<number>())
   const [advancingOrderIds, setAdvancingOrderIds] = useState<ReadonlySet<number>>(new Set())
+  const [expandedOrderIds, setExpandedOrderIds] = useState<ReadonlySet<number>>(new Set())
+
+  function toggleOrderDetails(orderId: number) {
+    setExpandedOrderIds((current) => {
+      const next = new Set(current)
+      if (next.has(orderId)) next.delete(orderId)
+      else next.add(orderId)
+      return next
+    })
+  }
 
   const fetchInventory = useCallback(() => {
     if (!user) return
@@ -324,38 +425,65 @@ export default function SellerDashboard() {
                 {orders.map((order) => {
                   const shipment = shipmentBadge(order)
                   const action = nextFulfillmentAction(order)
+                  const isExpanded = expandedOrderIds.has(order.orderId)
+                  const detailsId = `seller-order-${order.orderId}-details`
                   return (
-                    <TableRow key={order.orderId}>
-                      <TableCell>#{order.orderId}</TableCell>
-                      <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[order.status]}`}>
-                          {order.status}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {order.items.map((item) => `${item.quantity}× #${item.productId}`).join(', ')}
-                      </TableCell>
-                      <TableCell>{usd(order.subtotal)}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {shipment ? (
-                            <span className={shipment.className}>{shipment.label}</span>
-                          ) : (
-                            <span className="text-neutral-600">—</span>
-                          )}
-                          {action && (
-                            <Button
-                              variant="secondary"
-                              onClick={() => handleAdvance(order)}
-                              disabled={advancingOrderIds.has(order.orderId)}
-                            >
-                              {action.label}
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                    <Fragment key={order.orderId}>
+                      <TableRow>
+                        <TableCell>
+                          <button
+                            type="button"
+                            onClick={() => toggleOrderDetails(order.orderId)}
+                            aria-expanded={isExpanded}
+                            aria-controls={detailsId}
+                            aria-label={`${isExpanded ? 'Hide' : 'Show'} details for order #${order.orderId}`}
+                            className="inline-flex items-center gap-1 font-medium text-inherit"
+                          >
+                            {isExpanded ? (
+                              <ChevronDown size={16} strokeWidth={1.5} aria-hidden="true" />
+                            ) : (
+                              <ChevronRight size={16} strokeWidth={1.5} aria-hidden="true" />
+                            )}
+                            <span>#{order.orderId}</span>
+                          </button>
+                        </TableCell>
+                        <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[order.status]}`}>
+                            {order.status}
+                          </span>
+                        </TableCell>
+                        <TableCell className="max-w-[280px]">
+                          <OrderItemsSummary items={order.items} />
+                        </TableCell>
+                        <TableCell>{usd(order.subtotal)}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {shipment ? (
+                              <span className={shipment.className}>{shipment.label}</span>
+                            ) : (
+                              <span className="text-neutral-600">—</span>
+                            )}
+                            {action && (
+                              <Button
+                                variant="secondary"
+                                onClick={() => handleAdvance(order)}
+                                disabled={advancingOrderIds.has(order.orderId)}
+                              >
+                                {action.label}
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <TableRow id={detailsId}>
+                          <TableCell colSpan={ORDER_TABLE_COLUMNS} className="bg-neutral-50">
+                            <OrderDetailsPanel order={order} />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
                   )
                 })}
               </TableBody>
