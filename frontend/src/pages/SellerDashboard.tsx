@@ -46,11 +46,11 @@ function ProductLink({ item, className = '' }: { item: SellerOrderItem; classNam
 
 // The Placeholder's text label doesn't fit a thumbnail this small, so a missing photo is just the
 // blank ledger-paper tile.
-function ItemThumbnail({ item, className }: { item: SellerOrderItem; className: string }) {
+function Thumbnail({ src, label, className }: { src?: string | null; label: string; className: string }) {
   return (
     <div className={`shrink-0 ${className}`}>
-      {item.imageUrl ? (
-        <Placeholder label={itemLabel(item)} aspect="1/1" src={item.imageUrl} />
+      {src ? (
+        <Placeholder label={label} aspect="1/1" src={src} />
       ) : (
         <div className="ph" style={{ aspectRatio: '1/1' }} aria-hidden="true" />
       )}
@@ -63,7 +63,7 @@ function OrderItemsSummary({ items }: { items: SellerOrderItem[] }) {
     <ul className="flex flex-col gap-2">
       {items.map((item) => (
         <li key={item.productId} className="flex items-center gap-2">
-          <ItemThumbnail item={item} className="w-10" />
+          <Thumbnail src={item.imageUrl} label={itemLabel(item)} className="w-10" />
           <span className="min-w-0">
             <span className="readout">{item.quantity}× </span>
             <ProductLink item={item} className="line-clamp-2" />
@@ -83,7 +83,7 @@ function OrderDetailsPanel({ order }: { order: SellerOrder }) {
         <ul className="flex flex-col divide-y divide-neutral-200">
           {order.items.map((item) => (
             <li key={item.productId} className="flex items-center gap-3 py-2">
-              <ItemThumbnail item={item} className="w-14" />
+              <Thumbnail src={item.imageUrl} label={itemLabel(item)} className="w-14" />
               <div className="min-w-0 flex-1">
                 <ProductLink item={item} className="font-medium" />
                 <div className="text-xs text-neutral-600">Product #{item.productId}</div>
@@ -370,7 +370,12 @@ export default function SellerDashboard() {
               <TableBody>
                 {products.map((product) => (
                   <TableRow key={product.id}>
-                    <TableCell>{product.name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Thumbnail src={product.imageUrl} label={product.name} className="w-10" />
+                        <span className="line-clamp-2">{product.name}</span>
+                      </div>
+                    </TableCell>
                     <TableCell className="readout">{product.stockQuantity}</TableCell>
                     <TableCell className="readout font-semibold">{usd(product.price)}</TableCell>
                     <TableCell>
